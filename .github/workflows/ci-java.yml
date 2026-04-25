@@ -148,7 +148,7 @@ jobs:
 
   # ── Step 3: SonarCloud Analysis ──
   sonar:
-    needs: build-test
+    needs: [detect-changes, build-test]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:

@@ -1,6 +1,6 @@
 # ============================================================
 # 🚀 Deploy — Staging & Production
-# Triggered manually or after successful CI on main
+# Triggered manually only (workflow_dispatch)
 # ============================================================
 name: 🚀 Deploy
 
@@ -18,14 +18,14 @@ on:
 
 jobs:
   # ══════════════════════════════════════════
-  # Deploy to Staging (Docker Compose)
+  # Deploy to Staging (Docker Compose via SSH)
   # ══════════════════════════════════════════
   deploy-staging:
     if: github.event.inputs.environment == 'staging'
     runs-on: ubuntu-latest
     environment:
       name: staging
-      
+      url: http://${{ secrets.STAGING_HOST }}:3000
     steps:
       - uses: actions/checkout@v4
 
@@ -79,21 +79,16 @@ jobs:
 
       - name: 🚀 Deploy to Kubernetes
         run: |
-          # Update image tags in K8s manifests
           cd k8s/
-          for f in deployments/*.yml; do
-            sed -i "s|:latest|:${{ github.sha }}|g" "$f"
-          done
+          # Update image tags
+          find deployments/ -name "*.yml" -exec sed -i "s|:latest|:${{ github.sha }}|g" {} +
           
-          # Apply in order: namespace → configs → infra → services
+          # Apply in order
           kubectl apply -f namespace.yml
           kubectl apply -f configmaps/
-          kubectl apply -f secrets/
           kubectl apply -f deployments/infra/
           sleep 30
           kubectl apply -f deployments/services/
-          kubectl apply -f deployments/frontend/
-          kubectl apply -f services/
           kubectl apply -f ingress.yml
 
       - name: ✅ Verify Rollout
