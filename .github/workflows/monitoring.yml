@@ -25,18 +25,18 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
-            prom/prometheus:v2.53.0 \
+                      prom/promtool:v2.53.0 \
             promtool check config /etc/prometheus/prometheus.yml
 
       - name: 🔍 Validate Alert Rules
         run: |
           docker run --rm \
             -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
-            prom/prometheus:v2.53.0 \
+                      prom/promtool:v2.53.0 \
             promtool check rules /etc/prometheus/alert-rules.yml
 
   # ── Notify via n8n webhook on deploy ──
-  notify-deploy:
+            
     if: github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
     steps:
