@@ -171,9 +171,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn verify sonar:sonar \
-            -Dsonar.projectKey=autoassist-${{ matrix.service }} \
+            -Dsonar.projectKey=seifeddine77_call-management-system \
             -Dsonar.organization=${{ github.repository_owner }} \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.java.coveragePlugin=jacoco \
+            -Dsonar.sources=src/main/java \
+            -Dsonar.tests=src/test/java \
             --batch-mode -q
         continue-on-error: true
