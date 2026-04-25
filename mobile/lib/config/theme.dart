@@ -64,7 +64,7 @@ class AppTheme {
         selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
         unselectedLabelStyle: const TextStyle(fontSize: 10),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: c.surface,
         elevation: isDark ? 0 : 2,
         shadowColor: c.shadow,
@@ -126,7 +126,7 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
       dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 0),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: c.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: c.text),
