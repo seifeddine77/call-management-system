@@ -56,6 +56,16 @@ class ReferenceDataServiceTest {
                         ReferenceItem.builder().code("DEFAUT_FABRICATION").label("Défaut de fabrication").build(),
                         ReferenceItem.builder().code("VOL").label("Vol").build(),
                         ReferenceItem.builder().code("AUTRE").label("Autre").build()));
+
+        // Mock FIELD_DEFINITION — les 6 champs disponibles pour l'éditeur de règles
+        when(referenceItemRepository.findByCategoryAndActifTrueOrderByDisplayOrderAsc("FIELD_DEFINITION"))
+                .thenReturn(List.of(
+                        ReferenceItem.builder().code("typePiece").label("Type de pièce").description("enum:TYPE_PIECE").build(),
+                        ReferenceItem.builder().code("ageVehiculeAns").label("Âge véhicule (ans)").description("number").build(),
+                        ReferenceItem.builder().code("kilometrage").label("Kilométrage").description("number").build(),
+                        ReferenceItem.builder().code("categorieClient").label("Catégorie client").description("enum:CATEGORIE_CLIENT").build(),
+                        ReferenceItem.builder().code("typeSinistre").label("Type sinistre").description("enum:TYPE_SINISTRE").build(),
+                        ReferenceItem.builder().code("montantEstime").label("Montant estimé (€)").description("number").build()));
     }
 
     @Test
