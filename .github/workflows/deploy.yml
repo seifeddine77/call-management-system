@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
-      url: http://${{ secrets.STAGING_HOST }}:3000
+      
     steps:
       - uses: actions/checkout@v4
 
