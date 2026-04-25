@@ -80,7 +80,8 @@ jobs:
       - name: 🚀 Deploy to Kubernetes
         run: |
           cd k8s/
-          # Update image tags
+          # Update image owner and tags
+          find deployments/ -name "*.yml" -exec sed -i "s|ghcr.io/seifeddine77/|ghcr.io/${{ github.repository_owner }}/|g" {} +
           find deployments/ -name "*.yml" -exec sed -i "s|:latest|:${{ github.sha }}|g" {} +
           
           # Apply in order

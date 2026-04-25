@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: eureka-server
-          image: ghcr.io/OWNER/autoassist-eureka-server:latest
+          image: ghcr.io/seifeddine77/autoassist-eureka-server:latest
           ports:
             - containerPort: 8761
           envFrom:
@@ -75,7 +75,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: ghcr.io/OWNER/autoassist-api-gateway:latest
+          image: ghcr.io/seifeddine77/autoassist-api-gateway:latest
           ports:
             - containerPort: 8080
           envFrom:
@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: ghcr.io/OWNER/autoassist-auth-service:latest
+          image: ghcr.io/seifeddine77/autoassist-auth-service:latest
           ports:
             - containerPort: 8081
           envFrom:
@@ -183,7 +183,7 @@ spec:
     spec:
       containers:
         - name: organisation-service
-          image: ghcr.io/OWNER/autoassist-organisation-service:latest
+          image: ghcr.io/seifeddine77/autoassist-organisation-service:latest
           ports:
             - containerPort: 8082
           envFrom:
@@ -199,6 +199,10 @@ spec:
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
@@ -234,7 +238,7 @@ spec:
     spec:
       containers:
         - name: ticket-service
-          image: ghcr.io/OWNER/autoassist-ticket-service:latest
+          image: ghcr.io/seifeddine77/autoassist-ticket-service:latest
           ports:
             - containerPort: 8083
           envFrom:
@@ -250,6 +254,10 @@ spec:
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8083 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
@@ -262,6 +270,226 @@ spec:
   ports:
     - port: 8083
       targetPort: 8083
+
+---
+# ── Rules Service ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rules-service
+  namespace: autoassist
+  labels:
+    app: rules-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rules-service
+  template:
+    metadata:
+      labels:
+        app: rules-service
+    spec:
+      containers:
+        - name: rules-service
+          image: ghcr.io/seifeddine77/autoassist-rules-service:latest
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: autoassist-config
+            - secretRef:
+                name: autoassist-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8084"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/rules_db
+          resources:
+            requests: { memory: "256Mi", cpu: "200m" }
+            limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8084 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rules-service
+  namespace: autoassist
+spec:
+  selector:
+    app: rules-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+
+---
+# ── Decision Service ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-service
+  namespace: autoassist
+  labels:
+    app: decision-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: decision-service
+  template:
+    metadata:
+      labels:
+        app: decision-service
+    spec:
+      containers:
+        - name: decision-service
+          image: ghcr.io/seifeddine77/autoassist-decision-service:latest
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: autoassist-config
+            - secretRef:
+                name: autoassist-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/decisions_db
+          resources:
+            requests: { memory: "256Mi", cpu: "200m" }
+            limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8085 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-service
+  namespace: autoassist
+spec:
+  selector:
+    app: decision-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+
+---
+# ── Notification Service ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: autoassist
+  labels:
+    app: notification-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: ghcr.io/seifeddine77/autoassist-notification-service:latest
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: autoassist-config
+            - secretRef:
+                name: autoassist-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/notifications_db
+          resources:
+            requests: { memory: "256Mi", cpu: "200m" }
+            limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: autoassist
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+
+---
+# ── Analytics Service ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: autoassist
+  labels:
+    app: analytics-service
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+    spec:
+      containers:
+        - name: analytics-service
+          image: ghcr.io/seifeddine77/autoassist-analytics-service:latest
+          ports:
+            - containerPort: 8087
+          envFrom:
+            - configMapRef:
+                name: autoassist-config
+            - secretRef:
+                name: autoassist-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8087"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/analytics_db
+          resources:
+            requests: { memory: "256Mi", cpu: "200m" }
+            limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8087 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+  namespace: autoassist
+spec:
+  selector:
+    app: analytics-service
+  ports:
+    - port: 8087
+      targetPort: 8087
 
 ---
 # ── AI Service (Python FastAPI) ──
@@ -285,7 +513,7 @@ spec:
     spec:
       containers:
         - name: ai-service
-          image: ghcr.io/OWNER/autoassist-ai:latest
+          image: ghcr.io/seifeddine77/autoassist-ai:latest
           ports:
             - containerPort: 8000
           envFrom:
@@ -338,7 +566,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/OWNER/autoassist-frontend:latest
+          image: ghcr.io/seifeddine77/autoassist-frontend:latest
           ports:
             - containerPort: 3000
           resources:
