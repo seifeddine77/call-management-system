@@ -4,6 +4,7 @@
 name: 💬 CI — WhatsApp Service
 
 on:
+  workflow_dispatch: {}
   push:
     branches: [main, develop]
     paths: ['services/whatsapp-service/**']
