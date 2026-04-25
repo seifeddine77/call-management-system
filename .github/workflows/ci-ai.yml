@@ -9,6 +9,7 @@ on:
     paths: ['services/ai-service/**']
   pull_request:
     paths: ['services/ai-service/**']
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
