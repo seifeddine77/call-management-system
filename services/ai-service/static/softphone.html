@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📞 AutoAssist — Web Softphone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e0e0e0;
+        }
+
+        .container {
+            width: 420px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d2ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #aaa;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #7b2ff7;
+        }
+        .form-group select option { background: #1a1a2e; color: #fff; }
+
+        /* Call button */
+        .call-section {
+            text-align: center;
+            margin: 24px 0;
+        }
+
+        .call-btn {
+            width: 90px; height: 90px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 36px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .call-btn.start {
+            background: linear-gradient(135deg, #00c853, #00e676);
+            box-shadow: 0 6px 30px rgba(0,200,83,0.4);
+        }
+        .call-btn.start:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 40px rgba(0,200,83,0.6);
+        }
+        .call-btn.stop {
+            background: linear-gradient(135deg, #ff1744, #ff5252);
+            box-shadow: 0 6px 30px rgba(255,23,68,0.4);
+            animation: pulse 1.5s infinite;
+        }
+        .call-btn:disabled {
+            background: #444;
+            box-shadow: none;
+            cursor: not-allowed;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 6px 30px rgba(255,23,68,0.4); }
+            50% { box-shadow: 0 6px 50px rgba(255,23,68,0.7); }
+        }
+
+        .call-timer {
+            font-size: 28px;
+            font-weight: 300;
+            color: #fff;
+            margin-top: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+        .call-status {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Audio visualizer */
+        .visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 40px;
+            margin: 12px 0;
+        }
+        .visualizer .bar {
+            width: 4px;
+            background: #7b2ff7;
+            border-radius: 2px;
+            transition: height 0.1s;
+        }
+
+        /* Result panel */
+        .result-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 16px;
+            display: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .result-panel.visible { display: block; }
+        .result-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #7b2ff7;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .step .icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .step .text { flex: 1; }
+        .step .text strong { color: #00e676; }
+
+        .step.processing .icon { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .ticket-result {
+            background: linear-gradient(135deg, rgba(0,200,83,0.15), rgba(0,200,83,0.05));
+            border: 1px solid rgba(0,200,83,0.3);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+            text-align: center;
+        }
+        .ticket-result .ticket-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00e676;
+        }
+        .ticket-result .ticket-detail {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        .error-box {
+            background: rgba(255,23,68,0.15);
+            border: 1px solid rgba(255,23,68,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 13px;
+            color: #ff5252;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.call { background: rgba(0,210,255,0.2); color: #00d2ff; }
+        .badge.new { background: rgba(0,200,83,0.2); color: #00e676; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📞 AutoAssist — Web Softphone</h1>
+            <p>Simulateur d'appel client • Whisper + NLP + Ticket auto</p>
+        </div>
+
+        <!-- Client Info -->
+        <div class="form-group">
+            <label>👤 Nom du client</label>
+            <input type="text" id="clientName" placeholder="Mohamed Ben Ali" value="Mohamed Ben Ali">
+        </div>
+        <div class="form-group">
+            <label>📱 Téléphone</label>
+            <input type="text" id="clientPhone" placeholder="+216 55 123 456" value="+21655123456">
+        </div>
+        <div class="form-group">
+            <label>🏢 Agence</label>
+            <select id="agenceSelect">
+                <option value="">Chargement des agences...</option>
+            </select>
+        </div>
+
+        <!-- Call Section -->
+        <div class="call-section">
+            <button class="call-btn start" id="callBtn" onclick="toggleCall()">📞</button>
+            <div class="call-timer" id="timer">00:00</div>
+            <div class="call-status" id="callStatus">Appuyez pour démarrer l'appel</div>
+        </div>
+
+        <!-- Audio Visualizer -->
+        <div class="visualizer" id="visualizer" style="display:none;">
+            <div class="bar" style="height:8px"></div><div class="bar" style="height:12px"></div>
+            <div class="bar" style="height:20px"></div><div class="bar" style="height:15px"></div>
+            <div class="bar" style="height:25px"></div><div class="bar" style="height:18px"></div>
+            <div class="bar" style="height:30px"></div><div class="bar" style="height:22px"></div>
+            <div class="bar" style="height:16px"></div><div class="bar" style="height:10px"></div>
+            <div class="bar" style="height:20px"></div><div class="bar" style="height:14px"></div>
+            <div class="bar" style="height:26px"></div><div class="bar" style="height:18px"></div>
+            <div class="bar" style="height:8px"></div>
+        </div>
+
+        <!-- Processing Result -->
+        <div class="result-panel" id="resultPanel">
+            <h3>🤖 Traitement automatique</h3>
+            <div id="steps"></div>
+        </div>
+
+        <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <script>
+        // ─── Config ───────────────────────────────────────────
+        // All API calls go through ai-service (which proxies to ticket-service)
+        const BASE_URL = window.location.origin;
+        const TICKET_SERVICE = `${BASE_URL}/api/channels/call`;
+        const AI_SERVICE = BASE_URL;
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let timerInterval = null;
+        let seconds = 0;
+        let analyserNode = null;
+        let animationId = null;
+
+        // ─── Load agences from organisation-service ───────────
+        async function loadAgences() {
+            const select = document.getElementById('agenceSelect');
+            try {
+                const res = await fetch('/api/agences');
+                let agences = await res.json();
+                if (agences.content) agences = agences.content;
+
+                select.innerHTML = '';
+                agences.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = `${a.nom} — ${a.adresse || ''}`;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                // Fallback: try via organisation-service directly
+                try {
+                    const res = await fetch('http://localhost:8082/api/agences');
+                    let agences = await res.json();
+                    if (agences.content) agences = agences.content;
+                    select.innerHTML = '';
+                    agences.forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.id;
+                        opt.textContent = `${a.nom} — ${a.adresse || ''}`;
+                        select.appendChild(opt);
+                    });
+                } catch (e2) {
+                    select.innerHTML = '<option value="dc5cae34-0365-4ead-8c8b-cfdeff9f482f">Agence Tozeur Oasis</option>';
+                }
+            }
+        }
+
+        // ─── Timer ────────────────────────────────────────────
+        function startTimer() {
+            seconds = 0;
+            timerInterval = setInterval(() => {
+                seconds++;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                document.getElementById('timer').textContent = `${m}:${s}`;
+            }, 1000);
+        }
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // ─── Audio Visualizer ─────────────────────────────────
+        function startVisualizer(stream) {
+            const ctx = new AudioContext();
+            const source = ctx.createMediaStreamSource(stream);
+            analyserNode = ctx.createAnalyser();
+            analyserNode.fftSize = 32;
+            source.connect(analyserNode);
+
+            const bars = document.querySelectorAll('.visualizer .bar');
+            document.getElementById('visualizer').style.display = 'flex';
+
+            function draw() {
+                const data = new Uint8Array(analyserNode.frequencyBinCount);
+                analyserNode.getByteFrequencyData(data);
+
+                bars.forEach((bar, i) => {
+                    const value = data[i % data.length] || 0;
+                    bar.style.height = Math.max(4, value / 4) + 'px';
+                    bar.style.background = value > 128 ? '#00e676' : '#7b2ff7';
+                });
+                animationId = requestAnimationFrame(draw);
+            }
+            draw();
+        }
+        function stopVisualizer() {
+            cancelAnimationFrame(animationId);
+            document.getElementById('visualizer').style.display = 'none';
+        }
+
+        // ─── Main: Toggle Call ────────────────────────────────
+        async function toggleCall() {
+            if (!isRecording) {
+                await startCall();
+            } else {
+                await stopCall();
+            }
+        }
+
+        async function startCall() {
+            const btn = document.getElementById('callBtn');
+            const status = document.getElementById('callStatus');
+
+            // Validate form
+            if (!document.getElementById('clientName').value.trim()) {
+                showError('Veuillez saisir le nom du client');
+                return;
+            }
+            if (!document.getElementById('agenceSelect').value) {
+                showError('Veuillez sélectionner une agence');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                });
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.start(250); // Collect data every 250ms
+                isRecording = true;
+
+                btn.className = 'call-btn stop';
+                btn.textContent = '🔴';
+                status.textContent = '🔴 Appel en cours — parlez maintenant...';
+                startTimer();
+                startVisualizer(stream);
+
+                // Hide previous results
+                document.getElementById('resultPanel').classList.remove('visible');
+                document.getElementById('errorBox').style.display = 'none';
+
+            } catch (err) {
+                showError('Impossible d\'accéder au micro. Vérifiez les permissions du navigateur.');
+            }
+        }
+
+        async function stopCall() {
+            const btn = document.getElementById('callBtn');
+            const status = document.getElementById('callStatus');
+
+            isRecording = false;
+            btn.disabled = true;
+            btn.textContent = '⏳';
+            status.textContent = '⏳ Raccroché — traitement automatique...';
+            stopTimer();
+            stopVisualizer();
+
+            // Stop recording and process
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+
+            // Wait for data
+            await new Promise(r => setTimeout(r, 500));
+
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+            // Start processing pipeline
+            await processCall(audioBlob);
+
+            btn.disabled = false;
+            btn.className = 'call-btn start';
+            btn.textContent = '📞';
+            status.textContent = 'Appuyez pour un nouvel appel';
+        }
+
+        // ─── Processing Pipeline ──────────────────────────────
+        async function processCall(audioBlob) {
+            const panel = document.getElementById('resultPanel');
+            const steps = document.getElementById('steps');
+            panel.classList.add('visible');
+            steps.innerHTML = '';
+
+            const duration = seconds;
+
+            // ═══ Step 1: Create Ticket FIRST ═══
+            addStep('⏳', 'Création du ticket CALL...', 'processing');
+            let ticketId = null;
+            let ticketNumero = null;
+            try {
+                const callPayload = {
+                    callerNumber: document.getElementById('clientPhone').value.trim(),
+                    callerName: document.getElementById('clientName').value.trim(),
+                    agenceId: document.getElementById('agenceSelect').value,
+                    description: `Appel client via Web Softphone (durée: ${duration}s)`,
+                    priorite: 3,
+                };
+
+                const res = await fetch(TICKET_SERVICE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(callPayload),
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`${res.status}: ${errText.substring(0, 100)}`);
+                }
+
+                const ticket = await res.json();
+                ticketId = ticket.id;
+                ticketNumero = ticket.numero;
+                updateLastStep('✅', `Ticket <strong>${ticketNumero}</strong> créé`);
+
+            } catch (err) {
+                updateLastStep('❌', `Erreur création ticket: ${err.message}`);
+                showError('Impossible de créer le ticket. Vérifiez que ticket-service est démarré.');
+                return;
+            }
+
+            // ═══ Step 2: Upload Audio → Pipeline complet (Whisper + NLP + Save) ═══
+            addStep('⏳', 'Upload audio → Whisper + NLP (pipeline complet)...', 'processing');
+            let pipelineResult = null;
+            try {
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'softphone_call.webm');
+
+                const res = await fetch(`${BASE_URL}/api/tickets/${ticketId}/audio`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`Pipeline error: ${res.status} — ${errText.substring(0, 100)}`);
+                }
+
+                pipelineResult = await res.json();
+                const transcription = pipelineResult.transcription || '';
+                const keywords = pipelineResult.transcriptionKeywords || '';
+
+                // Parse NLP results
+                let piece = 'N/A', sinistre = 'N/A', sentiment = 'N/A';
+                try {
+                    if (keywords) {
+                        const kw = JSON.parse(keywords);
+                        // keywords can be array or object
+                    }
+                } catch {}
+
+                updateLastStep('🧠', `Pipeline complet ! Transcription sauvegardée (${transcription.length || 0} chars)`);
+
+                // Step 3: Show transcription
+                if (transcription) {
+                    addStep('🎙️', `Transcription: "<strong>${transcription.substring(0, 150)}${transcription.length > 150 ? '...' : ''}</strong>"`);
+                }
+
+            } catch (err) {
+                updateLastStep('⚠️', `Pipeline partiel: ${err.message}`);
+
+                // Fallback: try quick transcription only
+                addStep('⏳', 'Fallback: transcription rapide Whisper...', 'processing');
+                try {
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'call.webm');
+                    const res = await fetch(`${AI_SERVICE}/transcribe/quick`, {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        updateLastStep('🎙️', `Transcription: "<strong>${(data.text || '').substring(0, 120)}</strong>"`);
+                    } else {
+                        updateLastStep('❌', 'Transcription non disponible');
+                    }
+                } catch {
+                    updateLastStep('❌', 'Whisper non disponible');
+                }
+            }
+
+            // ═══ Final: Show ticket result ═══
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'ticket-result';
+            resultDiv.innerHTML = `
+                <div class="ticket-number">🎫 ${ticketNumero}</div>
+                <div class="ticket-detail">
+                    <span class="badge call">CALL</span>
+                    <span class="badge new">NOUVEAU</span>
+                </div>
+                <div class="ticket-detail" style="margin-top:8px;">
+                    ${document.getElementById('clientName').value} • ${duration}s • 
+                    ${document.getElementById('agenceSelect').selectedOptions[0]?.textContent || ''}
+                </div>
+                <div class="ticket-detail" style="margin-top:6px;">
+                    <a href="http://localhost:3000/tickets/${ticketId}" target="_blank" 
+                       style="color:#00d2ff;text-decoration:none;">
+                       🔗 Voir le ticket dans le dashboard →
+                    </a>
+                </div>
+            `;
+            steps.appendChild(resultDiv);
+        }
+
+        // ─── UI Helpers ───────────────────────────────────────
+        function addStep(icon, text, cls = '') {
+            const steps = document.getElementById('steps');
+            const step = document.createElement('div');
+            step.className = `step ${cls}`;
+            step.innerHTML = `<span class="icon">${icon}</span><div class="text">${text}</div>`;
+            steps.appendChild(step);
+        }
+
+        function updateLastStep(icon, text) {
+            const steps = document.getElementById('steps');
+            const last = steps.querySelector('.step:last-child');
+            if (last) {
+                last.className = 'step';
+                last.innerHTML = `<span class="icon">${icon}</span><div class="text">${text}</div>`;
+            }
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('errorBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+        }
+
+        // ─── Init ─────────────────────────────────────────────
+        loadAgences();
+    </script>
+</body>
+</html>

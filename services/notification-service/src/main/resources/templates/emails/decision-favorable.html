@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garantie Acceptée</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #1B5E20, #2E7D32); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .body { padding: 30px; color: #333; line-height: 1.6; }
+        .decision-box { background: #E8F5E9; border: 2px solid #43A047; padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }
+        .decision-box .label { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .decision-box .value { font-size: 28px; font-weight: 700; color: #2E7D32; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Garantie Acceptée</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;" th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
+        </div>
+        <div class="body">
+            <h2>Bonjour <span th:text="${clientNom}">Client</span>,</h2>
+            <p>Nous avons le plaisir de vous informer que votre demande de garantie a été <strong>acceptée</strong>.</p>
+
+            <div class="decision-box">
+                <div class="label">Décision</div>
+                <div class="value">FAVORABLE</div>
+            </div>
+
+            <p><strong>Motif :</strong> <span th:text="${motif}">La pièce est éligible à la garantie.</span></p>
+
+            <h3>Prochaines étapes :</h3>
+            <ol>
+                <li>Un courrier officiel sera joint à cet email (si disponible).</li>
+                <li>Présentez-vous en agence avec votre numéro de référence.</li>
+                <li>Le remplacement/remboursement sera effectué selon les conditions du contrat.</li>
+            </ol>
+
+            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+        </div>
+        <div class="footer">
+            <p>© 2026 AutoAssist — Notification automatique</p>
+        </div>
+    </div>
+</body>
+</html>

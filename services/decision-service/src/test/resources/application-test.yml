@@ -1,0 +1,49 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: decision-service-test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+eureka:
+  client:
+    enabled: false
+
+spring.cloud.openfeign.client.config.default.connect-timeout: 1000
+spring.cloud.openfeign.client.config.default.read-timeout: 1000
+
+openai:
+  api-key:
+  model: ai/gemma4
+  timeout-seconds: 5
+  base-url: http://localhost:12434/engines/llama.cpp/v1
+
+letters:
+  storage-path: ./target/test-letters
+
+decision:
+  cache:
+    ttl-seconds: 60

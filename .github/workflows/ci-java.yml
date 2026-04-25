@@ -1,0 +1,179 @@
+# ============================================================
+# ☕ CI — Java Microservices (Matrix Build)
+# Builds, tests, and pushes Docker images for all 9 Java services
+# ============================================================
+name: ☕ CI — Java Services
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/auth-service/**'
+      - 'services/organisation-service/**'
+      - 'services/ticket-service/**'
+      - 'services/rules-service/**'
+      - 'services/decision-service/**'
+      - 'services/notification-service/**'
+      - 'services/analytics-service/**'
+      - 'services/eureka-server/**'
+      - 'services/api-gateway/**'
+  pull_request:
+    paths:
+      - 'services/auth-service/**'
+      - 'services/organisation-service/**'
+      - 'services/ticket-service/**'
+      - 'services/rules-service/**'
+      - 'services/decision-service/**'
+      - 'services/notification-service/**'
+      - 'services/analytics-service/**'
+      - 'services/eureka-server/**'
+      - 'services/api-gateway/**'
+
+env:
+  JAVA_VERSION: '17'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/autoassist
+
+jobs:
+  # ── Step 1: Detect which services changed ──
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 🔍 Detect changed services
+        id: set-matrix
+        run: |
+          ALL_SERVICES=(
+            "auth-service"
+            "organisation-service"
+            "ticket-service"
+            "rules-service"
+            "decision-service"
+            "notification-service"
+            "analytics-service"
+            "eureka-server"
+            "api-gateway"
+          )
+          
+          CHANGED=()
+          for svc in "${ALL_SERVICES[@]}"; do
+            if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q "services/$svc/"; then
+              CHANGED+=("\"$svc\"")
+            fi
+          done
+          
+          # First push or workflow_dispatch: build all
+          if [ ${#CHANGED[@]} -eq 0 ]; then
+            for svc in "${ALL_SERVICES[@]}"; do
+              CHANGED+=("\"$svc\"")
+            done
+          fi
+          
+          MATRIX="{\"service\":[$(IFS=,; echo "${CHANGED[*]}")]}"
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "📦 Services to build: ${CHANGED[*]}"
+
+  # ── Step 2: Build + Test + Docker ──
+  build-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: 🧪 Build & Test
+        run: mvn verify --batch-mode -q
+
+      - name: 📊 Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+          retention-days: 7
+
+      - name: 📊 Upload Coverage (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/site/jacoco/
+          retention-days: 7
+
+      # ── Docker ──
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Login to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build & Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Step 3: SonarCloud Analysis ──
+  sonar:
+    needs: build-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - name: 🔍 SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn verify sonar:sonar \
+            -Dsonar.projectKey=autoassist-${{ matrix.service }} \
+            -Dsonar.organization=${{ github.repository_owner }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.java.coveragePlugin=jacoco \
+            --batch-mode -q
+        continue-on-error: true

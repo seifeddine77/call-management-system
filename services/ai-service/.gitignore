@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment
+.env
+
+# Test artifacts
+*.db
+test_ai.db
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Audio files (stored in Docker volume, not in repo)
+audio_storage/

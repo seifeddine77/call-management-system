@@ -1,0 +1,73 @@
+{
+  "name": "AutoAssist — Alerte SMS SLA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "name": "Vérification SLA 30min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "id": "cron-whatsapp"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/queue",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET File Attente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300],
+      "id": "get-queue-wa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueData = $input.first().json;\nconst tickets = queueData.tickets || [];\nconst now = new Date();\nconst SLA_MINUTES = 120;\n\nconst overdue = tickets.filter(t => {\n  if (!t.createdAt) return false;\n  const ageMinutes = (now - new Date(t.createdAt)) / (1000 * 60);\n  return ageMinutes > SLA_MINUTES && (t.statut === 'NOUVEAU' || t.statut === 'EN_ATTENTE');\n});\n\nif (overdue.length === 0) return [];\n\n// Construire le message SMS\nconst lines = overdue.map(t => {\n  const mins = Math.round((now - new Date(t.createdAt)) / 60000);\n  return `- ${t.numero || 'N/A'} / ${t.clientNom || 'Inconnu'} (${t.canal}) - ${mins} min`;\n});\n\nconst message = `ALERTE SLA AutoAssist\\n\\n` +\n  `${overdue.length} ticket(s) en attente > 2h :\\n\\n` +\n  lines.join('\\n') +\n  `\\n\\nAction requise ! Dashboard: http://localhost:3000/tickets`;\n\nreturn [{ json: { message, count: overdue.length } }];"
+      },
+      "name": "Formater Message Alerte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "format-wa"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "From", "value": "={{ $env.TWILIO_PHONE_NUMBER }}" },
+            { "name": "To", "value": "={{ $env.TWILIO_WHATSAPP_TO }}" },
+            { "name": "Body", "value": "={{ $json.message }}" }
+          ]
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": { "timeout": 10000 }
+      },
+      "name": "Envoyer SMS Twilio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [920, 300],
+      "id": "send-whatsapp",
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Twilio API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Vérification SLA 30min": { "main": [[{ "node": "GET File Attente", "type": "main", "index": 0 }]] },
+    "GET File Attente": { "main": [[{ "node": "Formater Message Alerte", "type": "main", "index": 0 }]] },
+    "Formater Message Alerte": { "main": [[{ "node": "Envoyer SMS Twilio", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "SMS" }, { "name": "SLA" }]
+}

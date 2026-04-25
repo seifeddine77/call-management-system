@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demande de Garantie</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #B71C1C, #D32F2F); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .body { padding: 30px; color: #333; line-height: 1.6; }
+        .decision-box { background: #FFEBEE; border: 2px solid #EF5350; padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }
+        .decision-box .label { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .decision-box .value { font-size: 28px; font-weight: 700; color: #C62828; }
+        .contact-box { background: #F5F5F5; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Demande de Garantie</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;" th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
+        </div>
+        <div class="body">
+            <h2>Bonjour <span th:text="${clientNom}">Client</span>,</h2>
+            <p>Nous avons étudié votre demande de garantie avec attention. Malheureusement, celle-ci ne peut pas être acceptée.</p>
+
+            <div class="decision-box">
+                <div class="label">Décision</div>
+                <div class="value">DÉFAVORABLE</div>
+            </div>
+
+            <p><strong>Motif :</strong> <span th:text="${motif}">La pièce est hors garantie.</span></p>
+
+            <div class="contact-box">
+                <h3 style="margin-top: 0;">Vous n'êtes pas d'accord ?</h3>
+                <p>Vous avez la possibilité de contester cette décision. Pour cela :</p>
+                <ul>
+                    <li>Contactez notre service client au <strong>+216 XX XXX XXX</strong></li>
+                    <li>Ou envoyez un email à <strong>reclamation@callmgmt.com</strong></li>
+                </ul>
+                <p>Munissez-vous de votre numéro de référence : <strong th:text="${ticketId}">ABCD1234</strong></p>
+            </div>
+
+            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+        </div>
+        <div class="footer">
+            <p>© 2026 AutoAssist — Notification automatique</p>
+        </div>
+    </div>
+</body>
+</html>

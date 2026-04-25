@@ -1,0 +1,134 @@
+# ============================================================
+# docker-compose.monitoring.yml
+# Stack Monitoring: Prometheus + Grafana + Alertmanager + Exporters
+# Usage: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# ============================================================
+services:
+  # ══════════════════════════════════════════
+  # PROMETHEUS — Metrics Collection
+  # ══════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: callmgmt-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════
+  # GRAFANA — Dashboards & Visualization
+  # ══════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: callmgmt-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3001
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════
+  # ALERTMANAGER — Alert Routing (→ n8n webhook)
+  # ══════════════════════════════════════════
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: callmgmt-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════
+  # EXPORTERS — Infrastructure Metrics
+  # ══════════════════════════════════════════
+
+  # Node Exporter — Host OS metrics (CPU, RAM, Disk)
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: callmgmt-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: callmgmt-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      - redis
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: callmgmt-postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # cAdvisor — Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: callmgmt-cadvisor
+    ports:
+      - "8888:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:

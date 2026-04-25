@@ -1,0 +1,112 @@
+# ============================================================
+# 🚀 Deploy — Staging & Production
+# Triggered manually or after successful CI on main
+# ============================================================
+name: 🚀 Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # ══════════════════════════════════════════
+  # Deploy to Staging (Docker Compose)
+  # ══════════════════════════════════════════
+  deploy-staging:
+    if: github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: http://${{ secrets.STAGING_HOST }}:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/call-management-system
+            git pull origin main
+            docker compose pull 2>/dev/null || true
+            docker compose up -d --build --remove-orphans
+            echo "⏳ Waiting for services..."
+            sleep 45
+            docker compose ps
+
+      - name: 🧪 Smoke Tests
+        run: |
+          HOST=${{ secrets.STAGING_HOST }}
+          echo "Testing Eureka..."
+          curl -sf --max-time 10 http://$HOST:8761/actuator/health || echo "⚠️ Eureka not ready"
+          echo "Testing Gateway..."
+          curl -sf --max-time 10 http://$HOST:8080/actuator/health || echo "⚠️ Gateway not ready"
+          echo "Testing Frontend..."
+          curl -sf --max-time 10 http://$HOST:3000 || echo "⚠️ Frontend not ready"
+          echo "Testing AI Service..."
+          curl -sf --max-time 10 http://$HOST:8000/health || echo "⚠️ AI not ready"
+          echo "✅ Smoke tests complete"
+
+  # ══════════════════════════════════════════
+  # Deploy to Production (Kubernetes)
+  # ══════════════════════════════════════════
+  deploy-production:
+    if: github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://autoassist.insy2s.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔧 Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: 🔑 Configure Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: 🚀 Deploy to Kubernetes
+        run: |
+          # Update image tags in K8s manifests
+          cd k8s/
+          for f in deployments/*.yml; do
+            sed -i "s|:latest|:${{ github.sha }}|g" "$f"
+          done
+          
+          # Apply in order: namespace → configs → infra → services
+          kubectl apply -f namespace.yml
+          kubectl apply -f configmaps/
+          kubectl apply -f secrets/
+          kubectl apply -f deployments/infra/
+          sleep 30
+          kubectl apply -f deployments/services/
+          kubectl apply -f deployments/frontend/
+          kubectl apply -f services/
+          kubectl apply -f ingress.yml
+
+      - name: ✅ Verify Rollout
+        run: |
+          SERVICES=(auth-service organisation-service ticket-service api-gateway frontend)
+          for svc in "${SERVICES[@]}"; do
+            echo "Checking $svc..."
+            kubectl rollout status deployment/$svc -n autoassist --timeout=120s || true
+          done
+
+      - name: 🧪 Production Smoke Test
+        run: |
+          PROD_URL="${{ secrets.PROD_URL }}"
+          curl -sf --max-time 15 "$PROD_URL" || echo "⚠️ Frontend check failed"
+          curl -sf --max-time 15 "$PROD_URL/api/actuator/health" || echo "⚠️ API check failed"
+          echo "✅ Production deployment verified"

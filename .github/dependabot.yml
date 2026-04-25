@@ -1,0 +1,86 @@
+version: 2
+updates:
+  # ── Java Services (Maven) ──
+  - package-ecosystem: "maven"
+    directory: "/services/auth-service"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/organisation-service"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/ticket-service"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/rules-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/decision-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/notification-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/analytics-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/eureka-server"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  - package-ecosystem: "maven"
+    directory: "/services/api-gateway"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "java"]
+
+  # ── Frontend (npm) ──
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule: { interval: "weekly" }
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+
+  # ── AI Service (pip) ──
+  - package-ecosystem: "pip"
+    directory: "/services/ai-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "python"]
+
+  # ── WhatsApp Service (npm) ──
+  - package-ecosystem: "npm"
+    directory: "/services/whatsapp-service"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "nodejs"]
+
+  # ── Docker images ──
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule: { interval: "monthly" }
+    labels: ["dependencies", "docker"]
+
+  - package-ecosystem: "docker"
+    directory: "/services/ai-service"
+    schedule: { interval: "monthly" }
+    labels: ["dependencies", "docker"]
+
+  # ── GitHub Actions ──
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly" }
+    labels: ["dependencies", "ci"]

@@ -1,0 +1,28 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: rules-service
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/rules_db
+    username: ${POSTGRES_USER:callmgmt}
+    password: ${POSTGRES_PASSWORD:callmgmt_secret_2024}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+# Disable Eureka during tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

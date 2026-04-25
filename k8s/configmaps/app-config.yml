@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autoassist-config
+  namespace: autoassist
+data:
+  EUREKA_URL: http://eureka-server:8761/eureka
+  REDIS_HOST: redis
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  AI_SERVICE_URL: http://ai-service:8000
+  TZ: Europe/Paris

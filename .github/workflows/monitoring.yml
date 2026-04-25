@@ -1,0 +1,64 @@
+# ============================================================
+# 📊 Monitoring & Notifications
+# Validates monitoring config + sends deploy notifications via n8n
+# ============================================================
+name: 📊 Monitoring & Notifications
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/monitoring/**'
+      - 'docker-compose.monitoring.yml'
+  workflow_run:
+    workflows: ["🚀 Deploy"]
+    types: [completed]
+
+jobs:
+  # ── Validate Prometheus config ──
+  validate-prometheus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔍 Validate Prometheus Config
+        run: |
+          docker run --rm \
+            -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
+            prom/prometheus:v2.53.0 \
+            promtool check config /etc/prometheus/prometheus.yml
+
+      - name: 🔍 Validate Alert Rules
+        run: |
+          docker run --rm \
+            -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
+            prom/prometheus:v2.53.0 \
+            promtool check rules /etc/prometheus/alert-rules.yml
+
+  # ── Notify via n8n webhook on deploy ──
+  notify-deploy:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📤 Notify n8n — Deploy Event
+        run: |
+          curl -sf -X POST "${{ secrets.N8N_WEBHOOK_URL }}/webhook/github-deploy" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event": "deploy",
+              "status": "${{ github.event.workflow_run.conclusion }}",
+              "branch": "${{ github.event.workflow_run.head_branch }}",
+              "commit": "${{ github.event.workflow_run.head_sha }}",
+              "actor": "${{ github.event.workflow_run.actor.login }}",
+              "run_url": "${{ github.event.workflow_run.html_url }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }' || echo "⚠️ n8n webhook not reachable"
+
+      - name: 📊 Post Deploy Summary
+        run: |
+          echo "## 🚀 Deploy Notification Sent" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ github.event.workflow_run.conclusion }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${{ github.event.workflow_run.head_branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | ${{ github.event.workflow_run.actor.login }} |" >> $GITHUB_STEP_SUMMARY

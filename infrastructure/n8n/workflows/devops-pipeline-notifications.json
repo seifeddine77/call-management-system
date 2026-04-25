@@ -1,0 +1,140 @@
+{
+  "name": "🚀 DevOps — Pipeline Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-deploy",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "name": "GitHub Deploy Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prometheus-alert",
+        "responseMode": "onReceived"
+      },
+      "name": "Prometheus Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "name": "Deploy Success?",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.alerts[0].labels.severity}}",
+              "operation": "equals",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "name": "Is Critical?",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoassist-devops@insy2s.com",
+        "toEmail": "team@insy2s.com",
+        "subject": "✅ Deploy Réussi — AutoAssist {{ $json.branch }}",
+        "text": "Déploiement réussi!\n\nBranche: {{ $json.branch }}\nCommit: {{ $json.commit }}\nPar: {{ $json.actor }}\nLien: {{ $json.run_url }}\nDate: {{ $json.timestamp }}"
+      },
+      "name": "Email — Deploy Success",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoassist-devops@insy2s.com",
+        "toEmail": "team@insy2s.com",
+        "subject": "❌ Deploy Échoué — AutoAssist {{ $json.branch }}",
+        "text": "⚠️ ÉCHEC du déploiement!\n\nBranche: {{ $json.branch }}\nCommit: {{ $json.commit }}\nPar: {{ $json.actor }}\nLien: {{ $json.run_url }}\n\n→ Action requise immédiatement"
+      },
+      "name": "Email — Deploy Failed",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoassist-alerts@insy2s.com",
+        "toEmail": "devops@insy2s.com",
+        "subject": "🔴 ALERTE CRITIQUE — {{ $json.alerts[0].labels.job }}",
+        "text": "🚨 Alerte Prometheus CRITIQUE\n\nService: {{ $json.alerts[0].labels.job }}\nAlerte: {{ $json.alerts[0].annotations.summary }}\nDescription: {{ $json.alerts[0].annotations.description }}\nDébut: {{ $json.alerts[0].startsAt }}\n\n→ Vérifier immédiatement!"
+      },
+      "name": "Email — Critical Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [700, 450]
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoassist-alerts@insy2s.com",
+        "toEmail": "team@insy2s.com",
+        "subject": "⚠️ Warning — {{ $json.alerts[0].labels.job }}",
+        "text": "Alerte Prometheus Warning\n\nService: {{ $json.alerts[0].labels.job }}\nAlerte: {{ $json.alerts[0].annotations.summary }}\nDescription: {{ $json.alerts[0].annotations.description }}"
+      },
+      "name": "Email — Warning Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [700, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://ticket-service:8083/api/tickets",
+        "method": "POST",
+        "jsonParameters": true,
+        "body": "{\n  \"title\": \"[AUTO] Incident — {{ $json.alerts[0].labels.job }}\",\n  \"description\": \"{{ $json.alerts[0].annotations.description }}\",\n  \"priority\": \"URGENTE\",\n  \"source\": \"MONITORING\",\n  \"status\": \"NOUVEAU\"\n}"
+      },
+      "name": "Auto-Create Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [950, 450]
+    }
+  ],
+  "connections": {
+    "GitHub Deploy Webhook": {
+      "main": [
+        [{ "node": "Deploy Success?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Deploy Success?": {
+      "main": [
+        [{ "node": "Email — Deploy Success", "type": "main", "index": 0 }],
+        [{ "node": "Email — Deploy Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prometheus Alert Webhook": {
+      "main": [
+        [{ "node": "Is Critical?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Critical?": {
+      "main": [
+        [
+          { "node": "Email — Critical Alert", "type": "main", "index": 0 },
+          { "node": "Auto-Create Ticket", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Email — Warning Alert", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

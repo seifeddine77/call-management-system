@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #1565C0, #1976D2); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .body { padding: 30px; color: #333; line-height: 1.6; }
+        .badge { display: inline-block; background: #E3F2FD; color: #1565C0; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 14px; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+        .btn { display: inline-block; background: #1565C0; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📞 Call Management</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;">Système de Gestion des Appels</p>
+        </div>
+        <div class="body">
+            <h2>Bienvenue, <span th:text="${fullName}">Nom</span> !</h2>
+            <p>Votre compte a été créé avec succès sur la plateforme Call Management.</p>
+            <p>Votre rôle : <span class="badge" th:text="${role}">OPERATOR</span></p>
+            <p>Vous pouvez désormais vous connecter avec votre adresse email <strong th:text="${email}">email@example.com</strong> et le mot de passe défini lors de votre inscription.</p>
+            <a href="http://localhost:5173/login" class="btn">Se connecter</a>
+        </div>
+        <div class="footer">
+            <p>© 2026 AutoAssist — Système de Gestion des Appels</p>
+        </div>
+    </div>
+</body>
+</html>

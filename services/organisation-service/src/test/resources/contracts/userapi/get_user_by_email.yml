@@ -1,0 +1,25 @@
+description: Should return user data with passwordHash when email path variable is provided
+name: get_user_by_email
+request:
+  method: GET
+  url: /api/users/email/testoperator
+response:
+  status: 200
+  headers:
+    Content-Type: application/json
+  body:
+    id: "550e8400-e29b-41d4-a716-446655440001"
+    email: "testoperator"
+    passwordHash: "$2a$10$hashedpassword"
+    nom: "Opérateur Test"
+    telephone: "98111222"
+    role: "OPERATOR"
+    actif: true
+  matchers:
+    body:
+      - path: $.id
+        type: by_regex
+        value: "[a-f0-9\\-]{36}"
+      - path: $.passwordHash
+        type: by_regex
+        value: ".+"

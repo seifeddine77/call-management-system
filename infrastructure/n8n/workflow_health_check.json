@@ -1,0 +1,104 @@
+{
+  "name": "AutoAssist — Health Check Microservices",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] } },
+      "name": "Check toutes les 5min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [180, 400],
+      "id": "cron-health"
+    },
+    {
+      "parameters": { "url": "http://callmgmt-ticket:8083/api/tickets/health", "options": { "timeout": 5000 } },
+      "name": "Ticket Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [380, 400], "id": "h1", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-auth:8081/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Auth Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [560, 400], "id": "h2", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-organisation:8082/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Organisation Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [740, 400], "id": "h3", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-rules:8084/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Rules Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [920, 400], "id": "h4", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-decision:8085/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Decision Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [1100, 400], "id": "h5", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-notification:8086/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Notification Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [1280, 400], "id": "h6", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-analytics:8087/actuator/health", "options": { "timeout": 5000 } },
+      "name": "Analytics Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [1460, 400], "id": "h7", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-ai:8000/health", "options": { "timeout": 5000 } },
+      "name": "AI Service", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [1640, 400], "id": "h8", "continueOnFail": true
+    },
+    {
+      "parameters": { "url": "http://callmgmt-gateway:8080/actuator/health", "options": { "timeout": 5000 } },
+      "name": "API Gateway", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.1,
+      "position": [1820, 400], "id": "h9", "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const services = [\n  { name: 'Ticket Service', node: 'Ticket Service' },\n  { name: 'Auth Service', node: 'Auth Service' },\n  { name: 'Organisation Service', node: 'Organisation Service' },\n  { name: 'Rules Service', node: 'Rules Service' },\n  { name: 'Decision Service', node: 'Decision Service' },\n  { name: 'Notification Service', node: 'Notification Service' },\n  { name: 'Analytics Service', node: 'Analytics Service' },\n  { name: 'AI Service (Python)', node: 'AI Service' },\n  { name: 'API Gateway', node: 'API Gateway' }\n];\n\nconst now = new Date().toLocaleString('fr-FR');\nconst results = [];\nlet downCount = 0;\n\nfor (const svc of services) {\n  let isUp = false;\n  try {\n    const data = $(svc.node).first();\n    if (data && data.json) {\n      if (data.json.error) {\n        isUp = String(data.json.error).includes('Invalid JSON');\n      } else {\n        isUp = true;\n      }\n    }\n  } catch (e) {\n    isUp = false;\n  }\n  results.push({\n    name: svc.name,\n    status: isUp ? '\\u2705 UP' : '\\u274c DOWN',\n    color: isUp ? '#2E7D32' : '#C62828'\n  });\n  if (!isUp) downCount++;\n}\n\nif (downCount === 0) {\n  return [];\n}\n\nconst rows = results.map(r =>\n  '<tr><td style=\"padding:10px;border-bottom:1px solid #eee;\">' + r.name + '</td><td style=\"padding:10px;border-bottom:1px solid #eee;color:' + r.color + ';font-weight:700;\">' + r.status + '</td></tr>'\n).join('');\n\nconst html = '<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;\"><div style=\"background:linear-gradient(135deg,#E65100,#F57C00);color:white;padding:25px;border-radius:12px 12px 0 0;text-align:center;\"><h1 style=\"margin:0;\">\\ud83c\\udfe5 Alerte Infrastructure AutoAssist</h1><p style=\"margin:5px 0 0;opacity:0.9;\">' + downCount + ' service(s) indisponible(s) \\u2014 ' + now + '</p></div><div style=\"background:white;padding:25px;border:1px solid #e0e0e0;\"><table style=\"width:100%;border-collapse:collapse;\"><tr style=\"background:#FFF3E0;\"><th style=\"padding:10px;text-align:left;\">Service</th><th style=\"padding:10px;text-align:left;\">\\u00c9tat</th></tr>' + rows + '</table></div><div style=\"background:#f8f9fa;padding:15px;border-radius:0 0 12px 12px;text-align:center;color:#888;font-size:12px;\"><p>\\u00a9 2026 AutoAssist \\u2014 Monitoring automatique n8n</p></div></div>';\n\nreturn [{ json: { html, subject: '\\ud83c\\udfe5 ALERTE \\u2014 ' + downCount + ' service(s) DOWN \\u2014 AutoAssist', downCount } }];"
+      },
+      "name": "Analyser Resultats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2020, 400],
+      "id": "analyze-health"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Alerte DOWN",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2220, 400],
+      "id": "send-health-alert",
+      "credentials": {
+        "smtp": {
+          "id": "STNXhfmd6NXB8pwO",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Check toutes les 5min": { "main": [[{ "node": "Ticket Service", "type": "main", "index": 0 }]] },
+    "Ticket Service": { "main": [[{ "node": "Auth Service", "type": "main", "index": 0 }]] },
+    "Auth Service": { "main": [[{ "node": "Organisation Service", "type": "main", "index": 0 }]] },
+    "Organisation Service": { "main": [[{ "node": "Rules Service", "type": "main", "index": 0 }]] },
+    "Rules Service": { "main": [[{ "node": "Decision Service", "type": "main", "index": 0 }]] },
+    "Decision Service": { "main": [[{ "node": "Notification Service", "type": "main", "index": 0 }]] },
+    "Notification Service": { "main": [[{ "node": "Analytics Service", "type": "main", "index": 0 }]] },
+    "Analytics Service": { "main": [[{ "node": "AI Service", "type": "main", "index": 0 }]] },
+    "AI Service": { "main": [[{ "node": "API Gateway", "type": "main", "index": 0 }]] },
+    "API Gateway": { "main": [[{ "node": "Analyser Resultats", "type": "main", "index": 0 }]] },
+    "Analyser Resultats": { "main": [[{ "node": "Envoyer Alerte DOWN", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }]
+}

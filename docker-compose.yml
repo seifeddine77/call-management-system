@@ -1,0 +1,468 @@
+services:
+  # ============================================
+  # INFRASTRUCTURE
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: callmgmt-postgres
+    environment:
+      TZ: Europe/Paris
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: callmgmt-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: callmgmt-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      TZ: Europe/Paris
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # SERVICE DISCOVERY
+  # ============================================
+  eureka-server:
+    build: ./services/eureka-server
+    container_name: callmgmt-eureka
+    ports:
+      - "8761:8761"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8761/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # API GATEWAY
+  # ============================================
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: callmgmt-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8080
+      EUREKA_URL: ${EUREKA_URL}
+      REDIS_HOST: ${REDIS_HOST}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # MICROSERVICES JAVA
+  # ============================================
+  auth-service:
+    build: ./services/auth-service
+    container_name: callmgmt-auth
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  organisation-service:
+    build: ./services/organisation-service
+    container_name: callmgmt-organisation
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/users_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  ticket-service:
+    build: ./services/ticket-service
+    container_name: callmgmt-ticket
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tickets_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      AI_SERVICE_URL: http://ai-service:8000
+      # ── Email Listener (IMAP) ──
+      EMAIL_LISTENER_ENABLED: ${EMAIL_LISTENER_ENABLED:-true}
+      EMAIL_IMAP_HOST: ${EMAIL_IMAP_HOST:-imap.gmail.com}
+      EMAIL_IMAP_PORT: ${EMAIL_IMAP_PORT:-993}
+      EMAIL_IMAP_USERNAME: ${EMAIL_IMAP_USERNAME:-}
+      EMAIL_IMAP_PASSWORD: ${EMAIL_IMAP_PASSWORD:-}
+      # ── Twilio VoIP ──
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      TWILIO_WEBHOOK_BASE_URL: ${TWILIO_WEBHOOK_BASE_URL:-http://callmgmt-ticket:8083}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  rules-service:
+    build: ./services/rules-service
+    container_name: callmgmt-rules
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rules_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  decision-service:
+    build: ./services/decision-service
+    container_name: callmgmt-decision
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8085
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/decisions_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      OPENAI_API_KEY: docker-model-runner
+      OPENAI_BASE_URL: http://host.docker.internal:12434/engines/llama.cpp/v1
+      OPENAI_MODEL: ai/gemma4
+      OPENAI_TIMEOUT: 60
+    extra_hosts:
+      - "model-runner.docker.internal:host-gateway"
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: callmgmt-notification
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8086
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notif_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      SPRING_MAIL_HOST: ${MAIL_HOST}
+      SPRING_MAIL_PORT: ${MAIL_PORT}
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
+    networks:
+      - callmgmt-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
+
+  analytics-service:
+    build: ./services/analytics-service
+    container_name: callmgmt-analytics
+    ports:
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      SERVER_PORT: 8087
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # AI SERVICE (Python)
+  # ============================================
+  ai-service:
+    build: ./services/ai-service
+    container_name: callmgmt-ai
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TZ: Europe/Paris
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/ai_db
+      AUDIO_STORAGE_PATH: /var/audio
+      MAX_AUDIO_SIZE_MB: 50
+      WHISPER_MODEL: base
+      EUREKA_SERVER: ${EUREKA_URL}
+      APP_NAME: ai-service
+      INSTANCE_PORT: 8000
+      # LLM (Gemma 4) for RAG chatbot
+      LLM_BASE_URL: http://host.docker.internal:12434/engines/llama.cpp/v1
+      LLM_API_KEY: docker-model-runner
+      LLM_MODEL: ai/gemma4
+      LLM_TIMEOUT: 60
+    extra_hosts:
+      - "model-runner.docker.internal:host-gateway"
+    volumes:
+      - audio_files:/var/audio
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # LLM — Docker Model Runner (Gemma 4 via llama.cpp)
+  # ============================================
+  # Le modèle LLM est géré par Docker Model Runner (intégré à Docker Desktop).
+  # Pas besoin de container séparé — le modèle est accessible via:
+  #   http://model-runner.docker.internal/engines/llama.cpp/v1
+  # Pour installer le modèle : docker model pull ai/gemma4
+
+  frontend:
+    build: ./frontend
+    container_name: callmgmt-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    environment:
+      TZ: Europe/Paris
+      VITE_API_URL: http://localhost:8080
+      VITE_WS_URL: ws://localhost:8080
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # MOBILE APP (Flutter Web)
+  # ============================================
+  mobile-app:
+    build: ./mobile
+    container_name: callmgmt-mobile
+    ports:
+      - "5555:5555"
+    depends_on:
+      - api-gateway
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # N8N (Automatisation)
+  # ============================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: callmgmt-n8n
+    ports:
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Paris
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: n8n_db
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      # ── Twilio SMS/WhatsApp ──
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      TWILIO_WHATSAPP_TO: ${TWILIO_WHATSAPP_TO:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # ============================================
+  # WHATSAPP SERVICE (Node.js — Groupes + Chatbot RAG)
+  # ============================================
+  whatsapp-service:
+    build: ./services/whatsapp-service
+    container_name: callmgmt-whatsapp
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Paris
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      ORGANISATION_SERVICE_URL: http://organisation-service:8082
+      TICKET_SERVICE_URL: http://ticket-service:8083
+      DECISION_SERVICE_URL: http://decision-service:8085
+      AI_SERVICE_URL: http://ai-service:8000
+    volumes:
+      - whatsapp_session:/app/.wwebjs_auth
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+# ============================================
+# NETWORKS & VOLUMES
+# ============================================
+networks:
+  callmgmt-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  audio_files:
+  n8n_data:
+  whatsapp_session:
+  # ollama_data: # Supprimé — Docker Model Runner gère son propre stockage
+
+
+
+

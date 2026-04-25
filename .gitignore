@@ -1,0 +1,144 @@
+# ========================
+# Java / Maven
+# ========================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+replay_pid*
+
+# ========================
+# Node / React
+# ========================
+node_modules/
+dist/
+build/
+.cache/
+*.tsbuildinfo
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+*.whl
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ========================
+# Docker
+# ========================
+docker-compose.override.yml
+
+# ========================
+# IDE
+# ========================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.factorypath
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Environment
+# ========================
+.env
+*.env.local
+
+# ========================
+# Audio / Data files
+# ========================
+*.wav
+*.mp3
+*.ogg
+audio_files/
+letters/
+
+# ========================
+# Coverage / Reports
+# ========================
+jacoco.exec
+sonar-project.properties.local
+
+# ========================
+# WhatsApp session & cache
+# ========================
+.wwebjs_auth/
+.wwebjs_cache/
+
+# ========================
+# Fichiers temporaires / non-code
+# ========================
+scratch/
+*.pptx
+localtunnel.log
+localtunnel_err.log
+test_rag.py
+generate_presentation.py
+seed-demo-data.ps1
+start-twilio-demo.ps1
+tests-e2e.ps1
+
+# ========================
+# Kubernetes secrets (never commit real values!)
+# ========================
+k8s/secrets/*.yml
+!k8s/secrets/secrets-template.yml
+
+# ========================
+# Monitoring data
+# ========================
+prometheus_data/
+grafana_data/
+
+# ========================
+# Flutter build
+# ========================
+mobile/build/
+mobile/.dart_tool/
+
+# ========================
+# Service runtime files
+# ========================
+*.log
+.apt_generated_tests/
+.pytest_cache/
+audio_storage/
+letters/

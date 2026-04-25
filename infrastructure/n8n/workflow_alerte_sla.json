@@ -1,0 +1,61 @@
+{
+  "name": "AutoAssist — Alerte SLA Tickets",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 30 }]
+        }
+      },
+      "name": "Vérification toutes les 30min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "id": "cron-sla"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/queue",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "GET File Attente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300],
+      "id": "get-queue"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueData = $input.first().json;\nconst tickets = queueData.tickets || [];\nconst now = new Date();\nconst SLA_MINUTES = 120;\n\nconst overdue = tickets.filter(t => {\n  if (!t.createdAt) return false;\n  const created = new Date(t.createdAt);\n  const ageMinutes = (now - created) / (1000 * 60);\n  return ageMinutes > SLA_MINUTES;\n});\n\nif (overdue.length === 0) {\n  return [];\n}\n\nconst rows = overdue.map(t =>\n  `<tr><td style=\"padding:8px;border-bottom:1px solid #eee;\">${t.ticketNumero || 'N/A'}</td><td style=\"padding:8px;border-bottom:1px solid #eee;\">${t.clientNom || 'N/A'}</td><td style=\"padding:8px;border-bottom:1px solid #eee;\">${t.canal || 'N/A'}</td><td style=\"padding:8px;border-bottom:1px solid #eee;color:#C62828;font-weight:700;\">⚠️ ${Math.round((now - new Date(t.createdAt)) / 60000)} min</td></tr>`\n).join('');\n\nconst html = `\n<div style=\"font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:linear-gradient(135deg,#B71C1C,#D32F2F);color:white;padding:25px;border-radius:12px 12px 0 0;text-align:center;\">\n    <h1 style=\"margin:0;\">⚠️ Alerte SLA</h1>\n    <p style=\"margin:5px 0 0;opacity:0.9;\">${overdue.length} ticket(s) en attente depuis plus de ${SLA_MINUTES} min</p>\n  </div>\n  <div style=\"background:white;padding:25px;border:1px solid #e0e0e0;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      <tr style=\"background:#FFEBEE;\"><th style=\"padding:10px;text-align:left;\">Numéro</th><th style=\"padding:10px;text-align:left;\">Client</th><th style=\"padding:10px;text-align:left;\">Canal</th><th style=\"padding:10px;text-align:left;\">Attente</th></tr>\n      ${rows}\n    </table>\n  </div>\n  <div style=\"background:#f8f9fa;padding:15px;border-radius:0 0 12px 12px;text-align:center;color:#888;font-size:12px;\">\n    <p>© 2026 AutoAssist — Alerte automatique n8n</p>\n  </div>\n</div>`;\n\nreturn [{ json: { html, subject: '⚠️ ALERTE SLA — ' + overdue.length + ' ticket(s) en dépassement', count: overdue.length } }];"
+      },
+      "name": "Filtrer Tickets > SLA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "filter-sla"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Alerte Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [920, 300],
+      "id": "send-alert"
+    }
+  ],
+  "connections": {
+    "Vérification toutes les 30min": { "main": [[{ "node": "GET File Attente", "type": "main", "index": 0 }]] },
+    "GET File Attente": { "main": [[{ "node": "Filtrer Tickets > SLA", "type": "main", "index": 0 }]] },
+    "Filtrer Tickets > SLA": { "main": [[{ "node": "Envoyer Alerte Email", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }]
+}

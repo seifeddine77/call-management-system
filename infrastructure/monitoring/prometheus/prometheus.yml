@@ -1,0 +1,106 @@
+# ============================================================
+# Prometheus Configuration
+# Scrapes all microservices via Spring Boot Actuator + Python
+# ============================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# ── Alert Rules ──
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+# ── Alertmanager (sends to n8n webhook) ──
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# ── Scrape Targets ──
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ── Java Microservices (Spring Boot Actuator /actuator/prometheus) ──
+  - job_name: 'eureka-server'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['eureka-server:8761']
+    scrape_interval: 10s
+
+  - job_name: 'api-gateway'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['api-gateway:8080']
+    scrape_interval: 10s
+
+  - job_name: 'auth-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['auth-service:8081']
+
+  - job_name: 'organisation-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['organisation-service:8082']
+
+  - job_name: 'ticket-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ticket-service:8083']
+
+  - job_name: 'rules-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['rules-service:8084']
+
+  - job_name: 'decision-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['decision-service:8085']
+
+  - job_name: 'notification-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['notification-service:8086']
+
+  - job_name: 'analytics-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['analytics-service:8087']
+
+  # ── AI Service (Python FastAPI) ──
+  - job_name: 'ai-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['ai-service:8000']
+
+  # ── Infrastructure ──
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['frontend:9113']
+
+  # ── Node Exporter (host metrics) ──
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # ── Docker / Container metrics (cAdvisor) ──
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s

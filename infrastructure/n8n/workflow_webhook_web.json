@@ -1,0 +1,63 @@
+{
+  "name": "AutoAssist — Webhook Web → Ticket",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "autoassist-web-form",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Formulaire Web",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "id": "webhook-web",
+      "webhookId": "autoassist-web-form"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Validation — champs obligatoires du DTO WebFormRequest\nif (!body.nom || !body.description || !body.agenceId) {\n  return [{ json: { error: 'nom, description et agenceId sont obligatoires', status: 400 } }];\n}\n\n// Mapper exactement vers WebFormRequest.java\nconst ticketPayload = {\n  nom: body.nom,\n  telephone: body.telephone || '',\n  email: body.email || '',\n  description: body.description,\n  agenceId: body.agenceId,\n  priorite: body.priorite || 3\n};\n\nreturn [{ json: ticketPayload }];"
+      },
+      "name": "Valider & Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300],
+      "id": "validate"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/channels/web",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Créer Ticket WEB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300],
+      "id": "create-ticket"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, ticket: $json.numero, message: 'Votre demande a été enregistrée avec succès.' }) }}"
+      },
+      "name": "Réponse Succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [920, 300],
+      "id": "respond-success"
+    }
+  ],
+  "connections": {
+    "Webhook Formulaire Web": { "main": [[{ "node": "Valider & Formater", "type": "main", "index": 0 }]] },
+    "Valider & Formater": { "main": [[{ "node": "Créer Ticket WEB", "type": "main", "index": 0 }]] },
+    "Créer Ticket WEB": { "main": [[{ "node": "Réponse Succès", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }]
+}

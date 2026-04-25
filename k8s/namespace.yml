@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autoassist
+  labels:
+    app.kubernetes.io/name: autoassist
+    app.kubernetes.io/part-of: call-management-system

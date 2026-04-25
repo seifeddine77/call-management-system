@@ -1,0 +1,183 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        # Auth Service — PUBLIC (no JWT)
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+
+        # Agences — PUBLIC GET (formulaire web public, sélection d'agence)
+        - id: agences-public
+          uri: lb://organisation-service
+          predicates:
+            - Path=/api/agences
+            - Method=GET
+
+        # User Service — SUPERVISOR + ADMIN only
+        - id: organisation-service
+          uri: lb://organisation-service
+          predicates:
+            - Path=/api/users/**, /api/agences/**
+          filters:
+            - JwtAuthFilter
+            - name: RoleFilter
+              args:
+                roles: SUPERVISOR,ADMIN
+
+        # Channel Acquisition — PUBLIC (VoIP/Email/Web webhooks, no JWT)
+        - id: channel-acquisition
+          uri: lb://ticket-service
+          predicates:
+            - Path=/api/channels/**
+
+        # Photos sinistre — PUBLIC (upload + serve, no JWT)
+        - id: ticket-photos-public
+          uri: lb://ticket-service
+          predicates:
+            - Path=/api/tickets/*/photos,/api/tickets/photos/**
+
+        # Ticket Service — JWT required
+        - id: ticket-service
+          uri: lb://ticket-service
+          predicates:
+            - Path=/api/tickets/**
+          filters:
+            - JwtAuthFilter
+
+        # Ticket Service — WebSocket
+        - id: ticket-ws
+          uri: lb://ticket-service
+          predicates:
+            - Path=/ws/**
+          filters:
+            - JwtAuthFilter
+
+        # Rules Service — References + Evaluate → ALL authenticated (opérateurs en ont besoin)
+        - id: rules-references
+          uri: lb://rules-service
+          predicates:
+            - Path=/api/rules/references,/api/rules/evaluate
+          filters:
+            - JwtAuthFilter
+
+        # Rules Service — CRUD → SUPERVISOR + ADMIN only
+        - id: rules-service
+          uri: lb://rules-service
+          predicates:
+            - Path=/api/rules/**
+          filters:
+            - JwtAuthFilter
+            - name: RoleFilter
+              args:
+                roles: SUPERVISOR,ADMIN
+
+        # Decision Service — JWT required
+        - id: decision-service
+          uri: lb://decision-service
+          predicates:
+            - Path=/api/decisions/**
+          filters:
+            - JwtAuthFilter
+
+        # Notification Service — ADMIN only
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - JwtAuthFilter
+            - name: RoleFilter
+              args:
+                roles: ADMIN
+
+        # Analytics Service — SUPERVISOR + ADMIN only
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - JwtAuthFilter
+            - name: RoleFilter
+              args:
+                roles: SUPERVISOR,ADMIN
+
+        # AI Service (Python) — JWT required
+        - id: ai-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/audio/**
+          filters:
+            - JwtAuthFilter
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:5173"
+              - "http://localhost:5000"
+              - "http://localhost:5555"
+              - "http://localhost:8080"
+              - "http://localhost:8888"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+      # ── Default filters ──
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods, RETAIN_UNIQUE
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 100       # tokens restaurés par seconde
+            redis-rate-limiter.burstCapacity: 120        # pic autorisé (bucket max)
+            redis-rate-limiter.requestedTokens: 1
+            key-resolver: "#{@ipKeyResolver}"
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    healthcheck:
+      enabled: true
+  instance:
+    preferIpAddress: true
+
+jwt:
+  secret: ${JWT_SECRET:default-access-secret-key-change-in-production-min-32-chars}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /api/auth/v3/api-docs
+        displayName: Auth Service
+      - name: gateway
+        url: /v3/api-docs
+        displayName: API Gateway
+  api-docs:
+    path: /v3/api-docs

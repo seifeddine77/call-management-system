@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #37474F, #546E7A); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .body { padding: 30px; color: #333; line-height: 1.6; }
+        .info-box { background: #ECEFF1; border-left: 4px solid #546E7A; padding: 15px; border-radius: 0 8px 8px 0; margin: 15px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📞 Call Management</h1>
+            <p style="margin: 5px 0 0; opacity: 0.9;">Notification</p>
+        </div>
+        <div class="body">
+            <h2>Bonjour <span th:text="${clientNom != null ? clientNom : 'Client'}">Client</span>,</h2>
+            <div class="info-box">
+                <p th:if="${numero != null}"><strong>Référence :</strong> <span th:text="${numero}">T-XXXXXXXX</span></p>
+                <p th:if="${motif != null}"><strong>Détails :</strong> <span th:text="${motif}">Information</span></p>
+            </div>
+            <p>Cette notification vous a été envoyée automatiquement par le système Call Management.</p>
+            <p>Pour toute question, n'hésitez pas à contacter notre service client.</p>
+            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+        </div>
+        <div class="footer">
+            <p>© 2026 AutoAssist — Notification automatique</p>
+        </div>
+    </div>
+</body>
+</html>

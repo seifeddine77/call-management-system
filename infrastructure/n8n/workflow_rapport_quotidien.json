@@ -1,0 +1,72 @@
+{
+  "name": "AutoAssist — Rapport Quotidien",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "name": "Cron Quotidien",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "id": "cron-daily"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/stats",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Stats Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300],
+      "id": "get-stats"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-analytics:8087/api/analytics/kpis?period=today",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET KPIs Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [670, 300],
+      "id": "get-kpis",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $('GET Stats Tickets').first().json || {};\nlet kpis = {};\ntry { kpis = $('GET KPIs Analytics').first().json || {}; } catch(e) { kpis = {}; }\n\nconst today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\n\nconst html = `\n<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: linear-gradient(135deg, #1565C0, #1976D2); color: white; padding: 25px; border-radius: 12px 12px 0 0; text-align: center;\">\n    <h1 style=\"margin: 0;\">📊 Rapport Quotidien AutoAssist</h1>\n    <p style=\"margin: 5px 0 0; opacity: 0.9;\">${today}</p>\n  </div>\n  <div style=\"background: white; padding: 25px; border: 1px solid #e0e0e0;\">\n    <h2 style=\"color: #333;\">Résumé des tickets</h2>\n    <table style=\"width: 100%; border-collapse: collapse;\">\n      <tr style=\"background: #f5f5f5;\"><td style=\"padding: 10px;\"><strong>Nouveaux</strong></td><td style=\"padding: 10px; text-align: right; color: #1565C0; font-weight: 700;\">${stats.nouveau || 0}</td></tr>\n      <tr><td style=\"padding: 10px;\"><strong>En cours</strong></td><td style=\"padding: 10px; text-align: right; color: #F57C00; font-weight: 700;\">${stats.enCours || 0}</td></tr>\n      <tr style=\"background: #f5f5f5;\"><td style=\"padding: 10px;\"><strong>Résolus</strong></td><td style=\"padding: 10px; text-align: right; color: #2E7D32; font-weight: 700;\">${stats.resolu || 0}</td></tr>\n      <tr><td style=\"padding: 10px;\"><strong>Fermés</strong></td><td style=\"padding: 10px; text-align: right; color: #757575; font-weight: 700;\">${stats.ferme || 0}</td></tr>\n      <tr style=\"background: #E3F2FD;\"><td style=\"padding: 10px;\"><strong>Total</strong></td><td style=\"padding: 10px; text-align: right; font-weight: 700; font-size: 18px;\">${stats.total || 0}</td></tr>\n    </table>\n  </div>\n  <div style=\"background: #f8f9fa; padding: 15px; border-radius: 0 0 12px 12px; text-align: center; color: #888; font-size: 12px;\">\n    <p>© 2026 AutoAssist — Rapport automatique n8n</p>\n  </div>\n</div>`;\n\nreturn [{ json: { html, subject: '📊 Rapport AutoAssist — ' + today } }];"
+      },
+      "name": "Formater Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [870, 300],
+      "id": "format-email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Email Rapport",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1070, 300],
+      "id": "send-email"
+    }
+  ],
+  "connections": {
+    "Cron Quotidien": { "main": [[{ "node": "GET Stats Tickets", "type": "main", "index": 0 }]] },
+    "GET Stats Tickets": { "main": [[{ "node": "GET KPIs Analytics", "type": "main", "index": 0 }]] },
+    "GET KPIs Analytics": { "main": [[{ "node": "Formater Email", "type": "main", "index": 0 }]] },
+    "Formater Email": { "main": [[{ "node": "Envoyer Email Rapport", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }]
+}
