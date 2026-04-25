@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>com.pfe.callmgmt</groupId>
-    <artifactId>user-service</artifactId>
+    <artifactId>organisation-service</artifactId>
     <version>1.0.0</version>
-    <name>user-service</name>
-    <description>User &amp; Agence Management Service</description>
+    <name>organisation-service</name>
+    <description>Organisation &amp; Agence Management Service</description>
 
     <properties>
         <java.version>17</java.version>
