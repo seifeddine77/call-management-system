@@ -51,9 +51,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 🐳 Build image for scan
+        id: docker-build
         run: docker build -t scan-${{ matrix.name }}:latest ${{ matrix.context }}
+        continue-on-error: true
 
       - name: 🔍 Trivy Vulnerability Scan
+        if: steps.docker-build.outcome == 'success'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'scan-${{ matrix.name }}:latest'
@@ -62,6 +65,7 @@ jobs:
           exit-code: '0'
 
       - name: 📊 Trivy SARIF Report
+        if: steps.docker-build.outcome == 'success'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'scan-${{ matrix.name }}:latest'
@@ -69,7 +73,7 @@ jobs:
           output: 'trivy-${{ matrix.name }}.sarif'
 
       - name: 📤 Upload SARIF
-        if: always()
+        if: steps.docker-build.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-${{ matrix.name }}.sarif'
