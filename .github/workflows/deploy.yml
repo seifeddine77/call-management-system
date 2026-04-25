@@ -93,7 +93,7 @@ jobs:
 
       - name: ✅ Verify Rollout
         run: |
-          SERVICES=(auth-service organisation-service ticket-service api-gateway frontend)
+          SERVICES=(eureka-server api-gateway auth-service organisation-service ticket-service rules-service decision-service notification-service analytics-service ai-service frontend)
           for svc in "${SERVICES[@]}"; do
             echo "Checking $svc..."
             kubectl rollout status deployment/$svc -n autoassist --timeout=120s || true

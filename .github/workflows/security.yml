@@ -45,6 +45,8 @@ jobs:
             context: ./services/ai-service
           - name: whatsapp-service
             context: ./services/whatsapp-service
+          - name: mobile
+            context: ./mobile
     steps:
       - uses: actions/checkout@v4
 
