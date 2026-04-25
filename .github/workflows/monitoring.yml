@@ -25,14 +25,14 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
-                      prom/promtool:v2.53.0 \
+                                  prom/promtool:v2.53.0 \
             promtool check config /etc/prometheus/prometheus.yml
 
       - name: 🔍 Validate Alert Rules
         run: |
           docker run --rm \
             -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
-                      prom/promtool:v2.53.0 \
+                                  prom/promtool:v2.53.0 \
             promtool check rules /etc/prometheus/alert-rules.yml
 
               - name: Notify n8n
@@ -43,10 +43,26 @@ jobs:
                                                                 -d '{
                                                                               "event": "deploy",
                                                                                             "status": "${{ github.event.workflow_run.conclusion }}",
-                                                                                                          "branch": "${{ github.event.workflow_run.head_branch }}",
-                                                                                                                        "commit": "${{ github.event.workflow_run.head_sha }}",
-                                                                                                                                      "actor": "${{ github.event.workflow_run.actor.login }}",
-                                                                                                                                                    "run_url": "${{ github.event.workflow_run.html_url }}",
-                                                                                                                                                                  "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-                                                                                                                                                                              }'
-                                                                                                                                                                              
+                                                                                                    
+                                                                                                          - name: Validate Alert Rules
+                                                                                                                  run: |
+                                                                                                                            docker run --rm \
+                                                                                                                                        -v $(pwd)/infrastructure/monitoring/prometheus:/etc/prometheus:ro \
+                                                                                                                                                    prom/promtool:v2.53.0 \
+                                                                                                                                                                check rules /etc/prometheus/alert_rules.yml
+                                                                                                                                                                
+                                                                                                                                                                      - name: Notify n8n
+                                                                                                                                                                              if: github.event_name == 'workflow_run'
+                                                                                                                                                                                      run: |
+                                                                                                                                                                                                curl -sf -X POST "${{ secrets.N8N_WEBHOOK_URL }}/webhook/github-deploy" \
+                                                                                                                                                                                                            -H "Content-Type: application/json" \
+                                                                                                                                                                                                                        -d '{
+                                                                                                                                                                                                                                      "event": "deploy",
+                                                                                                                                                                                                                                                    "status": "${{ github.event.workflow_run.conclusion }}",
+                                                                                                                                                                                                                                                                  "branch": "${{ github.event.workflow_run.head_branch }}",
+                                                                                                                                                                                                                                                                                "commit": "${{ github.event.workflow_run.head_sha }}",
+                                                                                                                                                                                                                                                                                              "actor": "${{ github.event.workflow_run.actor.login }}",
+                                                                                                                                                                                                                                                                                                            "run_url": "${{ github.event.workflow_run.html_url }}",
+                                                                                                                                                                                                                                                                                                                          "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                                                                                                                                                                                                                                                                                                                                      }'
+                                                                                                                                                                                                                                                                                                                                      
