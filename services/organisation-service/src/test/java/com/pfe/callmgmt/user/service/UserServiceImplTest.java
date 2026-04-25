@@ -186,7 +186,7 @@ class UserServiceImplTest {
     @DisplayName("8. getAllUsers — filtre par rôle")
     void getAllUsers_filterByRole() {
         Page<User> userPage = new PageImpl<>(List.of(savedUser));
-        when(userRepository.findByRole(eq("OPERATOR"), any(Pageable.class))).thenReturn(userPage);
+        when(userRepository.findByActifTrueAndRole(eq("OPERATOR"), any(Pageable.class))).thenReturn(userPage);
         when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
 
         Page<UserResponse> result = userService.getAllUsers("OPERATOR", null, 0, 20);
