@@ -21,7 +21,7 @@ py-eureka-client==0.11.12
 # ── Testing ───────────────────────────────────────────────────────
 pytest==8.2.0
 pytest-asyncio==0.23.6
-httpx==0.27.0
+httpx==0.28.1
 
 # NOTE: Heavy ML deps (faster-whisper, spacy, torch) are installed
 # directly in Dockerfile in the correct order to avoid pip resolver issues.
