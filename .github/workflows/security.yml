@@ -25,12 +25,26 @@ jobs:
             context: ./frontend
           - name: auth-service
             context: ./services/auth-service
+          - name: organisation-service
+            context: ./services/organisation-service
           - name: ticket-service
             context: ./services/ticket-service
-          - name: ai-service
-            context: ./services/ai-service
+          - name: rules-service
+            context: ./services/rules-service
+          - name: decision-service
+            context: ./services/decision-service
+          - name: notification-service
+            context: ./services/notification-service
+          - name: analytics-service
+            context: ./services/analytics-service
+          - name: eureka-server
+            context: ./services/eureka-server
           - name: api-gateway
             context: ./services/api-gateway
+          - name: ai-service
+            context: ./services/ai-service
+          - name: whatsapp-service
+            context: ./services/whatsapp-service
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +88,7 @@ jobs:
 
       - name: 🛡️ OWASP Dependency Check
         run: |
-          for svc in auth-service organisation-service ticket-service rules-service decision-service; do
+          for svc in auth-service organisation-service ticket-service rules-service decision-service notification-service analytics-service eureka-server api-gateway; do
             echo "══════ Scanning $svc ══════"
             cd services/$svc
             mvn org.owasp:dependency-check-maven:check \
