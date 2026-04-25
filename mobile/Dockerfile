@@ -18,7 +18,7 @@ RUN flutter pub get
 COPY . .
 
 # Build Flutter Web release (CanvasKit renderer for best quality)
-RUN flutter build web --release --web-renderer canvaskit --base-href "/"
+RUN flutter build web --release --base-href "/"
 
 # ---- Stage 2: Serve with Nginx ----
 FROM nginx:alpine
