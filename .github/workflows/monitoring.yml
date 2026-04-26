@@ -1,16 +1,12 @@
-# ============================================================
+﻿# ============================================================
 # 📊 Monitoring & Notifications
 # Validates Prometheus config + sends deploy notifications via n8n
 # ============================================================
 name: 📊 Monitoring & Notifications
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'infrastructure/monitoring/**'
-      - 'docker-compose.monitoring.yml'
-  workflow_run:
+  workflow_dispatch:
+  # was: workflow_run:
     workflows: ["🚀 Deploy"]
     types: [completed]
 

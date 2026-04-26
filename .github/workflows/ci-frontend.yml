@@ -1,15 +1,10 @@
-# ============================================================
+﻿# ============================================================
 # ⚛️ CI — Frontend (React 19 + Vite + TypeScript)
 # ============================================================
 name: ⚛️ CI — Frontend
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main, develop]
-    paths: ['frontend/**']
-  pull_request:
-    paths: ['frontend/**']
+  workflow_dispatch: ['frontend/**']
 
 permissions:
   contents: read

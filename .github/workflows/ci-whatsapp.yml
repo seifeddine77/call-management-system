@@ -1,15 +1,10 @@
-# ============================================================
+﻿# ============================================================
 # 💬 CI — WhatsApp Service (Node.js + Puppeteer)
 # ============================================================
 name: 💬 CI — WhatsApp Service
 
 on:
-  workflow_dispatch: {}
-  push:
-    branches: [main, develop]
-    paths: ['services/whatsapp-service/**']
-  pull_request:
-    paths: ['services/whatsapp-service/**']
+  workflow_dispatch:
 
 permissions:
   contents: read

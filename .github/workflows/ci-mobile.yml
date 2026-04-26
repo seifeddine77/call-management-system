@@ -1,15 +1,10 @@
-# ============================================================
+﻿# ============================================================
 # 📱 CI — Mobile App (Flutter)
 # ============================================================
 name: 📱 CI — Mobile App
 
 on:
-  workflow_dispatch: {}
-  push:
-    branches: [main, develop]
-    paths: ['mobile/**']
-  pull_request:
-    paths: ['mobile/**']
+  workflow_dispatch:
 
 permissions:
   contents: read

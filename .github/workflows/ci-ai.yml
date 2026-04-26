@@ -4,11 +4,6 @@
 name: 🐍 CI — AI Service
 
 on:
-  push:
-    branches: [main, develop]
-    paths: ['services/ai-service/**']
-  pull_request:
-    paths: ['services/ai-service/**']
   workflow_dispatch:
 
 permissions:

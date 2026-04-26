@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # ☕ CI — Java Microservices (Matrix Build)
 # Builds, tests, and pushes Docker images for all 9 Java services
 # ============================================================
@@ -6,29 +6,6 @@ name: ☕ CI — Java Services
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'services/auth-service/**'
-      - 'services/organisation-service/**'
-      - 'services/ticket-service/**'
-      - 'services/rules-service/**'
-      - 'services/decision-service/**'
-      - 'services/notification-service/**'
-      - 'services/analytics-service/**'
-      - 'services/eureka-server/**'
-      - 'services/api-gateway/**'
-  pull_request:
-    paths:
-      - 'services/auth-service/**'
-      - 'services/organisation-service/**'
-      - 'services/ticket-service/**'
-      - 'services/rules-service/**'
-      - 'services/decision-service/**'
-      - 'services/notification-service/**'
-      - 'services/analytics-service/**'
-      - 'services/eureka-server/**'
-      - 'services/api-gateway/**'
 
 permissions:
   contents: read
