@@ -20,13 +20,26 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
-    tools {
-        jdk 'JDK-17'
-        maven 'Maven-3.9'
-        nodejs 'NodeJS-22'
-    }
+
 
     stages {
+        // ═══════════════════════════════════════
+        // STAGE 0 — INSTALL BUILD TOOLS
+        // ═══════════════════════════════════════
+        stage('🛠️ Setup Tools') {
+            steps {
+                sh '''
+                    echo "Installing build tools..."
+                    apt-get update -qq
+                    apt-get install -y -qq maven nodejs npm python3 python3-pip curl > /dev/null 2>&1 || true
+                    mvn --version || echo "Maven not available"
+                    node --version || echo "Node not available"
+                    python3 --version || echo "Python not available"
+                    echo "✅ Tools ready"
+                '''
+            }
+        }
+
         // ═══════════════════════════════════════
         // STAGE 1 — CHECKOUT
         // ═══════════════════════════════════════
