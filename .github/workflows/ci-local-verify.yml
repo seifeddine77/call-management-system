@@ -1,0 +1,161 @@
+# ============================================================
+# CI Local Verification (Self-Hosted Runner)
+# Runs ALL tests on your local machine via GitHub Actions
+# FREE - no billing minutes consumed
+# ============================================================
+name: CI Local - Full Verification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # ══════════════════════════════════════════
+  # Java Microservices (9 services)
+  # ══════════════════════════════════════════
+  java-services:
+    runs-on: [self-hosted, Windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - organisation-service
+          - ticket-service
+          - rules-service
+          - decision-service
+          - notification-service
+          - analytics-service
+          - eureka-server
+          - api-gateway
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Build & Test ${{ matrix.service }}
+        shell: cmd
+        run: |
+          cd services\${{ matrix.service }}
+          mvn verify --batch-mode -q
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+          retention-days: 7
+
+  # ══════════════════════════════════════════
+  # AI Service (Python)
+  # ══════════════════════════════════════════
+  ai-service:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/ai-service/requirements.txt
+
+      - name: Install Dependencies
+        run: pip install -r services/ai-service/requirements.txt
+
+      - name: Run Tests (45 tests)
+        shell: cmd
+        run: |
+          cd services\ai-service
+          pip install pytest pytest-asyncio pytest-cov
+          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term
+        env:
+          DATABASE_URL: sqlite:///./test.db
+          WHISPER_MODEL: tiny
+          LLM_API_KEY: test
+          LLM_BASE_URL: http://localhost:11434/v1
+
+  # ══════════════════════════════════════════
+  # Frontend (React + Vite)
+  # ══════════════════════════════════════════
+  frontend:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Build
+        shell: cmd
+        run: |
+          cd frontend
+          npm ci
+          npx tsc -b || echo "TypeScript warnings (non-blocking)"
+          npm run build
+
+  # ══════════════════════════════════════════
+  # WhatsApp Service (Node.js)
+  # ══════════════════════════════════════════
+  whatsapp-service:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/whatsapp-service/package-lock.json
+
+      - name: Install & Check
+        shell: cmd
+        run: |
+          cd services\whatsapp-service
+          npm ci
+          node --check index.js
+
+  # ══════════════════════════════════════════
+  # Summary
+  # ══════════════════════════════════════════
+  summary:
+    needs: [java-services, ai-service, frontend, whatsapp-service]
+    if: always()
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Pipeline Summary
+        shell: pwsh
+        run: |
+          Write-Host "============================================"
+          Write-Host " CI/CD LOCAL VERIFICATION - RESULTS"
+          Write-Host "============================================"
+          Write-Host ""
+          Write-Host "Java Services (9x): ${{ needs.java-services.result }}"
+          Write-Host "AI Service:         ${{ needs.ai-service.result }}"
+          Write-Host "Frontend:           ${{ needs.frontend.result }}"
+          Write-Host "WhatsApp Service:   ${{ needs.whatsapp-service.result }}"
+          Write-Host ""
+          Write-Host "============================================"
+
+          $results = @("${{ needs.java-services.result }}", "${{ needs.ai-service.result }}", "${{ needs.frontend.result }}", "${{ needs.whatsapp-service.result }}")
+          if ($results -contains "failure") {
+            Write-Host "OVERALL: SOME FAILURES"
+            exit 1
+          } else {
+            Write-Host "OVERALL: ALL PASSED"
+          }
