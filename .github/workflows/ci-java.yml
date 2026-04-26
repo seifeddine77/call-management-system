@@ -30,6 +30,10 @@ on:
       - 'services/eureka-server/**'
       - 'services/api-gateway/**'
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   JAVA_VERSION: '17'
   REGISTRY: ghcr.io
