@@ -5,7 +5,9 @@
 # ============================================================
 services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    build:
+      context: ./infrastructure/jenkins
+      dockerfile: Dockerfile
     container_name: callmgmt-jenkins
     ports:
       - "8090:8080"
