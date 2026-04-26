@@ -61,21 +61,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: pip
-          cache-dependency-path: services/ai-service/requirements.txt
-
-      - name: Install Dependencies
-        run: pip install -r services/ai-service/requirements.txt
-
-      - name: Run Tests (45 tests)
+      - name: Install Dependencies & Run Tests (45 tests)
         shell: cmd
         run: |
           cd services\ai-service
-          pip install pytest pytest-asyncio pytest-cov
+          pip install -r requirements.txt --quiet
+          pip install pytest pytest-asyncio pytest-cov --quiet
           python -m pytest tests/ -v --tb=short --cov=app --cov-report=term
         env:
           DATABASE_URL: sqlite:///./test.db
