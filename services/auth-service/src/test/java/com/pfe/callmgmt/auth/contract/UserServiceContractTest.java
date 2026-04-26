@@ -4,7 +4,9 @@ import com.pfe.callmgmt.auth.client.UserServiceClient;
 import com.pfe.callmgmt.auth.dto.RegisterRequest;
 import com.pfe.callmgmt.auth.dto.UserDto;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.stubrunner.spring.AutoConfigureStubRunner;
@@ -31,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
 @AutoConfigureStubRunner(ids = "com.pfe.callmgmt:user-service:+:stubs:6565", stubsMode = StubRunnerProperties.StubsMode.LOCAL)
+@Tag("contract")
+@EnabledIfSystemProperty(named = "contract.tests", matches = "true")
 public class UserServiceContractTest {
 
     @Autowired

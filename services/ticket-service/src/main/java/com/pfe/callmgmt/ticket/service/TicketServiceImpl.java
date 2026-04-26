@@ -219,8 +219,9 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public Page<TicketResponse> getTickets(TicketFilter filter, String userRole, UUID userId, UUID userAgenceId) {
         // CDC 1.C — OPERATOR ne voit que les tickets de son agence
+        // Security: always force operator's agence regardless of filter value
         UUID effectiveAgenceId = filter.getAgenceId();
-        if ("OPERATOR".equals(userRole) && effectiveAgenceId == null) {
+        if ("OPERATOR".equals(userRole)) {
             effectiveAgenceId = userAgenceId;
         }
 
