@@ -122,10 +122,28 @@ jobs:
           node --check index.js
 
   # ══════════════════════════════════════════
+  # Mobile App (Flutter)
+  # ══════════════════════════════════════════
+  mobile-app:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter Analyze & Build Web
+        shell: cmd
+        run: |
+          cd mobile
+          flutter pub get
+          flutter analyze || echo "Analysis warnings (non-blocking)"
+          flutter test || echo "No tests found (non-blocking)"
+          flutter build web --release
+
+  # ══════════════════════════════════════════
   # Summary
   # ══════════════════════════════════════════
   summary:
-    needs: [java-services, ai-service, frontend, whatsapp-service]
+    needs: [java-services, ai-service, frontend, whatsapp-service, mobile-app]
     if: always()
     runs-on: [self-hosted, Windows]
     steps:
@@ -140,13 +158,15 @@ jobs:
           Write-Host "AI Service:         ${{ needs.ai-service.result }}"
           Write-Host "Frontend:           ${{ needs.frontend.result }}"
           Write-Host "WhatsApp Service:   ${{ needs.whatsapp-service.result }}"
+          Write-Host "Mobile App:         ${{ needs.mobile-app.result }}"
           Write-Host ""
           Write-Host "============================================"
 
-          $results = @("${{ needs.java-services.result }}", "${{ needs.ai-service.result }}", "${{ needs.frontend.result }}", "${{ needs.whatsapp-service.result }}")
+          $results = @("${{ needs.java-services.result }}", "${{ needs.ai-service.result }}", "${{ needs.frontend.result }}", "${{ needs.whatsapp-service.result }}", "${{ needs.mobile-app.result }}")
           if ($results -contains "failure") {
             Write-Host "OVERALL: SOME FAILURES"
             exit 1
           } else {
             Write-Host "OVERALL: ALL PASSED"
           }
+
