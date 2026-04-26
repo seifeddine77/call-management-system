@@ -104,3 +104,10 @@ scrape_configs:
     static_configs:
       - targets: ['cadvisor:8080']
     scrape_interval: 30s
+
+  # ── Jenkins CI/CD metrics ──
+  - job_name: 'jenkins'
+    metrics_path: /prometheus/
+    static_configs:
+      - targets: ['jenkins:8080']
+    scrape_interval: 30s

@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8085
 
 spring:
@@ -56,7 +56,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,circuitbreakers
+        include: health,info,metrics,prometheus,circuitbreakers
   health:
     circuitbreakers:
       enabled: true

@@ -1,0 +1,76 @@
+{
+  "title": "AutoAssist — JVM Details",
+  "uid": "autoassist-jvm",
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "templating": {
+    "list": [{ "name": "service", "type": "query", "query": "label_values(jvm_memory_used_bytes, job)", "datasource": "Prometheus", "multi": false, "current": { "text": "auth-service", "value": "auth-service" } }]
+  },
+  "panels": [
+    {
+      "title": "JVM Heap Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Used" },
+        { "expr": "jvm_memory_committed_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Committed" },
+        { "expr": "jvm_memory_max_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Max" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15 } } }
+    },
+    {
+      "title": "JVM Non-Heap Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{job=\"$service\", area=\"nonheap\"}", "legendFormat": "Used" },
+        { "expr": "jvm_memory_committed_bytes{job=\"$service\", area=\"nonheap\"}", "legendFormat": "Committed" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15 } } }
+    },
+    {
+      "title": "GC Pause Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "rate(jvm_gc_pause_seconds_sum{job=\"$service\"}[5m])", "legendFormat": "{{cause}} — {{action}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "title": "Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{job=\"$service\"}", "legendFormat": "Live" },
+        { "expr": "jvm_threads_daemon_threads{job=\"$service\"}", "legendFormat": "Daemon" },
+        { "expr": "jvm_threads_peak_threads{job=\"$service\"}", "legendFormat": "Peak" }
+      ]
+    },
+    {
+      "title": "HikariCP — Connection Pool",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=\"$service\"}", "legendFormat": "Active" },
+        { "expr": "hikaricp_connections_idle{job=\"$service\"}", "legendFormat": "Idle" },
+        { "expr": "hikaricp_connections_max{job=\"$service\"}", "legendFormat": "Max" },
+        { "expr": "hikaricp_connections_pending{job=\"$service\"}", "legendFormat": "Pending" }
+      ]
+    },
+    {
+      "title": "CPU Usage",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [{ "expr": "process_cpu_usage{job=\"$service\"}", "legendFormat": "CPU" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 0.8 }] } } }
+    },
+    {
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [{ "expr": "process_uptime_seconds{job=\"$service\"}", "legendFormat": "Uptime" }],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    }
+  ],
+  "schemaVersion": 39
+}

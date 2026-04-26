@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8084
 
 spring:
@@ -45,7 +45,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
 
 springdoc:
   api-docs:

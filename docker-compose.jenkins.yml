@@ -1,0 +1,42 @@
+# ============================================================
+# Jenkins CI/CD — Local Infrastructure
+# Usage: docker compose -f docker-compose.jenkins.yml up -d
+# Access: http://localhost:8082
+# ============================================================
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: callmgmt-jenkins
+    ports:
+      - "8082:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./infrastructure/jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt
+    environment:
+      - JAVA_OPTS=-Xmx1g -Djenkins.install.runSetupWizard=true
+      - TZ=Europe/Paris
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # Docker Registry — Local image storage (no GHCR billing)
+  docker-registry:
+    image: registry:2
+    container_name: callmgmt-registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+networks:
+  callmgmt-net:
+    external: true
+
+volumes:
+  jenkins_data:
+  registry_data:
