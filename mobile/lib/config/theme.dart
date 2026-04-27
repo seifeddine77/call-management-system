@@ -102,7 +102,7 @@ class AppTheme {
           backgroundColor: c.primary,
           foregroundColor: Colors.white,
           elevation: isDark ? 0 : 2,
-          shadowColor: c.primary.withOpacity(0.3),
+          shadowColor: c.primary.withValues(alpha: 0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
