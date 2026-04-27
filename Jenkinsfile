@@ -16,7 +16,7 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 60, unit: 'MINUTES')
+        timeout(time: 120, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
@@ -197,29 +197,49 @@ pipeline {
         stage('🐳 Docker Build & Push') {
             steps {
                 script {
-                    def targets = [
-                        [name: 'auth-service',         ctx: 'services/auth-service'],
-                        [name: 'organisation-service', ctx: 'services/organisation-service'],
-                        [name: 'ticket-service',       ctx: 'services/ticket-service'],
-                        [name: 'rules-service',        ctx: 'services/rules-service'],
-                        [name: 'decision-service',     ctx: 'services/decision-service'],
-                        [name: 'notification-service', ctx: 'services/notification-service'],
-                        [name: 'analytics-service',    ctx: 'services/analytics-service'],
-                        [name: 'eureka-server',        ctx: 'services/eureka-server'],
-                        [name: 'api-gateway',          ctx: 'services/api-gateway'],
-                        [name: 'ai-service',           ctx: 'services/ai-service'],
-                        [name: 'frontend',             ctx: 'frontend'],
-                        [name: 'whatsapp-service',     ctx: 'services/whatsapp-service'],
+                    // Java services — use pre-built JAR (already compiled in Build stage)
+                    def javaServices = [
+                        'auth-service', 'organisation-service', 'ticket-service',
+                        'rules-service', 'decision-service', 'notification-service',
+                        'analytics-service', 'eureka-server', 'api-gateway'
                     ]
-                    for (t in targets) {
+                    for (svc in javaServices) {
+                        def img = "${DOCKER_REGISTRY}/${IMAGE_PREFIX}-${svc}"
+                        def ctx = "services/${svc}"
+                        echo "🐳 Building ${svc} (fast — pre-built JAR)..."
+                        // Create optimized Dockerfile using pre-built JAR
+                        sh """
+                            cat > ${ctx}/Dockerfile.ci << 'CIEOF'
+FROM eclipse-temurin:17-jre-alpine
+RUN addgroup -S app && adduser -S app -G app
+WORKDIR /app
+COPY target/*.jar app.jar
+USER app
+HEALTHCHECK --interval=30s --timeout=10s CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+CIEOF
+                            docker build -f ${ctx}/Dockerfile.ci -t ${img}:${GIT_SHORT} -t ${img}:latest ${ctx}
+                            docker push ${img}:${GIT_SHORT}  || echo '⚠️ Push failed'
+                            docker push ${img}:latest        || echo '⚠️ Push failed'
+                            rm -f ${ctx}/Dockerfile.ci
+                        """
+                    }
+
+                    // Non-Java services — use their own Dockerfile
+                    def otherServices = [
+                        [name: 'ai-service',       ctx: 'services/ai-service'],
+                        [name: 'frontend',         ctx: 'frontend'],
+                        [name: 'whatsapp-service', ctx: 'services/whatsapp-service'],
+                    ]
+                    for (t in otherServices) {
                         def img = "${DOCKER_REGISTRY}/${IMAGE_PREFIX}-${t.name}"
                         def hasDockerfile = sh(script: "test -f ${t.ctx}/Dockerfile", returnStatus: true) == 0
                         if (hasDockerfile) {
                             echo "🐳 Building ${t.name}..."
                             sh """
                                 docker build -t ${img}:${GIT_SHORT} -t ${img}:latest ${t.ctx}
-                                docker push ${img}:${GIT_SHORT}  || echo '⚠️ Push failed (registry may be offline)'
-                                docker push ${img}:latest        || echo '⚠️ Push failed (registry may be offline)'
+                                docker push ${img}:${GIT_SHORT}  || echo '⚠️ Push failed'
+                                docker push ${img}:latest        || echo '⚠️ Push failed'
                             """
                         } else {
                             echo "⚠️ No Dockerfile for ${t.name} — skipped"
