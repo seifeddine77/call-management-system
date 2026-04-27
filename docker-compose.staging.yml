@@ -1,0 +1,40 @@
+# docker-compose.staging.yml
+# Overlay for staging deployment — uses pre-built images from registry.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build
+services:
+
+  eureka-server:
+    image: localhost:5000/autoassist-eureka-server:latest
+
+  api-gateway:
+    image: localhost:5000/autoassist-api-gateway:latest
+
+  auth-service:
+    image: localhost:5000/autoassist-auth-service:latest
+
+  organisation-service:
+    image: localhost:5000/autoassist-organisation-service:latest
+
+  ticket-service:
+    image: localhost:5000/autoassist-ticket-service:latest
+
+  rules-service:
+    image: localhost:5000/autoassist-rules-service:latest
+
+  decision-service:
+    image: localhost:5000/autoassist-decision-service:latest
+
+  notification-service:
+    image: localhost:5000/autoassist-notification-service:latest
+
+  analytics-service:
+    image: localhost:5000/autoassist-analytics-service:latest
+
+  ai-service:
+    image: localhost:5000/autoassist-ai-service:latest
+
+  frontend:
+    image: localhost:5000/autoassist-frontend:latest
+
+  whatsapp-service:
+    image: localhost:5000/autoassist-whatsapp-service:latest

@@ -288,10 +288,10 @@ CIEOF
                 withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
                     sh '''
                         cp "$ENV_FILE" .env
-                        docker compose -f docker-compose.yml up -d --remove-orphans
+                        docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
                         echo "Waiting 45s for services to start..."
                         sleep 45
-                        docker compose ps
+                        docker compose -f docker-compose.yml -f docker-compose.staging.yml ps
                     '''
                 }
             }
