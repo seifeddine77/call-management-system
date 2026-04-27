@@ -95,11 +95,14 @@ RUN echo "=== Tool Versions ===" && \
     flutter --version && \
     echo "=== All tools installed ==="
 
+# ── Git safe directory (root runs Jenkins via docker-compose) ──
+RUN git config --global --add safe.directory '*'
+
 # ── Switch to jenkins user ──────────────────────────────────
 USER jenkins
 
 # ── Configure git safe directory for Flutter SDK ────────────
-RUN git config --global --add safe.directory /opt/flutter
+RUN git config --global --add safe.directory '*'
 
 # ── Pre-install Jenkins plugins ─────────────────────────────
 RUN jenkins-plugin-cli --plugins \
