@@ -147,19 +147,29 @@ pipeline {
                             'rules-service', 'decision-service', 'notification-service',
                             'analytics-service'
                         ]
+                        def sonarFails = []
                         for (svc in services) {
                             echo "📊 Analyzing ${svc}..."
-                            dir("services/${svc}") {
-                                sh """
-                                    mvn sonar:sonar \
-                                      -Dsonar.host.url=${SONAR_URL} \
-                                      -Dsonar.token=${SONAR_TOKEN} \
-                                      -Dsonar.organization=${SONAR_ORG} \
-                                      -Dsonar.projectKey=${SONAR_PROJECT}-${svc} \
-                                      -Dsonar.java.coveragePlugin=jacoco \
-                                      --batch-mode -q
-                                """
+                            try {
+                                dir("services/${svc}") {
+                                    sh """
+                                        mvn sonar:sonar \
+                                          -Dsonar.host.url=${SONAR_URL} \
+                                          -Dsonar.token=${SONAR_TOKEN} \
+                                          -Dsonar.organization=${SONAR_ORG} \
+                                          -Dsonar.projectKey=${SONAR_PROJECT}-${svc} \
+                                          -Dsonar.java.coveragePlugin=jacoco \
+                                          --batch-mode -q
+                                    """
+                                }
+                            } catch (err) {
+                                echo "⚠️ SonarCloud failed for ${svc}: ${err.message} — continuing pipeline"
+                                sonarFails << svc
                             }
+                        }
+                        if (sonarFails) {
+                            echo "⚠️ SonarCloud failed for: ${sonarFails.join(', ')} — non-blocking"
+                            unstable("SonarCloud partial failure: ${sonarFails.join(', ')}")
                         }
                     }
                 }
