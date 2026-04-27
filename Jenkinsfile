@@ -1,7 +1,6 @@
 // ============================================================
-// Jenkinsfile — AutoAssist CI/CD Pipeline (12 stages)
-// Stack: Java 17, Python 3.11, Node 20, Flutter, Docker
-// ALL stages execute — no skip, no degradation
+// Jenkinsfile — AutoAssist CI/CD Pipeline
+// Production-grade: fail-fast, build-once, secrets-managed
 // ============================================================
 pipeline {
     agent any
@@ -16,37 +15,35 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 120, unit: 'MINUTES')
+        timeout(time: 90, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
 
-        // ═══════════════════════════════════════
+        // =============================================
         // STAGE 1 — CHECKOUT
-        // ═══════════════════════════════════════
-        stage('📥 Checkout') {
+        // =============================================
+        stage('Checkout') {
             steps {
                 checkout scm
                 script {
                     env.GIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    env.GIT_MSG   = sh(script: 'git log -1 --pretty=%s',     returnStdout: true).trim()
-                    env.GIT_BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo "🔖 Commit: ${env.GIT_SHORT} — ${env.GIT_MSG}"
-                    echo "🌿 Branch: ${env.GIT_BRANCH_NAME}"
+                    env.GIT_MSG   = sh(script: 'git log -1 --pretty=%s', returnStdout: true).trim()
+                    env.IMAGE_TAG = "sha-${env.GIT_SHORT}"
+                    echo "Commit: ${env.GIT_SHORT} — ${env.GIT_MSG}"
                 }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 2 — BUILD & TEST (parallel)
-        // ═══════════════════════════════════════
-        stage('🔨 Build & Test') {
+        // =============================================
+        // STAGE 2 — BUILD & TEST (parallel, fail-fast)
+        // Blocking: broken code stops the pipeline
+        // =============================================
+        stage('Build and Test') {
             parallel {
-
-                // ── Java Microservices ──
-                stage('☕ Java Services') {
+                stage('Java Services') {
                     steps {
                         script {
                             def services = [
@@ -55,7 +52,7 @@ pipeline {
                                 'analytics-service', 'eureka-server', 'api-gateway'
                             ]
                             for (svc in services) {
-                                echo "══════ Building ${svc} ══════"
+                                echo "Building ${svc}..."
                                 dir("services/${svc}") {
                                     sh 'mvn verify --batch-mode -q'
                                 }
@@ -64,14 +61,14 @@ pipeline {
                     }
                     post {
                         always {
-                            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                            junit allowEmptyResults: true,
+                                  testResults: '**/target/surefire-reports/*.xml'
                             jacoco execPattern: '**/target/jacoco.exec'
                         }
                     }
                 }
 
-                // ── AI Service (Python 3.11) ──
-                stage('🐍 AI Service') {
+                stage('AI Service') {
                     steps {
                         dir('services/ai-service') {
                             sh '''
@@ -79,27 +76,26 @@ pipeline {
                                 . .venv/bin/activate
                                 pip install -r requirements.txt --quiet
                                 pip install pytest pytest-asyncio pytest-cov --quiet
-                                python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term || echo "⚠️ Some tests skipped"
+                                python -m pytest tests/ -v --tb=short \
+                                    --cov=app --cov-report=xml --cov-report=term
                             '''
                         }
                     }
                 }
 
-                // ── Frontend (React + Vite) ──
-                stage('⚛️ Frontend') {
+                stage('Frontend') {
                     steps {
                         dir('frontend') {
                             sh '''
                                 npm ci
-                                npx tsc -b || true
+                                npx tsc -b
                                 npm run build
                             '''
                         }
                     }
                 }
 
-                // ── WhatsApp Service (Node.js) ──
-                stage('💬 WhatsApp') {
+                stage('WhatsApp Service') {
                     steps {
                         dir('services/whatsapp-service') {
                             sh '''
@@ -110,8 +106,7 @@ pipeline {
                     }
                 }
 
-                // ── Mobile App (Flutter) ──
-                stage('📱 Mobile') {
+                stage('Mobile') {
                     steps {
                         dir('mobile') {
                             sh '''
@@ -126,19 +121,12 @@ pipeline {
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 3 — CODE COVERAGE REPORT
-        // ═══════════════════════════════════════
-        stage('📈 Coverage Report') {
-            steps {
-                echo '📈 Coverage reports collected from JaCoCo & pytest-cov'
-            }
-        }
-
-        // ═══════════════════════════════════════
-        // STAGE 4 — SONARCLOUD ANALYSIS
-        // ═══════════════════════════════════════
-        stage('📊 SonarCloud') {
+        // =============================================
+        // STAGE 3 — SONARCLOUD ANALYSIS + QUALITY GATE
+        // Blocking: code that fails the quality gate
+        //           does not get deployed
+        // =============================================
+        stage('SonarCloud Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     script {
@@ -147,11 +135,14 @@ pipeline {
                             'rules-service', 'decision-service', 'notification-service',
                             'analytics-service'
                         ]
-                        def sonarFails = []
+                        def qualityGateFailed = []
+                        def analysisErrors = []
+
                         for (svc in services) {
-                            echo "📊 Analyzing ${svc}..."
+                            echo "Analyzing ${svc}..."
                             try {
                                 dir("services/${svc}") {
+                                    // Run analysis AND wait for Quality Gate result
                                     sh """
                                         mvn sonar:sonar \
                                           -Dsonar.host.url=${SONAR_URL} \
@@ -159,27 +150,43 @@ pipeline {
                                           -Dsonar.organization=${SONAR_ORG} \
                                           -Dsonar.projectKey=${SONAR_PROJECT}-${svc} \
                                           -Dsonar.java.coveragePlugin=jacoco \
+                                          -Dsonar.qualitygate.wait=true \
+                                          -Dsonar.qualitygate.timeout=120 \
                                           --batch-mode -q
                                     """
+                                    echo "PASSED: ${svc} quality gate OK"
                                 }
                             } catch (err) {
-                                echo "⚠️ SonarCloud failed for ${svc}: ${err.message} — continuing pipeline"
-                                sonarFails << svc
+                                def msg = err.message ?: err.toString()
+                                if (msg.contains('timeout') || msg.contains('connect') || msg.contains('unreachable')) {
+                                    echo "WARN: ${svc} — network error (${msg}), skipping"
+                                    analysisErrors << svc
+                                } else {
+                                    echo "FAIL: ${svc} — quality gate failed"
+                                    qualityGateFailed << svc
+                                }
                             }
                         }
-                        if (sonarFails) {
-                            echo "⚠️ SonarCloud failed for: ${sonarFails.join(', ')} — non-blocking"
-                            unstable("SonarCloud partial failure: ${sonarFails.join(', ')}")
+
+                        // Quality gate failures are blocking
+                        if (qualityGateFailed) {
+                            error("Quality Gate FAILED for: ${qualityGateFailed.join(', ')}. Fix code quality issues before deploying.")
+                        }
+
+                        // Network errors are non-blocking (mark unstable)
+                        if (analysisErrors) {
+                            unstable("SonarCloud unreachable for: ${analysisErrors.join(', ')} — analysis skipped")
                         }
                     }
                 }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 5 — SECURITY SCANS (parallel)
-        // ═══════════════════════════════════════
-        stage('🔒 Security') {
+        // =============================================
+        // STAGE 4 — SECURITY SCANS (parallel)
+        // Non-blocking: informational, marks unstable
+        // =============================================
+        stage('Security Scans') {
             parallel {
                 stage('Trivy') {
                     steps {
@@ -191,7 +198,7 @@ pipeline {
                         sh 'gitleaks detect --source . --no-git --exit-code 0 || true'
                     }
                 }
-                stage('OWASP') {
+                stage('OWASP Dependency Check') {
                     steps {
                         dir('services/auth-service') {
                             sh 'mvn org.owasp:dependency-check-maven:check -DskipTests -q -DfailBuildOnCVSS=9 || true'
@@ -201,13 +208,15 @@ pipeline {
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 6 — DOCKER BUILD & PUSH
-        // ═══════════════════════════════════════
-        stage('🐳 Docker Build & Push') {
+        // =============================================
+        // STAGE 5 — DOCKER BUILD & PUSH
+        // Blocking: no image = no deployment
+        // Build once: this exact image is deployed everywhere
+        // =============================================
+        stage('Docker Build and Push') {
             steps {
                 script {
-                    // Java services — use pre-built JAR (already compiled in Build stage)
+                    // Java services — lightweight image from pre-built JAR
                     def javaServices = [
                         'auth-service', 'organisation-service', 'ticket-service',
                         'rules-service', 'decision-service', 'notification-service',
@@ -216,8 +225,7 @@ pipeline {
                     for (svc in javaServices) {
                         def img = "${DOCKER_REGISTRY}/${IMAGE_PREFIX}-${svc}"
                         def ctx = "services/${svc}"
-                        echo "🐳 Building ${svc} (fast — pre-built JAR)..."
-                        // Create optimized Dockerfile using pre-built JAR
+                        echo "Building ${svc}..."
                         sh """
                             cat > ${ctx}/Dockerfile.ci << 'CIEOF'
 FROM eclipse-temurin:17-jre-alpine
@@ -228,9 +236,13 @@ USER app
 HEALTHCHECK --interval=30s --timeout=10s CMD wget -qO- http://localhost:8080/actuator/health || exit 1
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
 CIEOF
-                            docker build -f ${ctx}/Dockerfile.ci -t ${img}:${GIT_SHORT} -t ${img}:latest ${ctx}
-                            docker push ${img}:${GIT_SHORT}  || echo '⚠️ Push failed'
-                            docker push ${img}:latest        || echo '⚠️ Push failed'
+                            docker build -f ${ctx}/Dockerfile.ci \
+                                -t ${img}:${IMAGE_TAG} \
+                                -t ${img}:build-${BUILD_NUMBER} \
+                                -t ${img}:latest ${ctx}
+                            docker push ${img}:${IMAGE_TAG}
+                            docker push ${img}:build-${BUILD_NUMBER}
+                            docker push ${img}:latest
                             rm -f ${ctx}/Dockerfile.ci
                         """
                     }
@@ -245,86 +257,117 @@ CIEOF
                         def img = "${DOCKER_REGISTRY}/${IMAGE_PREFIX}-${t.name}"
                         def hasDockerfile = sh(script: "test -f ${t.ctx}/Dockerfile", returnStatus: true) == 0
                         if (hasDockerfile) {
-                            echo "🐳 Building ${t.name}..."
+                            echo "Building ${t.name}..."
                             sh """
-                                docker build -t ${img}:${GIT_SHORT} -t ${img}:latest ${t.ctx}
-                                docker push ${img}:${GIT_SHORT}  || echo '⚠️ Push failed'
-                                docker push ${img}:latest        || echo '⚠️ Push failed'
+                                docker build \
+                                    -t ${img}:${IMAGE_TAG} \
+                                    -t ${img}:build-${BUILD_NUMBER} \
+                                    -t ${img}:latest ${t.ctx}
+                                docker push ${img}:${IMAGE_TAG}
+                                docker push ${img}:build-${BUILD_NUMBER}
+                                docker push ${img}:latest
                             """
                         } else {
-                            echo "⚠️ No Dockerfile for ${t.name} — skipped"
+                            echo "SKIP: No Dockerfile for ${t.name}"
                         }
                     }
                 }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 7 — DEPLOY STAGING
-        // ═══════════════════════════════════════
-        stage('🔧 Deploy Staging') {
+        // =============================================
+        // STAGE 6 — DEPLOY STAGING
+        // Uses pre-built images from registry (no rebuild)
+        // Secrets injected via Jenkins Credentials
+        // =============================================
+        stage('Deploy Staging') {
             steps {
-                sh '''
-                    docker compose -f docker-compose.yml pull 2>/dev/null || true
-                    docker compose -f docker-compose.yml up -d --build --remove-orphans
-                    echo "⏳ Waiting 60s for services to start..."
-                    sleep 60
-                    docker compose -f docker-compose.yml ps
-                '''
+                withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
+                    sh '''
+                        cp "$ENV_FILE" .env
+                        docker compose -f docker-compose.yml up -d --remove-orphans
+                        echo "Waiting 45s for services to start..."
+                        sleep 45
+                        docker compose ps
+                    '''
+                }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 8 — SMOKE TESTS
-        // ═══════════════════════════════════════
-        stage('🧪 Smoke Tests') {
+        // =============================================
+        // STAGE 7 — SMOKE TESTS
+        // Validates that critical services are responding
+        // =============================================
+        stage('Smoke Tests') {
             steps {
-                sh '''
-                    echo "Testing Eureka..."
-                    curl -sf --max-time 10 http://localhost:8761/actuator/health || echo "⚠️ Eureka not ready"
-                    echo "Testing Gateway..."
-                    curl -sf --max-time 10 http://localhost:8080/actuator/health || echo "⚠️ Gateway not ready"
-                    echo "Testing Frontend..."
-                    curl -sf --max-time 10 http://localhost:3000 || echo "⚠️ Frontend not ready"
-                    echo "Testing AI Service..."
-                    curl -sf --max-time 10 http://localhost:8000/health || echo "⚠️ AI not ready"
-                    echo "✅ Smoke tests complete"
-                '''
+                script {
+                    def endpoints = [
+                        [name: 'Eureka',       url: 'http://localhost:8761/actuator/health'],
+                        [name: 'Gateway',      url: 'http://localhost:8080/actuator/health'],
+                        [name: 'Auth',         url: 'http://localhost:8081/actuator/health'],
+                        [name: 'Organisation', url: 'http://localhost:8082/actuator/health'],
+                        [name: 'Frontend',     url: 'http://localhost:3000'],
+                        [name: 'AI Service',   url: 'http://localhost:8000/health'],
+                    ]
+                    def passed = []
+                    def failed = []
+                    for (ep in endpoints) {
+                        def status = sh(
+                            script: "curl -sf --max-time 10 ${ep.url}",
+                            returnStatus: true
+                        )
+                        if (status == 0) {
+                            echo "OK: ${ep.name}"
+                            passed << ep.name
+                        } else {
+                            echo "FAIL: ${ep.name} not responding"
+                            failed << ep.name
+                        }
+                    }
+                    echo "Smoke Tests: ${passed.size()} passed, ${failed.size()} failed"
+                    if (failed.size() > 2) {
+                        error("Too many services down: ${failed.join(', ')}")
+                    }
+                    if (failed) {
+                        unstable("Some services not ready: ${failed.join(', ')}")
+                    }
+                }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 9 — APPROVAL GATE
-        // ═══════════════════════════════════════
-        stage('✋ Approval') {
+        // =============================================
+        // STAGE 8 — APPROVAL GATE
+        // Manual approval required before production
+        // =============================================
+        stage('Approval') {
             steps {
-                input message: '🚀 Déployer en Production (Kubernetes) ?',
-                      ok: 'Déployer',
+                input message: "Deploy Build #${BUILD_NUMBER} (${IMAGE_TAG}) to Production?",
+                      ok: 'Deploy to Production',
                       submitterParameter: 'APPROVER'
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 10 — DEPLOY PRODUCTION (K8s)
-        // ═══════════════════════════════════════
-        stage('☸️ Deploy K8s') {
+        // =============================================
+        // STAGE 9 — DEPLOY PRODUCTION (Kubernetes)
+        // =============================================
+        stage('Deploy K8s') {
             steps {
                 sh '''
                     cd k8s/
-                    kubectl apply -f namespace.yml       2>/dev/null || echo "⚠️ namespace already exists"
-                    kubectl apply -f configmaps/         2>/dev/null || echo "⚠️ configmaps apply warning"
-                    kubectl apply -f deployments/infra/  2>/dev/null || echo "⚠️ infra deploy warning"
+                    kubectl apply -f namespace.yml         2>/dev/null || true
+                    kubectl apply -f configmaps/           2>/dev/null || true
+                    kubectl apply -f deployments/infra/    2>/dev/null || true
                     sleep 30
-                    kubectl apply -f deployments/services/ 2>/dev/null || echo "⚠️ services deploy warning"
-                    kubectl apply -f ingress.yml         2>/dev/null || echo "⚠️ ingress apply warning"
+                    kubectl apply -f deployments/services/ 2>/dev/null || true
+                    kubectl apply -f ingress.yml           2>/dev/null || true
                 '''
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 11 — VERIFY ROLLOUT
-        // ═══════════════════════════════════════
-        stage('✅ Verify') {
+        // =============================================
+        // STAGE 10 — VERIFY ROLLOUT
+        // =============================================
+        stage('Verify Rollout') {
             steps {
                 script {
                     def deployments = [
@@ -332,30 +375,32 @@ CIEOF
                         'organisation-service', 'ticket-service', 'rules-service',
                         'decision-service', 'notification-service', 'analytics-service'
                     ]
-                    def failed = false
+                    def failedDeps = []
                     for (dep in deployments) {
                         def status = sh(
                             script: "kubectl rollout status deployment/${dep} -n autoassist --timeout=120s",
                             returnStatus: true
                         )
                         if (status != 0) {
-                            echo "❌ ${dep} rollout failed"
-                            failed = true
+                            echo "FAIL: ${dep}"
+                            failedDeps << dep
                         } else {
-                            echo "✅ ${dep} healthy"
+                            echo "OK: ${dep}"
                         }
                     }
-                    if (failed) {
+                    if (failedDeps) {
                         env.ROLLBACK_NEEDED = 'true'
+                        echo "Rollout failed for: ${failedDeps.join(', ')}"
                     }
                 }
             }
         }
 
-        // ═══════════════════════════════════════
-        // STAGE 12 — ROLLBACK (if needed)
-        // ═══════════════════════════════════════
-        stage('⏪ Rollback') {
+        // =============================================
+        // STAGE 11 — ROLLBACK (conditional)
+        // Automatic rollback if verification fails
+        // =============================================
+        stage('Rollback') {
             when {
                 expression { env.ROLLBACK_NEEDED == 'true' }
             }
@@ -363,37 +408,39 @@ CIEOF
                 script {
                     def deployments = [
                         'eureka-server', 'api-gateway', 'auth-service',
-                        'organisation-service', 'ticket-service', 'rules-service'
+                        'organisation-service', 'ticket-service', 'rules-service',
+                        'decision-service', 'notification-service', 'analytics-service'
                     ]
                     for (dep in deployments) {
                         sh "kubectl rollout undo deployment/${dep} -n autoassist || true"
                     }
-                    error('⏪ Rollback effectué. Pipeline marqué en échec.')
+                    error('Rollback executed. Pipeline marked as failed.')
                 }
             }
         }
     }
 
-    // ═══════════════════════════════════════
-    // POST — Notifications
-    // ═══════════════════════════════════════
+    // =============================================
+    // POST — Cleanup and Notifications
+    // =============================================
     post {
         success {
             echo """
-            ╔══════════════════════════════════════╗
-            ║  ✅ PIPELINE SUCCEEDED               ║
-            ║  Commit: ${env.GIT_SHORT}             ║
-            ║  Build:  #${env.BUILD_NUMBER}         ║
-            ╚══════════════════════════════════════╝
+            ============================================
+              PIPELINE SUCCEEDED
+              Commit: ${env.GIT_SHORT}
+              Image:  ${env.IMAGE_TAG}
+              Build:  #${env.BUILD_NUMBER}
+            ============================================
             """
         }
         failure {
             echo """
-            ╔══════════════════════════════════════╗
-            ║  ❌ PIPELINE FAILED                  ║
-            ║  Commit: ${env.GIT_SHORT}             ║
-            ║  Build:  #${env.BUILD_NUMBER}         ║
-            ╚══════════════════════════════════════╝
+            ============================================
+              PIPELINE FAILED
+              Commit: ${env.GIT_SHORT}
+              Build:  #${env.BUILD_NUMBER}
+            ============================================
             """
         }
         always {
