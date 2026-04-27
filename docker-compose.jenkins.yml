@@ -9,6 +9,7 @@ services:
       context: ./infrastructure/jenkins
       dockerfile: Dockerfile
     container_name: callmgmt-jenkins
+    user: root
     ports:
       - "8090:8080"
       - "50000:50000"
