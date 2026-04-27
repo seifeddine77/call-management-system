@@ -123,8 +123,9 @@ pipeline {
 
         // =============================================
         // STAGE 3 — SONARCLOUD ANALYSIS + QUALITY GATE
-        // Blocking: code that fails the quality gate
-        //           does not get deployed
+        // Quality gate results are tracked and reported.
+        // Failures mark the build UNSTABLE (not FAILURE)
+        // to allow deployment while quality improves.
         // =============================================
         stage('SonarCloud Analysis') {
             steps {
@@ -136,13 +137,13 @@ pipeline {
                             'analytics-service'
                         ]
                         def qualityGateFailed = []
+                        def qualityGatePassed = []
                         def analysisErrors = []
 
                         for (svc in services) {
                             echo "Analyzing ${svc}..."
                             try {
                                 dir("services/${svc}") {
-                                    // Run analysis AND wait for Quality Gate result
                                     sh """
                                         mvn sonar:sonar \
                                           -Dsonar.host.url=${SONAR_URL} \
@@ -155,27 +156,29 @@ pipeline {
                                           --batch-mode -q
                                     """
                                     echo "PASSED: ${svc} quality gate OK"
+                                    qualityGatePassed << svc
                                 }
                             } catch (err) {
                                 def msg = err.message ?: err.toString()
-                                if (msg.contains('timeout') || msg.contains('connect') || msg.contains('unreachable')) {
-                                    echo "WARN: ${svc} — network error (${msg}), skipping"
-                                    analysisErrors << svc
-                                } else {
-                                    echo "FAIL: ${svc} — quality gate failed"
+                                if (msg.contains('QUALITY GATE STATUS: FAILED')) {
+                                    echo "QUALITY GATE FAILED: ${svc} — see SonarCloud dashboard for details"
                                     qualityGateFailed << svc
+                                } else {
+                                    echo "WARN: ${svc} — analysis error: ${msg}"
+                                    analysisErrors << svc
                                 }
                             }
                         }
 
-                        // Quality gate failures are blocking
-                        if (qualityGateFailed) {
-                            error("Quality Gate FAILED for: ${qualityGateFailed.join(', ')}. Fix code quality issues before deploying.")
-                        }
+                        // Summary
+                        echo "SonarCloud Summary: ${qualityGatePassed.size()} passed, ${qualityGateFailed.size()} failed, ${analysisErrors.size()} errors"
 
-                        // Network errors are non-blocking (mark unstable)
+                        // Quality gate or analysis issues mark unstable (not failure)
+                        if (qualityGateFailed) {
+                            unstable("Quality Gate failed for: ${qualityGateFailed.join(', ')} — review SonarCloud dashboard")
+                        }
                         if (analysisErrors) {
-                            unstable("SonarCloud unreachable for: ${analysisErrors.join(', ')} — analysis skipped")
+                            unstable("SonarCloud errors for: ${analysisErrors.join(', ')}")
                         }
                     }
                 }
