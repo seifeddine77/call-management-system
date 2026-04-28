@@ -53,6 +53,13 @@ RUN GITLEAKS_VERSION="8.21.2" \
 # ── Grant jenkins user Docker socket access ──────────────────
 RUN groupadd -f docker && usermod -aG docker jenkins
 
+# ── Flutter SDK (stable) ─────────────────────────────────────
+RUN git clone --depth 1 --branch stable https://github.com/flutter/flutter.git /opt/flutter \
+    && ln -s /opt/flutter/bin/flutter /usr/local/bin/flutter \
+    && ln -s /opt/flutter/bin/dart /usr/local/bin/dart \
+    && chown -R jenkins:jenkins /opt/flutter
+ENV FLUTTER_HOME=/opt/flutter
+
 # ── Skip setup wizard ───────────────────────────────────────
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Xmx1g"
 
