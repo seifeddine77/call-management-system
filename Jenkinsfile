@@ -108,13 +108,20 @@ pipeline {
 
                 stage('Mobile') {
                     steps {
-                        dir('mobile') {
-                            sh '''
-                                flutter pub get
-                                flutter analyze || true
-                                flutter test || true
-                                flutter build web --release
-                            '''
+                        script {
+                            try {
+                                dir('mobile') {
+                                    sh '''
+                                        flutter pub get
+                                        flutter analyze || true
+                                        flutter test || true
+                                        flutter build web --release
+                                    '''
+                                }
+                            } catch (err) {
+                                echo "Mobile build skipped (Flutter SDK not available): ${err.message}"
+                                unstable('Mobile build skipped — Flutter SDK not installed on this agent')
+                            }
                         }
                     }
                 }

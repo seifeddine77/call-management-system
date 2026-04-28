@@ -1,0 +1,59 @@
+# ============================================================
+# Custom Jenkins Image — AutoAssist CI/CD
+# All build tools pre-installed for zero-config pipeline runs.
+# ============================================================
+FROM jenkins/jenkins:lts-jdk17
+
+USER root
+
+# ── System packages ──────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl wget unzip gnupg lsb-release \
+      python3 python3-pip python3-venv \
+      libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Maven 3.9.6 ─────────────────────────────────────────────
+ARG MAVEN_VERSION=3.9.6
+RUN wget -q "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+      -O /tmp/maven.tar.gz \
+    && tar xzf /tmp/maven.tar.gz -C /opt \
+    && ln -s /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn \
+    && rm /tmp/maven.tar.gz
+ENV MAVEN_HOME=/opt/apache-maven-${MAVEN_VERSION}
+
+# ── Node.js 20 LTS ──────────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Docker CLI (communicates with host via socket) ───────────
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+       > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── kubectl ──────────────────────────────────────────────────
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+    && rm kubectl
+
+# ── Trivy (security scanner) ────────────────────────────────
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+# ── Gitleaks (secret scanner) ────────────────────────────────
+RUN GITLEAKS_VERSION="8.21.2" \
+    && wget -q "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+       -O /tmp/gitleaks.tar.gz \
+    && tar xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks \
+    && rm /tmp/gitleaks.tar.gz
+
+# ── Grant jenkins user Docker socket access ──────────────────
+RUN groupadd -f docker && usermod -aG docker jenkins
+
+# ── Skip setup wizard ───────────────────────────────────────
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Xmx1g"
+
+USER jenkins
