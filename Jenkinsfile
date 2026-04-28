@@ -71,20 +71,11 @@ pipeline {
                 stage('AI Service') {
                     steps {
                         script {
-                            try {
-                                dir('services/ai-service') {
-                                    sh '''
-                                        python3 -m venv .venv
-                                        . .venv/bin/activate
-                                        pip install -r requirements.txt --quiet
-                                        pip install pytest pytest-asyncio pytest-cov --quiet
-                                        python -m pytest tests/ -v --tb=short \
-                                            --cov=app --cov-report=xml --cov-report=term || true
-                                    '''
-                                }
-                            } catch (err) {
-                                echo "AI Service test skipped (Python environment incompatibility): ${err.message}"
-                                unstable('AI Service tests skipped — Python 3.13 incompatible with older psycopg2/pydantic')
+                            dir('services/ai-service') {
+                                sh '''
+                                    docker run --rm --volumes-from jenkins -w /var/jenkins_home/workspace/AutoAssist-Pipeline/services/ai-service python:3.11-slim \
+                                    bash -c "pip install -r requirements.txt --quiet && pip install pytest pytest-asyncio pytest-cov --quiet && python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term"
+                                '''
                             }
                         }
                     }
