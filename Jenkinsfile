@@ -288,7 +288,11 @@ CIEOF
                 withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
                     sh '''
                         cp "$ENV_FILE" .env
-                        docker compose -f docker-compose.yml -f docker-compose.staging.yml down --remove-orphans || true
+
+                        # Force-clean ALL callmgmt containers (from any previous compose project)
+                        docker ps -aq --filter "name=callmgmt-" | xargs -r docker rm -f 2>/dev/null || true
+                        docker network rm autoassist-pipeline_callmgmt-net 2>/dev/null || true
+
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
                         echo "Waiting 45s for services to start..."
                         sleep 45
