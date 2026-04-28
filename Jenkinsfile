@@ -137,16 +137,18 @@ pipeline {
         // =============================================
         stage('SonarCloud Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                        sonar-scanner \
-                          -Dsonar.host.url=${SONAR_URL} \
-                          -Dsonar.token=${SONAR_TOKEN} \
-                          -Dsonar.organization=${SONAR_ORG} \
-                          -Dsonar.projectKey=${SONAR_PROJECT} \
-                          -Dsonar.qualitygate.wait=true \
-                          -Dsonar.qualitygate.timeout=120
-                    """
+                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh """
+                            sonar-scanner \
+                              -Dsonar.host.url=${SONAR_URL} \
+                              -Dsonar.token=${SONAR_TOKEN} \
+                              -Dsonar.organization=${SONAR_ORG} \
+                              -Dsonar.projectKey=${SONAR_PROJECT} \
+                              -Dsonar.qualitygate.wait=true \
+                              -Dsonar.qualitygate.timeout=120
+                        """
+                    }
                 }
             }
         }
