@@ -261,8 +261,8 @@ CIEOF
                     sh '''
                         cp "$ENV_FILE" .env
 
-                        # Force-clean callmgmt containers EXCEPT Jenkins (which is running this pipeline!)
-                        docker ps -aq --filter "name=callmgmt-" | xargs -I{} docker inspect --format '{{.Name}}' {} | grep -v jenkins | sed 's|^/||' | xargs -r docker rm -f 2>/dev/null || true
+                        # Force-clean all callmgmt app containers (Jenkins is cicd-jenkins, safe from this filter)
+                        docker ps -aq --filter "name=callmgmt-" | xargs -r docker rm -f 2>/dev/null || true
                         docker network rm autoassist-pipeline_callmgmt-net 2>/dev/null || true
 
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
