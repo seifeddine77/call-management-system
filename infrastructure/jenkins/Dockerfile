@@ -78,8 +78,16 @@ RUN git clone --depth 1 --branch stable https://github.com/flutter/flutter.git /
     git config --global --add safe.directory /opt/flutter
 ENV PATH="/opt/flutter/bin:${PATH}"
 
-# ── 8. Add jenkins user to docker group + git safe dir ──────
-RUN groupadd -f docker && usermod -aG docker jenkins
+# ── 8. Add jenkins user to docker group & grant sudo ────────
+RUN apt-get update -qq && apt-get install -y sudo && \
+    groupadd -f docker && usermod -aG docker jenkins && \
+    echo "jenkins ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# ── 9. SonarScanner CLI ──────────────────────────────────────
+RUN wget -q "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip" -O /tmp/sonar.zip && \
+    unzip -q /tmp/sonar.zip -d /opt && \
+    ln -s /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner /usr/local/bin/sonar-scanner && \
+    rm /tmp/sonar.zip
 
 # ── Verify all installations ────────────────────────────────
 RUN echo "=== Tool Versions ===" && \
@@ -97,6 +105,10 @@ RUN echo "=== Tool Versions ===" && \
 
 # ── Git safe directory (root runs Jenkins via docker-compose) ──
 RUN git config --global --add safe.directory '*'
+
+# ── Disable CSRF for automated triggers ────────────────────
+RUN mkdir -p /usr/share/jenkins/ref/init.groovy.d/ && \
+    echo 'import hudson.security.csrf.DefaultCrumbIssuer; import jenkins.model.Jenkins; Jenkins.instance.setCrumbIssuer(new DefaultCrumbIssuer(true)); Jenkins.instance.save()' > /usr/share/jenkins/ref/init.groovy.d/csrf.groovy
 
 # ── Switch to jenkins user ──────────────────────────────────
 USER jenkins

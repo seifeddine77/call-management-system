@@ -8,8 +8,8 @@ pipeline {
     environment {
         DOCKER_REGISTRY  = 'localhost:5000'
         IMAGE_PREFIX     = 'autoassist'
-        SONAR_ORG        = 'autoassist'
-        SONAR_PROJECT    = 'autoassist_call-management-system'
+        SONAR_ORG        = 'seifeddine77'
+        SONAR_PROJECT    = 'autoassist-call-management'
         SONAR_URL        = 'https://sonarcloud.io'
     }
 
@@ -27,6 +27,7 @@ pipeline {
         // =============================================
         stage('Checkout') {
             steps {
+                sh 'sudo chmod 666 /var/run/docker.sock || true'
                 checkout scm
                 script {
                     env.GIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
@@ -70,13 +71,15 @@ pipeline {
 
                 stage('AI Service') {
                     steps {
-                        script {
-                            dir('services/ai-service') {
-                                sh '''
-                                    docker run --rm --volumes-from jenkins -w /var/jenkins_home/workspace/AutoAssist-Pipeline/services/ai-service python:3.11-slim \
-                                    bash -c "pip install -r requirements.txt --quiet && pip install pytest pytest-asyncio pytest-cov --quiet && python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term"
-                                '''
-                            }
+                        dir('services/ai-service') {
+                            sh '''
+                                python3 -m venv .venv
+                                . .venv/bin/activate
+                                pip install --upgrade pip --quiet
+                                pip install -r requirements.txt --quiet
+                                pip install pytest pytest-asyncio pytest-cov --quiet
+                                python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term
+                            '''
                         }
                     }
                 }
@@ -135,57 +138,15 @@ pipeline {
         stage('SonarCloud Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        def services = [
-                            'auth-service', 'organisation-service', 'ticket-service',
-                            'rules-service', 'decision-service', 'notification-service',
-                            'analytics-service'
-                        ]
-                        def qualityGateFailed = []
-                        def qualityGatePassed = []
-                        def analysisErrors = []
-
-                        for (svc in services) {
-                            echo "Analyzing ${svc}..."
-                            try {
-                                dir("services/${svc}") {
-                                    sh """
-                                        mvn sonar:sonar \
-                                          -Dsonar.host.url=${SONAR_URL} \
-                                          -Dsonar.token=${SONAR_TOKEN} \
-                                          -Dsonar.organization=${SONAR_ORG} \
-                                          -Dsonar.projectKey=${SONAR_PROJECT}-${svc} \
-                                          -Dsonar.java.coveragePlugin=jacoco \
-                                          -Dsonar.qualitygate.wait=true \
-                                          -Dsonar.qualitygate.timeout=120 \
-                                          --batch-mode -q
-                                    """
-                                    echo "PASSED: ${svc} quality gate OK"
-                                    qualityGatePassed << svc
-                                }
-                            } catch (err) {
-                                def msg = err.message ?: err.toString()
-                                if (msg.contains('QUALITY GATE STATUS: FAILED')) {
-                                    echo "QUALITY GATE FAILED: ${svc} — see SonarCloud dashboard for details"
-                                    qualityGateFailed << svc
-                                } else {
-                                    echo "WARN: ${svc} — analysis error: ${msg}"
-                                    analysisErrors << svc
-                                }
-                            }
-                        }
-
-                        // Summary
-                        echo "SonarCloud Summary: ${qualityGatePassed.size()} passed, ${qualityGateFailed.size()} failed, ${analysisErrors.size()} errors"
-
-                        // Quality gate or analysis issues mark unstable (not failure)
-                        if (qualityGateFailed) {
-                            unstable("Quality Gate failed for: ${qualityGateFailed.join(', ')} — review SonarCloud dashboard")
-                        }
-                        if (analysisErrors) {
-                            unstable("SonarCloud errors for: ${analysisErrors.join(', ')}")
-                        }
-                    }
+                    sh """
+                        sonar-scanner \
+                          -Dsonar.host.url=${SONAR_URL} \
+                          -Dsonar.token=${SONAR_TOKEN} \
+                          -Dsonar.organization=${SONAR_ORG} \
+                          -Dsonar.projectKey=${SONAR_PROJECT} \
+                          -Dsonar.qualitygate.wait=true \
+                          -Dsonar.qualitygate.timeout=120
+                    """
                 }
             }
         }
@@ -208,8 +169,12 @@ pipeline {
                 }
                 stage('OWASP Dependency Check') {
                     steps {
-                        dir('services/auth-service') {
-                            sh 'mvn org.owasp:dependency-check-maven:check -DskipTests -q -DfailBuildOnCVSS=9 || true'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                            retry(3) {
+                                dir('services/auth-service') {
+                                    sh 'mvn org.owasp:dependency-check-maven:check -DskipTests -q -DfailBuildOnCVSS=9 -DdataDirectory=/var/jenkins_home/owasp-data'
+                                }
+                            }
                         }
                     }
                 }
@@ -365,15 +330,22 @@ CIEOF
         // =============================================
         stage('Deploy K8s') {
             steps {
-                sh '''
-                    cd k8s/
-                    kubectl apply -f namespace.yml         2>/dev/null || true
-                    kubectl apply -f configmaps/           2>/dev/null || true
-                    kubectl apply -f deployments/infra/    2>/dev/null || true
-                    sleep 30
-                    kubectl apply -f deployments/services/ 2>/dev/null || true
-                    kubectl apply -f ingress.yml           2>/dev/null || true
-                '''
+                withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
+                    sh '''
+                        kubectl create namespace autoassist --dry-run=client -o yaml | kubectl apply -f -
+                        kubectl create secret generic autoassist-secrets \\
+                            --namespace autoassist \\
+                            --from-env-file="$ENV_FILE" \\
+                            --dry-run=client -o yaml | kubectl apply -f -
+                        
+                        cd k8s/
+                        kubectl apply -f configmaps/           2>/dev/null || true
+                        kubectl apply -f deployments/infra/    2>/dev/null || true
+                        sleep 30
+                        kubectl apply -f deployments/services/ 2>/dev/null || true
+                        kubectl apply -f ingress.yml           2>/dev/null || true
+                    '''
+                }
             }
         }
 
@@ -465,3 +437,5 @@ CIEOF
         }
     }
 }
+
+
