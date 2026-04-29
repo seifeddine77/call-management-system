@@ -280,8 +280,8 @@ CIEOF
                             echo "  Eureka not ready yet (attempt $ATTEMPTS/$MAX_ATTEMPTS)..."
                             sleep 5
                         done
-                        echo "Eureka ready — waiting 30s for dependent services to register..."
-                        sleep 30
+                        echo "Eureka ready — waiting 60s for dependent services to start..."
+                        sleep 60
 
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml ps
                     '''
@@ -311,8 +311,8 @@ CIEOF
                     def failed = []
                     for (ep in endpoints) {
                         def ok = false
-                        // Retry each endpoint up to 3 times with 15s delay
-                        for (int attempt = 1; attempt <= 3; attempt++) {
+                        // Retry each endpoint up to 6 times with 15s delay (90s window)
+                        for (int attempt = 1; attempt <= 6; attempt++) {
                             def status = sh(
                                 script: "curl -sf --max-time 10 ${ep.url}",
                                 returnStatus: true
@@ -321,8 +321,8 @@ CIEOF
                                 ok = true
                                 break
                             }
-                            if (attempt < 3) {
-                                echo "  ${ep.name} not ready (attempt ${attempt}/3), retrying in 15s..."
+                            if (attempt < 6) {
+                                echo "  ${ep.name} not ready (attempt ${attempt}/6), retrying in 15s..."
                                 sleep 15
                             }
                         }
@@ -330,7 +330,7 @@ CIEOF
                             echo "OK: ${ep.name}"
                             passed << ep.name
                         } else {
-                            echo "FAIL: ${ep.name} not responding after 3 attempts"
+                            echo "FAIL: ${ep.name} not responding after 6 attempts"
                             failed << ep.name
                         }
                     }
