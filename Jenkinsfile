@@ -266,8 +266,23 @@ CIEOF
                         docker network rm autoassist-pipeline_callmgmt-net 2>/dev/null || true
 
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
-                        echo "Waiting 45s for services to start..."
-                        sleep 45
+
+                        # Poll Eureka health via host.docker.internal (max 120s)
+                        echo "Waiting for Eureka to become healthy..."
+                        ATTEMPTS=0
+                        MAX_ATTEMPTS=24
+                        until curl -sf --max-time 5 http://host.docker.internal:8761/actuator/health > /dev/null 2>&1; do
+                            ATTEMPTS=$((ATTEMPTS + 1))
+                            if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+                                echo "WARNING: Eureka not healthy after 120s, proceeding anyway"
+                                break
+                            fi
+                            echo "  Eureka not ready yet (attempt $ATTEMPTS/$MAX_ATTEMPTS)..."
+                            sleep 5
+                        done
+                        echo "Eureka ready — waiting 30s for dependent services to register..."
+                        sleep 30
+
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml ps
                     '''
                 }
@@ -281,26 +296,41 @@ CIEOF
         stage('Smoke Tests') {
             steps {
                 script {
+                    // Use host.docker.internal — Jenkins runs inside a container,
+                    // so 'localhost' is the Jenkins container itself, not the Docker host.
+                    def HOST = 'host.docker.internal'
                     def endpoints = [
-                        [name: 'Eureka',       url: 'http://localhost:8761/actuator/health'],
-                        [name: 'Gateway',      url: 'http://localhost:8080/actuator/health'],
-                        [name: 'Auth',         url: 'http://localhost:8081/actuator/health'],
-                        [name: 'Organisation', url: 'http://localhost:8082/actuator/health'],
-                        [name: 'Frontend',     url: 'http://localhost:3000'],
-                        [name: 'AI Service',   url: 'http://localhost:8000/health'],
+                        [name: 'Eureka',       url: "http://${HOST}:8761/actuator/health"],
+                        [name: 'Gateway',      url: "http://${HOST}:8080/actuator/health"],
+                        [name: 'Auth',         url: "http://${HOST}:8081/actuator/health"],
+                        [name: 'Organisation', url: "http://${HOST}:8082/actuator/health"],
+                        [name: 'Frontend',     url: "http://${HOST}:3000"],
+                        [name: 'AI Service',   url: "http://${HOST}:8000/health"],
                     ]
                     def passed = []
                     def failed = []
                     for (ep in endpoints) {
-                        def status = sh(
-                            script: "curl -sf --max-time 10 ${ep.url}",
-                            returnStatus: true
-                        )
-                        if (status == 0) {
+                        def ok = false
+                        // Retry each endpoint up to 3 times with 15s delay
+                        for (int attempt = 1; attempt <= 3; attempt++) {
+                            def status = sh(
+                                script: "curl -sf --max-time 10 ${ep.url}",
+                                returnStatus: true
+                            )
+                            if (status == 0) {
+                                ok = true
+                                break
+                            }
+                            if (attempt < 3) {
+                                echo "  ${ep.name} not ready (attempt ${attempt}/3), retrying in 15s..."
+                                sleep 15
+                            }
+                        }
+                        if (ok) {
                             echo "OK: ${ep.name}"
                             passed << ep.name
                         } else {
-                            echo "FAIL: ${ep.name} not responding"
+                            echo "FAIL: ${ep.name} not responding after 3 attempts"
                             failed << ep.name
                         }
                     }
