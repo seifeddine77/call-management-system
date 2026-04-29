@@ -7,12 +7,15 @@ const fs = require('fs');
 const path = require('path');
 
 // ── Remove Chromium lock file to prevent crash-loop on container restart ──
-const lockPaths = [
-    '/app/.wwebjs_auth/session/SingletonLock',
-    '/app/.wwebjs_auth/session/SingletonSocket',
-    '/app/.wwebjs_auth/session/SingletonCookiesLock',
-];
-lockPaths.forEach(p => { try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`🧹 Removed lock: ${p}`); } } catch(e) {} });
+const SESSION_DIR = '/app/.wwebjs_auth/session';
+['SingletonLock', 'SingletonSocket', 'SingletonCookiesLock'].forEach(f => {
+    [SESSION_DIR, `${SESSION_DIR}/Default`].forEach(dir => {
+        const p = path.join(dir, f);
+        try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`🧹 Removed lock: ${p}`); } } catch(e) {}
+        // Also remove symlinks
+        try { fs.unlinkSync(p); } catch(e) {}
+    });
+});
 
 // ╔══════════════════════════════════════════════════╗
 // ║  CONFIGURATION                                   ║
@@ -434,12 +437,19 @@ client.on('message_create', async (msg) => {
         if (msg.fromMe) {
             const botPatterns = ['📊', '🔍', '📋', '🏢', '⚖️', '🤖', '⚠️', '✅', '🎫', '❌', '📚', '⏱️', '🎙️', '⏳', '👋', '_Réagissez'];
             const startsWithBot = botPatterns.some(p => msg.body.includes(p));
-            if (startsWithBot) return;
+            if (startsWithBot) {
+                console.log(`🔇 Anti-loop: skipped own bot message`);
+                return;
+            }
             // Also skip very long fromMe messages (bot responses are verbose)
-            if (msg.body.length > 150) return;
+            if (msg.body.length > 150) {
+                console.log(`🔇 Anti-loop: skipped long fromMe (${msg.body.length} chars)`);
+                return;
+            }
+            console.log(`📱 Processing fromMe message: "${body.substring(0, 60)}"`);
         }
 
-        console.log(`💬 [${chat.name}] ${body.substring(0, 100)}`);
+        console.log(`💬 [${chat.name}] ${body.substring(0, 100)} (fromMe=${msg.fromMe})`);
 
         // ── Slash commands (with typing indicator) ──
         const lower = body.toLowerCase();
@@ -478,16 +488,22 @@ client.on('message_create', async (msg) => {
         if (greetings.includes(cleanLower) || cleanLower.startsWith('bonjour ') || cleanLower.startsWith('salut ')) {
             const hour = new Date().getHours();
             const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
-            await chat.sendMessage(
-                `👋 *${greeting} !*\n\n` +
-                `Je suis *AutoAssist*, votre assistant IA pour la gestion des réclamations pièces auto. 🚗\n\n` +
-                `💡 Je peux vous aider avec :\n` +
-                `• 📊 Les statistiques → tapez */stats*\n` +
-                `• 🎫 Un ticket → tapez */ticket T-xxx*\n` +
-                `• 📋 La file d'attente → tapez */queue*\n` +
-                `• ❓ Toute question → posez-la en langage naturel !\n\n` +
-                `_Propulsé par RAG + Gemma 4 IA_ 🧠`
-            );
+            console.log(`👋 Sending greeting to [${chat.name}]...`);
+            try {
+                await chat.sendMessage(
+                    `👋 *${greeting} !*\n\n` +
+                    `Je suis *AutoAssist*, votre assistant IA pour la gestion des réclamations pièces auto. 🚗\n\n` +
+                    `💡 Je peux vous aider avec :\n` +
+                    `• 📊 Les statistiques → tapez */stats*\n` +
+                    `• 🎫 Un ticket → tapez */ticket T-xxx*\n` +
+                    `• 📋 La file d'attente → tapez */queue*\n` +
+                    `• ❓ Toute question → posez-la en langage naturel !\n\n` +
+                    `_Propulsé par RAG + Gemma 4 IA_ 🧠`
+                );
+                console.log(`✅ Greeting sent to [${chat.name}]`);
+            } catch (greetErr) {
+                console.error(`❌ Greeting send failed:`, greetErr.message);
+            }
             return;
         }
 
