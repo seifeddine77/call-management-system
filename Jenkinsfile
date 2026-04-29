@@ -481,6 +481,37 @@ CIEOF
             """
         }
         always {
+            // ── Docker image lifecycle management ──────────────────
+            // Keeps last 3 build-tagged images per service, prunes dangling layers.
+            // Prevents unbounded disk growth over many pipeline runs.
+            script {
+                try {
+                    def KEEP_BUILDS = 3
+                    def services = [
+                        'autoassist-auth-service', 'autoassist-organisation-service',
+                        'autoassist-ticket-service', 'autoassist-rules-service',
+                        'autoassist-decision-service', 'autoassist-notification-service',
+                        'autoassist-analytics-service', 'autoassist-eureka-server',
+                        'autoassist-api-gateway', 'autoassist-ai-service',
+                        'autoassist-frontend', 'autoassist-whatsapp-service'
+                    ]
+                    for (svc in services) {
+                        // List all build-N tags for this service, sorted, keep last KEEP_BUILDS
+                        sh """
+                            docker images localhost:5000/${svc} --format '{{.Tag}}' \
+                              | grep '^build-' \
+                              | sort -t'-' -k2 -n \
+                              | head -n -${KEEP_BUILDS} \
+                              | xargs -r -I{} docker rmi localhost:5000/${svc}:{} 2>/dev/null || true
+                        """
+                    }
+                    // Remove dangling images (untagged layers from builds)
+                    sh 'docker image prune -f 2>/dev/null || true'
+                    echo "Image cleanup done — kept last ${KEEP_BUILDS} builds per service."
+                } catch (err) {
+                    echo "Image cleanup warning: ${err.message}"
+                }
+            }
             cleanWs(deleteDirs: true, disableDeferredWipeout: true, patterns: [
                 [pattern: '**/target/**', type: 'INCLUDE'],
                 [pattern: '**/.venv/**', type: 'INCLUDE'],
