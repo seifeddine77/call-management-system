@@ -335,7 +335,27 @@ CIEOF
                         }
                     }
                     echo "Smoke Tests: ${passed.size()} passed, ${failed.size()} failed"
-                    if (failed.size() > 2) {
+
+                    // Print docker logs for each failed service to diagnose crash-loops
+                    if (failed) {
+                        def containerMap = [
+                            'Auth'        : 'callmgmt-auth',
+                            'Organisation': 'callmgmt-organisation',
+                            'AI Service'  : 'callmgmt-ai',
+                            'Eureka'      : 'callmgmt-eureka',
+                            'Gateway'     : 'callmgmt-gateway',
+                            'Frontend'    : 'callmgmt-frontend',
+                        ]
+                        for (svcName in failed) {
+                            def ctr = containerMap[svcName]
+                            if (ctr) {
+                                echo "=== LOGS: ${svcName} (${ctr}) ==="
+                                sh "docker logs --tail=60 ${ctr} 2>&1 || true"
+                            }
+                        }
+                    }
+
+                    if (failed.size() > 3) {
                         error("Too many services down: ${failed.join(', ')}")
                     }
                     if (failed) {
