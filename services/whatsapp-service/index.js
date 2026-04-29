@@ -3,6 +3,16 @@ const qrcode = require('qrcode-terminal');
 const amqp = require('amqplib');
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
+// ── Remove Chromium lock file to prevent crash-loop on container restart ──
+const lockPaths = [
+    '/app/.wwebjs_auth/session/SingletonLock',
+    '/app/.wwebjs_auth/session/SingletonSocket',
+    '/app/.wwebjs_auth/session/SingletonCookiesLock',
+];
+lockPaths.forEach(p => { try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`🧹 Removed lock: ${p}`); } } catch(e) {} });
 
 // ╔══════════════════════════════════════════════════╗
 // ║  CONFIGURATION                                   ║
