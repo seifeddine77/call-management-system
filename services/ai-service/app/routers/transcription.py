@@ -152,15 +152,6 @@ async def transcribe_audio(
         raise HTTPException(status_code=500, detail=f"Erreur de transcription: {e}")
 
 
-@router.get("/{ticket_id}", response_model=AudioRecordResponse)
-def get_transcription(ticket_id: str, db: Session = Depends(get_db)):
-    """Retrieve an existing transcription by ticket ID."""
-    record = db.query(AudioRecord).filter(AudioRecord.ticket_id == ticket_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail=f"Aucune transcription pour le ticket {ticket_id}")
-    return record
-
-
 @router.post("/quick")
 async def quick_transcribe(
     request: Request,
@@ -204,3 +195,13 @@ async def quick_transcribe(
             os.remove(tmp_path)
         except OSError:
             pass
+
+
+@router.get("/{ticket_id}", response_model=AudioRecordResponse)
+def get_transcription(ticket_id: str, db: Session = Depends(get_db)):
+    """Retrieve an existing transcription by ticket ID."""
+    record = db.query(AudioRecord).filter(AudioRecord.ticket_id == ticket_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Aucune transcription pour le ticket {ticket_id}")
+    return record
+
