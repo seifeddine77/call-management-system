@@ -208,7 +208,7 @@ RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY target/*.jar app.jar
 USER app
-HEALTHCHECK --interval=30s --timeout=10s CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s CMD sh -c 'wget -qO- http://localhost:${SERVER_PORT:-8080}/actuator/health || exit 1'
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
 CIEOF
                             docker build -f ${ctx}/Dockerfile.ci \
