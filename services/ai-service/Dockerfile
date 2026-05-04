@@ -38,6 +38,14 @@ RUN pip install --no-cache-dir \
 # ChromaDB (vector store for RAG chatbot) + sentence-transformers for embeddings
 RUN pip install --no-cache-dir chromadb==0.5.23 sentence-transformers==3.0.1
 
+# Pre-download ML models at build time (avoids ~120s of downloads at container start)
+# Whisper 'base' model (~139MB) — cached in /root/.cache/whisper/
+RUN python -c "import whisper; whisper.load_model('base')" && \
+    echo 'Whisper base model cached'
+# SentenceTransformer embeddings (~90MB) — cached in /root/.cache/torch/sentence_transformers/
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')" && \
+    echo 'SentenceTransformer model cached'
+
 # Lightweight app deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -48,7 +56,7 @@ RUN mkdir -p /var/audio
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s \
     CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
