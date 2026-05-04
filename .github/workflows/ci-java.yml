@@ -139,7 +139,7 @@ jobs:
   # ── Step 3: SonarCloud Analysis ──
   sonar:
     needs: [detect-changes, build-test]
-    if: github.event_name == 'push'
+    if: always()
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -168,7 +168,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn sonar:sonar \
-            -Dsonar.projectKey=seifeddine77_call-management-system \
+            -Dsonar.projectKey=seifeddine77_${{ matrix.service }} \
             -Dsonar.organization=${{ github.repository_owner }} \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.java.coveragePlugin=jacoco \
