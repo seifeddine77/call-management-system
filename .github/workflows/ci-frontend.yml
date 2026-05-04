@@ -4,7 +4,7 @@
 name: ⚛️ CI — Frontend
 
 on:
-  workflow_dispatch: ['frontend/**']
+  workflow_dispatch:
 
 permissions:
   contents: read
