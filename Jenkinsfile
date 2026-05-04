@@ -395,8 +395,12 @@ CIEOF
         stage('Deploy K8s') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
-                    withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
+                    withCredentials([
+                        file(credentialsId: 'staging-env-file', variable: 'ENV_FILE'),
+                        file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')
+                    ]) {
                         sh '''
+                            export KUBECONFIG="$KUBECONFIG"
                             kubectl create namespace autoassist --dry-run=client -o yaml | kubectl apply --validate=false -f -
                             kubectl create secret generic autoassist-secrets \\
                                 --namespace autoassist \\
@@ -420,28 +424,30 @@ CIEOF
         // =============================================
         stage('Verify Rollout') {
             steps {
-                script {
-                    def deployments = [
-                        'eureka-server', 'api-gateway', 'auth-service',
-                        'organisation-service', 'ticket-service', 'rules-service',
-                        'decision-service', 'notification-service', 'analytics-service'
-                    ]
-                    def failedDeps = []
-                    for (dep in deployments) {
-                        def status = sh(
-                            script: "kubectl rollout status deployment/${dep} -n autoassist --timeout=120s",
-                            returnStatus: true
-                        )
-                        if (status != 0) {
-                            echo "FAIL: ${dep}"
-                            failedDeps << dep
-                        } else {
-                            echo "OK: ${dep}"
+                withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
+                    script {
+                        def deployments = [
+                            'eureka-server', 'api-gateway', 'auth-service',
+                            'organisation-service', 'ticket-service', 'rules-service',
+                            'decision-service', 'notification-service', 'analytics-service'
+                        ]
+                        def failedDeps = []
+                        for (dep in deployments) {
+                            def status = sh(
+                                script: "export KUBECONFIG=\"\$KUBECONFIG\"; kubectl rollout status deployment/${dep} -n autoassist --timeout=120s",
+                                returnStatus: true
+                            )
+                            if (status != 0) {
+                                echo "FAIL: ${dep}"
+                                failedDeps << dep
+                            } else {
+                                echo "OK: ${dep}"
+                            }
                         }
-                    }
-                    if (failedDeps) {
-                        env.ROLLBACK_NEEDED = 'true'
-                        echo "Rollout failed for: ${failedDeps.join(', ')}"
+                        if (failedDeps) {
+                            env.ROLLBACK_NEEDED = 'true'
+                            echo "Rollout failed for: ${failedDeps.join(', ')}"
+                        }
                     }
                 }
             }
@@ -456,16 +462,18 @@ CIEOF
                 expression { env.ROLLBACK_NEEDED == 'true' }
             }
             steps {
-                script {
-                    def deployments = [
-                        'eureka-server', 'api-gateway', 'auth-service',
-                        'organisation-service', 'ticket-service', 'rules-service',
-                        'decision-service', 'notification-service', 'analytics-service'
-                    ]
-                    for (dep in deployments) {
-                        sh "kubectl rollout undo deployment/${dep} -n autoassist || true"
+                withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
+                    script {
+                        def deployments = [
+                            'eureka-server', 'api-gateway', 'auth-service',
+                            'organisation-service', 'ticket-service', 'rules-service',
+                            'decision-service', 'notification-service', 'analytics-service'
+                        ]
+                        for (dep in deployments) {
+                            sh "export KUBECONFIG=\"\$KUBECONFIG\"; kubectl rollout undo deployment/${dep} -n autoassist || true"
+                        }
+                        error('Rollback executed. Pipeline marked as failed.')
                     }
-                    error('Rollback executed. Pipeline marked as failed.')
                 }
             }
         }
