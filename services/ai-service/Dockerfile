@@ -17,7 +17,9 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir "pip<24" "setuptools>=69,<70" wheel
 
 # Torch CPU-only (separate layer for Docker cache — 187MB)
-RUN pip install --no-cache-dir torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+# Extended timeout + retries to handle slow/unstable networks during CI builds
+RUN pip install --no-cache-dir --timeout=300 --retries=5 \
+    torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 
 # Tiktoken pre-built wheel
 RUN pip install --no-cache-dir tiktoken==0.6.0
