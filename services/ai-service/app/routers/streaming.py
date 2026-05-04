@@ -104,15 +104,15 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                     # Reset buffer for next segment
                     audio_buffer = bytearray()
 
-        except WebSocketDisconnect:
-            logger.info(f"🔌 [STREAM] Client disconnected for ticket {ticket_id}")
-        except Exception as e:
-            logger.error(f"❌ [STREAM] Error for ticket {ticket_id}: {e}")
-            try:
-                if websocket.client_state == WebSocketState.CONNECTED:
-                    await websocket.send_json({"type": "error", "detail": str(e)})
-            except Exception as send_err:  # noqa: BLE001
-                logger.debug("[STREAM] Could not send error to client: %s", send_err)
+    except WebSocketDisconnect:
+        logger.info(f"🔌 [STREAM] Client disconnected for ticket {ticket_id}")
+    except Exception as e:
+        logger.error(f"❌ [STREAM] Error for ticket {ticket_id}: {e}")
+        try:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json({"type": "error", "detail": str(e)})
+        except Exception as send_err:  # noqa: BLE001
+            logger.debug("[STREAM] Could not send error to client: %s", send_err)
 
     # ── Final transcription ──────────────────────────────────────
     # Transcribe any remaining buffer
