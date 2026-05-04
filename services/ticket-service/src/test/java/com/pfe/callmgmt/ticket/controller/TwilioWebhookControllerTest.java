@@ -6,6 +6,7 @@ import com.pfe.callmgmt.ticket.dto.TicketResponse;
 import com.pfe.callmgmt.ticket.service.AudioEncryptionService;
 import com.pfe.callmgmt.ticket.service.TicketService;
 import com.pfe.callmgmt.ticket.service.TwilioService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,13 +33,14 @@ class TwilioWebhookControllerTest {
     @Mock private TwilioConfig twilioConfig;
     @Mock private AiServiceClient aiServiceClient;
     @Mock private AudioEncryptionService audioEncryptionService;
+    @Mock private ObjectMapper objectMapper;
 
     private TwilioWebhookController controller;
 
     @BeforeEach
     void setUp() {
         controller = new TwilioWebhookController(
-                ticketService, twilioService, twilioConfig, aiServiceClient, audioEncryptionService);
+                ticketService, twilioService, twilioConfig, aiServiceClient, audioEncryptionService, objectMapper);
     }
 
     // ═══════════════════════════════════════
