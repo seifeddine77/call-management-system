@@ -21,6 +21,11 @@ spec:
       labels:
         app: eureka-server
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
       containers:
         - name: eureka-server
           image: localhost:5000/autoassist-eureka-server:latest
@@ -64,7 +69,7 @@ metadata:
     app: api-gateway
     tier: gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -73,6 +78,14 @@ spec:
       labels:
         app: api-gateway
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
+        - name: wait-redis
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z redis 6379; do echo waiting for redis; sleep 5; done']
       containers:
         - name: api-gateway
           image: localhost:5000/autoassist-api-gateway:latest
@@ -86,6 +99,10 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -126,6 +143,14 @@ spec:
       labels:
         app: auth-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: auth-service
           image: localhost:5000/autoassist-auth-service:latest
@@ -181,6 +206,17 @@ spec:
       labels:
         app: organisation-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: organisation-service
           image: localhost:5000/autoassist-organisation-service:latest
@@ -196,6 +232,10 @@ spec:
               value: "8082"
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/users_db
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -236,6 +276,17 @@ spec:
       labels:
         app: ticket-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: ticket-service
           image: localhost:5000/autoassist-ticket-service:latest
@@ -251,6 +302,10 @@ spec:
               value: "8083"
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/tickets_db
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -291,6 +346,14 @@ spec:
       labels:
         app: rules-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: rules-service
           image: localhost:5000/autoassist-rules-service:latest
@@ -346,6 +409,14 @@ spec:
       labels:
         app: decision-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: decision-service
           image: localhost:5000/autoassist-decision-service:latest
@@ -361,6 +432,10 @@ spec:
               value: "8085"
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/decisions_db
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -401,6 +476,17 @@ spec:
       labels:
         app: notification-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: notification-service
           image: localhost:5000/autoassist-notification-service:latest
@@ -416,6 +502,10 @@ spec:
               value: "8086"
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/notifications_db
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -456,6 +546,17 @@ spec:
       labels:
         app: analytics-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
+        - name: wait-rabbitmq
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 5; done']
+        - name: wait-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 5; done']
       containers:
         - name: analytics-service
           image: localhost:5000/autoassist-analytics-service:latest
@@ -471,6 +572,10 @@ spec:
               value: "8087"
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/analytics_db
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
           resources:
             requests: { memory: "256Mi", cpu: "200m" }
             limits: { memory: "512Mi", cpu: "500m" }
@@ -511,6 +616,11 @@ spec:
       labels:
         app: ai-service
     spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 5; done']
       containers:
         - name: ai-service
           image: localhost:5000/autoassist-ai-service:latest
@@ -524,6 +634,14 @@ spec:
           env:
             - name: WHISPER_MODEL
               value: base
+            - name: DATABASE_URL
+              value: postgresql://callmgmt:callmgmt_staging@postgres:5432/ai_db
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: ai_db
           resources:
             requests: { memory: "512Mi", cpu: "500m" }
             limits: { memory: "1Gi", cpu: "1000m" }
@@ -555,7 +673,7 @@ metadata:
     app: frontend
     tier: frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
@@ -564,6 +682,7 @@ spec:
       labels:
         app: frontend
     spec:
+      enableServiceLinks: false
       containers:
         - name: frontend
           image: localhost:5000/autoassist-frontend:latest
