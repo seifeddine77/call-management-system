@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: eureka-server
-          image: ghcr.io/seifeddine77/autoassist-eureka-server:latest
+          image: localhost:5000/autoassist-eureka-server:latest
           ports:
             - containerPort: 8761
           envFrom:
@@ -75,7 +75,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: ghcr.io/seifeddine77/autoassist-api-gateway:latest
+          image: localhost:5000/autoassist-api-gateway:latest
           ports:
             - containerPort: 8080
           envFrom:
@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: ghcr.io/seifeddine77/autoassist-auth-service:latest
+          image: localhost:5000/autoassist-auth-service:latest
           ports:
             - containerPort: 8081
           envFrom:
@@ -183,7 +183,7 @@ spec:
     spec:
       containers:
         - name: organisation-service
-          image: ghcr.io/seifeddine77/autoassist-organisation-service:latest
+          image: localhost:5000/autoassist-organisation-service:latest
           ports:
             - containerPort: 8082
           envFrom:
@@ -238,7 +238,7 @@ spec:
     spec:
       containers:
         - name: ticket-service
-          image: ghcr.io/seifeddine77/autoassist-ticket-service:latest
+          image: localhost:5000/autoassist-ticket-service:latest
           ports:
             - containerPort: 8083
           envFrom:
@@ -293,7 +293,7 @@ spec:
     spec:
       containers:
         - name: rules-service
-          image: ghcr.io/seifeddine77/autoassist-rules-service:latest
+          image: localhost:5000/autoassist-rules-service:latest
           ports:
             - containerPort: 8084
           envFrom:
@@ -348,7 +348,7 @@ spec:
     spec:
       containers:
         - name: decision-service
-          image: ghcr.io/seifeddine77/autoassist-decision-service:latest
+          image: localhost:5000/autoassist-decision-service:latest
           ports:
             - containerPort: 8085
           envFrom:
@@ -403,7 +403,7 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: ghcr.io/seifeddine77/autoassist-notification-service:latest
+          image: localhost:5000/autoassist-notification-service:latest
           ports:
             - containerPort: 8086
           envFrom:
@@ -458,7 +458,7 @@ spec:
     spec:
       containers:
         - name: analytics-service
-          image: ghcr.io/seifeddine77/autoassist-analytics-service:latest
+          image: localhost:5000/autoassist-analytics-service:latest
           ports:
             - containerPort: 8087
           envFrom:
@@ -513,7 +513,7 @@ spec:
     spec:
       containers:
         - name: ai-service
-          image: ghcr.io/seifeddine77/autoassist-ai:latest
+          image: localhost:5000/autoassist-ai-service:latest
           ports:
             - containerPort: 8000
           envFrom:
@@ -566,7 +566,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/seifeddine77/autoassist-frontend:latest
+          image: localhost:5000/autoassist-frontend:latest
           ports:
             - containerPort: 3000
           resources:
