@@ -138,16 +138,19 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(user);
         log.info("[INTERNAL] User created with ID: {}", saved.getId());
 
-        try {
-            eventPublisher.publishUserCreated(UserCreatedEvent.builder()
-                    .userId(saved.getId())
-                    .email(saved.getEmail())
-                    .nom(saved.getNom())
-                    .prenom(saved.getPrenom())
-                    .role(saved.getRole())
-                    .build());
-        } catch (Exception e) {
-            log.warn("Failed to publish UserCreatedEvent: {}", e.getMessage());
+        // SonarCloud C1 fix — null check cohérent avec createUser() (eventPublisher est @Nullable)
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.publishUserCreated(UserCreatedEvent.builder()
+                        .userId(saved.getId())
+                        .email(saved.getEmail())
+                        .nom(saved.getNom())
+                        .prenom(saved.getPrenom())
+                        .role(saved.getRole())
+                        .build());
+            } catch (Exception e) {
+                log.warn("Failed to publish UserCreatedEvent: {}", e.getMessage());
+            }
         }
 
         return toInternalResponse(saved);

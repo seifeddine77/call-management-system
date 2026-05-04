@@ -15,6 +15,11 @@ import java.util.Map;
 @Slf4j
 public class NotificationListener {
 
+    // SonarCloud HIGH fix — extract duplicated string literals
+    private static final String VAR_NUMERO = "numero";
+    private static final String VAR_CLIENT_NOM = "clientNom";
+    private static final String DECISION_FAVORABLE = "FAVORABLE";
+
     private final NotificationService notificationService;
 
     @RabbitListener(queues = "notification.user.created")
@@ -40,8 +45,8 @@ public class NotificationListener {
         // 1. Email à l'opérateur assigné (si assigné)
         if (event.getOperateurEmail() != null && !event.getOperateurEmail().isBlank()) {
             Map<String, Object> vars = new HashMap<>();
-            vars.put("numero", event.getNumero());
-            vars.put("clientNom", event.getClientNom());
+            vars.put(VAR_NUMERO, event.getNumero());
+            vars.put(VAR_CLIENT_NOM, event.getClientNom());
             vars.put("canal", event.getCanal());
 
             notificationService.sendEmail(
@@ -55,8 +60,8 @@ public class NotificationListener {
         // 2. Email de confirmation au client (si email fourni)
         if (event.getClientEmail() != null && !event.getClientEmail().isBlank()) {
             Map<String, Object> vars = new HashMap<>();
-            vars.put("numero", event.getNumero());
-            vars.put("clientNom", event.getClientNom());
+            vars.put(VAR_NUMERO, event.getNumero());
+            vars.put(VAR_CLIENT_NOM, event.getClientNom());
             vars.put("canal", event.getCanal());
 
             notificationService.sendEmail(
@@ -73,8 +78,8 @@ public class NotificationListener {
         log.info("📨 Event reçu: ticket.resolved → {}", event.getNumero());
         if (event.getClientEmail() != null && !event.getClientEmail().isBlank()) {
             Map<String, Object> vars = new HashMap<>();
-            vars.put("numero", event.getNumero());
-            vars.put("clientNom", event.getClientNom());
+            vars.put(VAR_NUMERO, event.getNumero());
+            vars.put(VAR_CLIENT_NOM, event.getClientNom());
 
             notificationService.sendEmail(
                     event.getClientEmail(),
@@ -91,20 +96,21 @@ public class NotificationListener {
                 event.getTicketId(), event.getFinalDecision());
         if (event.getClientEmail() != null && !event.getClientEmail().isBlank()) {
             Map<String, Object> vars = new HashMap<>();
-            vars.put("clientNom", event.getClientNom() != null ? event.getClientNom() : "Client");
+            vars.put(VAR_CLIENT_NOM, event.getClientNom() != null ? event.getClientNom() : "Client");
             vars.put("finalDecision", event.getFinalDecision());
             vars.put("motif", event.getMotif());
             vars.put("ticketId", event.getTicketId().toString().substring(0, 8).toUpperCase());
 
-            String templateName = "FAVORABLE".equals(event.getFinalDecision())
+            boolean isFavorable = DECISION_FAVORABLE.equals(event.getFinalDecision());
+            String templateName = isFavorable
                     ? "emails/decision-favorable"
                     : "emails/decision-defavorable";
 
-            String subject = "FAVORABLE".equals(event.getFinalDecision())
+            String subject = isFavorable
                     ? "✅ Votre demande de garantie est acceptée — Réf. " + vars.get("ticketId")
                     : "Votre demande de garantie — Réf. " + vars.get("ticketId");
 
-            String type = "FAVORABLE".equals(event.getFinalDecision())
+            String type = isFavorable
                     ? "DECISION_FAVORABLE"
                     : "DECISION_DEFAVORABLE";
 

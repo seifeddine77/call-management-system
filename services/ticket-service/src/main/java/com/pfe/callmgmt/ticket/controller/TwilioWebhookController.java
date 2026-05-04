@@ -1,5 +1,6 @@
 package com.pfe.callmgmt.ticket.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pfe.callmgmt.ticket.client.AiServiceClient;
 import com.pfe.callmgmt.ticket.config.TwilioConfig;
 import com.pfe.callmgmt.ticket.dto.CreateTicketRequest;
@@ -22,6 +23,8 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Contrôleur Twilio Webhooks — Intégration VoIP réelle.
@@ -40,22 +43,24 @@ public class TwilioWebhookController {
 
     private final TicketService ticketService;
     private final TwilioService twilioService;
-    @SuppressWarnings("unused")
-    private final TwilioConfig twilioConfig;
     private final AiServiceClient aiServiceClient;
     private final AudioEncryptionService audioEncryptionService;
+    // SonarCloud C5 fix — ObjectMapper injected (not created per call)
+    private final ObjectMapper objectMapper;
+    // SonarCloud C4 fix — ExecutorService instead of raw new Thread() (S2142)
+    private final ExecutorService audioProcessingExecutor = Executors.newFixedThreadPool(4);
 
     @Value("${email.listener.default-agence-id:}")
     private String defaultAgenceId;
 
     public TwilioWebhookController(TicketService ticketService, TwilioService twilioService,
             TwilioConfig twilioConfig, AiServiceClient aiServiceClient,
-            AudioEncryptionService audioEncryptionService) {
+            AudioEncryptionService audioEncryptionService, ObjectMapper objectMapper) {
         this.ticketService = ticketService;
         this.twilioService = twilioService;
-        this.twilioConfig = twilioConfig;
         this.aiServiceClient = aiServiceClient;
         this.audioEncryptionService = audioEncryptionService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -131,9 +136,10 @@ public class TwilioWebhookController {
             return ResponseEntity.ok(twilioService.generateRecordingCompleteResponse());
         }
 
-        // Télécharger et transcrire en asynchrone (thread séparé)
+        // Télécharger et transcrire en asynchrone
+        // SonarCloud C4 fix — ExecutorService au lieu de raw Thread (S2142)
         if (recordingUrl != null) {
-            new Thread(() -> processRecording(ticketId, recordingUrl, callSid)).start();
+            audioProcessingExecutor.submit(() -> processRecording(ticketId, recordingUrl, callSid));
         }
 
         // Retourner TwiML de fin
@@ -218,8 +224,8 @@ public class TwilioWebhookController {
                 Map<String, Object> analysisResult = aiServiceClient.analyzeText(analyzeReq);
 
                 // 5. Mettre à jour le ticket avec les résultats
-                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                String keywordsJson = om.writeValueAsString(analysisResult);
+                // SonarCloud C5 fix — objectMapper injecté (pas de new ObjectMapper())
+                String keywordsJson = objectMapper.writeValueAsString(analysisResult);
                 ticketService.updateAudioTranscription(ticketId, audioFile.getOriginalFilename(),
                         transcription, keywordsJson);
 

@@ -104,15 +104,15 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                     # Reset buffer for next segment
                     audio_buffer = bytearray()
 
-    except WebSocketDisconnect:
-        logger.info(f"🔌 [STREAM] Client disconnected for ticket {ticket_id}")
-    except Exception as e:
-        logger.error(f"❌ [STREAM] Error for ticket {ticket_id}: {e}")
-        try:
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json({"type": "error", "detail": str(e)})
-        except Exception:
-            pass
+        except WebSocketDisconnect:
+            logger.info(f"🔌 [STREAM] Client disconnected for ticket {ticket_id}")
+        except Exception as e:
+            logger.error(f"❌ [STREAM] Error for ticket {ticket_id}: {e}")
+            try:
+                if websocket.client_state == WebSocketState.CONNECTED:
+                    await websocket.send_json({"type": "error", "detail": str(e)})
+            except Exception as send_err:  # noqa: BLE001
+                logger.debug("[STREAM] Could not send error to client: %s", send_err)
 
     # ── Final transcription ──────────────────────────────────────
     # Transcribe any remaining buffer
@@ -138,8 +138,8 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                 "duration": duration,
                 "chunks": chunk_count,
             })
-    except Exception:
-        pass
+    except Exception as send_err:  # noqa: BLE001
+        logger.debug("[STREAM] Could not send final result: %s", send_err)
 
     # Save to database if we have content
     if full_text:
@@ -180,8 +180,8 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     try:
         if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.close()
-    except Exception:
-        pass
+    except Exception as close_err:  # noqa: BLE001
+        logger.debug("[STREAM] WebSocket already closed: %s", close_err)
 
 
 def _transcribe_buffer(whisper_model, audio_bytes: bytes, ticket_id: str) -> str:

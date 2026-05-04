@@ -37,6 +37,10 @@ import java.util.UUID;
 @Tag(name = "Tickets", description = "Gestion des tickets multicanaux")
 public class TicketController {
 
+    // SonarCloud HIGH fix — centralize "ADMIN" literal (duplicated 7x) into a constant
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_OPERATOR = "OPERATOR";
+
     private final TicketService ticketService;
     private final QueueService queueService;
     private final AiServiceClient aiServiceClient;
@@ -104,7 +108,7 @@ public class TicketController {
             @RequestParam(value = "agenceId", required = false) UUID agenceId,
             @RequestHeader(name = "X-User-Agence-Id", required = false) UUID userAgenceId,
             @RequestHeader(name = "X-User-Role", required = false, defaultValue = "OPERATOR") String userRole) {
-        UUID effectiveAgenceId = "ADMIN".equals(userRole) ? agenceId : userAgenceId;
+        UUID effectiveAgenceId = ROLE_ADMIN.equals(userRole) ? agenceId : userAgenceId;
         return ResponseEntity.ok(ticketService.getTicketStats(effectiveAgenceId));
     }
 
@@ -178,7 +182,7 @@ public class TicketController {
         // Step 3: Update ticket with transcription results
         ticketService.updateAudioTranscription(id, audioPath, transcription, keywordsJson);
 
-        return ResponseEntity.ok(ticketService.getTicketById(id, "ADMIN", userId, null));
+        return ResponseEntity.ok(ticketService.getTicketById(id, ROLE_ADMIN, userId, null));
     }
 
     @GetMapping("/{id}/transcription")
@@ -212,7 +216,7 @@ public class TicketController {
             @RequestParam(value = "agenceId", required = false) UUID agenceId,
             @RequestHeader(name = "X-User-Agence-Id", required = false) UUID userAgenceId,
             @RequestHeader(name = "X-User-Role", required = false, defaultValue = "OPERATOR") String userRole) {
-        UUID effectiveAgenceId = "ADMIN".equals(userRole) ? agenceId : userAgenceId;
+        UUID effectiveAgenceId = ROLE_ADMIN.equals(userRole) ? agenceId : userAgenceId;
         return ResponseEntity.ok(queueService.getQueue(effectiveAgenceId));
     }
 
@@ -245,7 +249,14 @@ public class TicketController {
                 continue;
             }
 
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            // SonarCloud BLOCKER S2083 fix — Sanitize filename to prevent Path Traversal (CWE-22)
+            // Strip all directory components from the user-supplied filename
+            String rawName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
+            // Use Paths.get().getFileName() to remove any directory traversal sequences ("../", "/" etc.)
+            String sanitizedName = Paths.get(rawName).getFileName().toString();
+            // Additionally remove any remaining dangerous characters
+            sanitizedName = sanitizedName.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String fileName = System.currentTimeMillis() + "_" + sanitizedName;
             String photoPath = "/photos/" + id + "/" + fileName;
 
             // Actually save the file to disk
@@ -253,10 +264,15 @@ public class TicketController {
                 Path dirPath = Paths.get(photosStoragePath, id.toString());
                 Files.createDirectories(dirPath);
                 Path filePath = dirPath.resolve(fileName);
+                // Validate resolved path stays within the storage directory (extra safety)
+                if (!filePath.normalize().startsWith(dirPath.normalize())) {
+                    log.warn("⚠️ SECURITY: Path traversal attempt detected for file '{}', skipping.", rawName);
+                    continue;
+                }
                 file.transferTo(filePath.toFile());
                 log.info("📸 Photo sauvegardée: {} -> {}", photoPath, filePath);
             } catch (IOException e) {
-                log.error("Erreur sauvegarde fichier {}: {}", file.getOriginalFilename(), e.getMessage());
+                log.error("Erreur sauvegarde fichier {}: {}", sanitizedName, e.getMessage());
                 continue;
             }
 
@@ -328,7 +344,7 @@ public class TicketController {
             @RequestHeader(name = "X-User-Role", required = false, defaultValue = "OPERATOR") String userRole) {
 
         // Vérification RBAC — seul un ADMIN peut anonymiser
-        if (!"ADMIN".equals(userRole)) {
+        if (!ROLE_ADMIN.equals(userRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

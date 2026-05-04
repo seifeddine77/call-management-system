@@ -112,8 +112,8 @@ public class ChannelAcquisitionController {
         ticketReq.setDescription(request.getDescription());
         ticketReq.setPriorite(request.getPriorite());
         // Web form: consentement explicite via checkbox du formulaire
-        ticketReq.setConsentementEnregistrement(
-                request.getConsentementTraitement() != null ? request.getConsentementTraitement() : false);
+        // SonarCloud fix — Boolean.TRUE.equals() handles null safely (null → false)
+        ticketReq.setConsentementEnregistrement(Boolean.TRUE.equals(request.getConsentementTraitement()));
 
         TicketResponse response = ticketService.createTicket(ticketReq, null, "SYSTEM-WEB");
 

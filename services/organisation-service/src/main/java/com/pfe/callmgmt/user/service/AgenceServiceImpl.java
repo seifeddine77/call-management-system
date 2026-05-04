@@ -26,6 +26,9 @@ import java.util.UUID;
 @Transactional
 public class AgenceServiceImpl implements AgenceService {
 
+    // SonarCloud HIGH fix — duplicated literal 'Agence non trouvée: ' (5x)
+    private static final String AGENCE_NOT_FOUND = "Agence non trouvée: ";
+
     private final AgenceRepository agenceRepository;
     private final UserRepository userRepository;
     private final AgenceMapper agenceMapper;
@@ -66,7 +69,7 @@ public class AgenceServiceImpl implements AgenceService {
     @Override
     public AgenceResponse updateAgence(UUID id, AgenceRequest request) {
         Agence agence = agenceRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + id));
 
         agence.setNom(request.getNom());
         agence.setAdresse(request.getAdresse());
@@ -82,7 +85,7 @@ public class AgenceServiceImpl implements AgenceService {
     @Transactional(readOnly = true)
     public AgenceResponse getAgenceById(UUID id) {
         Agence agence = agenceRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + id));
         return toResponseWithResponsableName(agence);
     }
 
@@ -96,7 +99,7 @@ public class AgenceServiceImpl implements AgenceService {
     @Override
     public void deactivateAgence(UUID id) {
         Agence agence = agenceRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + id));
         agence.setActif(false);
         agenceRepository.save(agence);
         log.info("Agence deactivated: {}", id);
@@ -105,7 +108,7 @@ public class AgenceServiceImpl implements AgenceService {
     @Override
     public AgenceResponse assignResponsable(UUID agenceId, UUID userId) {
         Agence agence = agenceRepository.findById(agenceId)
-                .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + agenceId));
+                .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + agenceId));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + userId));
@@ -125,7 +128,7 @@ public class AgenceServiceImpl implements AgenceService {
     @Override
     public void updateWhatsappGroupId(UUID agenceId, String whatsappGroupId) {
         Agence agence = agenceRepository.findById(agenceId)
-                .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + agenceId));
+                .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + agenceId));
         agence.setWhatsappGroupId(whatsappGroupId);
         agenceRepository.save(agence);
         log.info("✅ WhatsApp Group ID saved for agence {}: {}", agence.getNom(), whatsappGroupId);

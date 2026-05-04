@@ -40,17 +40,20 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding ticketCreatedBinding(Queue ticketCreatedQueue, TopicExchange ticketExchange) {
-        return BindingBuilder.bind(ticketCreatedQueue).to(ticketExchange).with("ticket.created");
+        // SonarCloud HIGH fix — use constant instead of duplicated string literal
+        return BindingBuilder.bind(ticketCreatedQueue).to(ticketExchange).with(TICKET_CREATED_QUEUE);
     }
 
     @Bean
     public Binding ticketResolvedBinding(Queue ticketResolvedQueue, TopicExchange ticketExchange) {
-        return BindingBuilder.bind(ticketResolvedQueue).to(ticketExchange).with("ticket.resolved");
+        // SonarCloud HIGH fix — use constant instead of duplicated string literal
+        return BindingBuilder.bind(ticketResolvedQueue).to(ticketExchange).with(TICKET_RESOLVED_QUEUE);
     }
 
     @Bean
     public Binding ticketStatusChangedBinding(Queue ticketStatusChangedQueue, TopicExchange ticketExchange) {
-        return BindingBuilder.bind(ticketStatusChangedQueue).to(ticketExchange).with("ticket.status-changed");
+        // SonarCloud HIGH fix — use constant instead of duplicated string literal
+        return BindingBuilder.bind(ticketStatusChangedQueue).to(ticketExchange).with(TICKET_STATUS_CHANGED_QUEUE);
     }
 
     @Bean

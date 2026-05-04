@@ -26,6 +26,9 @@ public class TwilioService {
 
     private final TwilioConfig twilioConfig;
 
+    // SonarCloud C3 fix — HttpClient as reusable final field (no resource leak)
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+
     /**
      * Valide la signature d'un webhook Twilio pour s'assurer
      * que la requête provient bien de Twilio et non d'un tiers.
@@ -64,7 +67,6 @@ public class TwilioService {
 
         log.info("📥 Downloading Twilio recording from: {}", fullUrl);
 
-        HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullUrl))
                 .header("Authorization", "Basic " +
@@ -73,7 +75,7 @@ public class TwilioService {
                 .GET()
                 .build();
 
-        HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
         if (response.statusCode() == 200) {
             log.info("✅ Recording downloaded: {} bytes", response.body().length);

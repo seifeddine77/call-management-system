@@ -32,11 +32,21 @@ import java.util.*;
 @Slf4j
 public class DecisionServiceImpl {
 
+    // SonarCloud HIGH fix — extract duplicated decision literals into constants
+    private static final String DECISION_ETUDE = "ETUDE";
+    private static final String DECISION_FAVORABLE = "FAVORABLE";
+    private static final String DECISION_DEFAVORABLE = "DEFAVORABLE";
+
+    // SonarCloud C2 fix — Pattern compiled once as static final (S5247)
+    private static final java.util.regex.Pattern FENCE_PATTERN = java.util.regex.Pattern.compile(
+            "```(?:json)?\\s*\\n?(\\{[^`]*?\\})\\s*\\n?```", java.util.regex.Pattern.DOTALL);
+
     private final DecisionRepository decisionRepository;
     private final RulesServiceClient rulesServiceClient;
     private final StringRedisTemplate redisTemplate;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final RestTemplate llmRestTemplate;
 
     @Value("${openai.api-key:}")
     private String openaiApiKey;
@@ -116,7 +126,7 @@ public class DecisionServiceImpl {
             log.error("❌ Rules Service call failed for ticket {}: {}", request.getTicketId(), e.getMessage());
             // Fallback: mark as ETUDE
             rulesResult = RulesEvaluateResponse.builder()
-                    .decision("ETUDE")
+                    .decision(DECISION_ETUDE)
                     .score(0.0)
                     .motif("Impossible de joindre le moteur de règles — analyse manuelle requise")
                     .rulesApplied(Collections.emptyList())
@@ -161,7 +171,7 @@ public class DecisionServiceImpl {
 
         // Fallback: use rules result as-is (ETUDE if ambiguous)
         Decision decision = saveToDB(request.getTicketId(),
-                rulesResult.getDecision() != null ? rulesResult.getDecision() : "ETUDE",
+                rulesResult.getDecision() != null ? rulesResult.getDecision() : DECISION_ETUDE,
                 BigDecimal.valueOf(rulesResult.getScore() != null ? rulesResult.getScore() : 0.0),
                 rulesResult.getMotif() != null ? rulesResult.getMotif() : "Analyse manuelle requise — résultat ambigu",
                 "RULES",
@@ -194,7 +204,7 @@ public class DecisionServiceImpl {
 
         // CDC 5.D — ETUDE n'est jamais une décision finale
         String fd = request.getFinalDecision();
-        if (!"FAVORABLE".equals(fd) && !"DEFAVORABLE".equals(fd)) {
+        if (!DECISION_FAVORABLE.equals(fd) && !DECISION_DEFAVORABLE.equals(fd)) {
             throw new IllegalArgumentException(
                     "La décision finale doit être FAVORABLE ou DEFAVORABLE (CDC 5.D). Reçu : " + fd);
         }
@@ -271,7 +281,7 @@ public class DecisionServiceImpl {
                 .motif(d.getMotif())
                 .source(d.getSource())
                 .rulesApplied(d.getRulesApplied() != null ? d.getRulesApplied() : Collections.emptyList())
-                .ambiguous("ETUDE".equals(d.getDecision()))
+                .ambiguous(DECISION_ETUDE.equals(d.getDecision()))
                 .cached(cached)
                 .finalDecision(d.getFinalDecision())
                 .overrideMotif(d.getOverrideMotif())
@@ -282,7 +292,8 @@ public class DecisionServiceImpl {
         String raw = req.getTypePiece() + "|" + req.getAgeVehiculeAns() + "|" +
                 req.getKilometrage() + "|" + req.getCategorieClient() + "|" + req.getTypeSinistre();
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            // SonarCloud B1 fix — SHA-256 instead of MD5 (S4790 security hotspot)
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(raw.getBytes(StandardCharsets.UTF_8));
             return "decision:" + HexFormat.of().formatHex(hash);
         } catch (Exception e) {
@@ -342,17 +353,11 @@ public class DecisionServiceImpl {
         headers.setBearerAuth(openaiApiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        RestTemplate restTemplate = new RestTemplate();
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(openaiTimeoutSeconds * 1000);
-        factory.setReadTimeout(openaiTimeoutSeconds * 1000);
-        restTemplate.setRequestFactory(factory);
-
+        // SonarCloud B2 fix — use injected RestTemplate (no resource leak)
         HttpEntity<Map<String, Object>> httpEntity = new HttpEntity<>(body, headers);
         log.info("🚀 Calling Gemma 4 LLM for ticket {} ...", request.getTicketId());
 
-        ResponseEntity<String> response = restTemplate.exchange(
+        ResponseEntity<String> response = llmRestTemplate.exchange(
                 openaiBaseUrl + "/chat/completions",
                 HttpMethod.POST, httpEntity, String.class);
 
@@ -392,18 +397,18 @@ public class DecisionServiceImpl {
             if (jsonStr == null) {
                 log.error("❌ No valid JSON object found in LLM response. Full text: {}", textToParse);
                 return DecisionResult.builder()
-                        .decision("ETUDE").score(0.0)
+                        .decision(DECISION_ETUDE).score(0.0)
                         .motif("Réponse IA sans JSON exploitable — analyse manuelle requise")
                         .build();
             }
 
             JsonNode aiResponse = objectMapper.readTree(jsonStr);
 
-            String aiDecision = aiResponse.path("decision").asText("ETUDE").toUpperCase().trim();
+            String aiDecision = aiResponse.path("decision").asText(DECISION_ETUDE).toUpperCase().trim();
             // Normalize decision values
-            if (!List.of("FAVORABLE", "DEFAVORABLE", "ETUDE").contains(aiDecision)) {
+            if (!List.of(DECISION_FAVORABLE, DECISION_DEFAVORABLE, DECISION_ETUDE).contains(aiDecision)) {
                 log.warn("⚠️ LLM returned unexpected decision '{}', defaulting to ETUDE", aiDecision);
-                aiDecision = "ETUDE";
+                aiDecision = DECISION_ETUDE;
             }
             double aiScore = aiResponse.path("score").asDouble(50.0);
             String aiMotif = aiResponse.path("motif").asText("Analyse IA locale");
@@ -419,7 +424,7 @@ public class DecisionServiceImpl {
             log.error("❌ Erreur parsing réponse LLM: {} | Body: {}", e.getMessage(),
                     response.getBody() != null ? response.getBody().substring(0, Math.min(500, response.getBody().length())) : "null");
             return DecisionResult.builder()
-                    .decision("ETUDE")
+                    .decision(DECISION_ETUDE)
                     .score(0.0)
                     .motif("Erreur d'analyse IA — réponse invalide")
                     .build();
@@ -436,9 +441,8 @@ public class DecisionServiceImpl {
         if (text == null || text.isBlank()) return null;
 
         // Step 1: Try to extract from markdown ```json ... ``` fence
-        java.util.regex.Pattern fencePattern = java.util.regex.Pattern.compile(
-                "```(?:json)?\\s*\\n?(\\{[^`]*?\\})\\s*\\n?```", java.util.regex.Pattern.DOTALL);
-        java.util.regex.Matcher fenceMatcher = fencePattern.matcher(text);
+        // SonarCloud C2 fix — using static final FENCE_PATTERN instead of compiling inline
+        java.util.regex.Matcher fenceMatcher = FENCE_PATTERN.matcher(text);
         String lastFenced = null;
         while (fenceMatcher.find()) {
             lastFenced = fenceMatcher.group(1).trim();
@@ -485,7 +489,7 @@ public class DecisionServiceImpl {
     private DecisionResult callOpenAIFallback(DecisionRequest request, RulesEvaluateResponse rulesResult, Throwable t) {
         log.warn("⚡ Circuit breaker LLM ouvert — fallback ETUDE. Cause: {}", t.getMessage());
         return DecisionResult.builder()
-                .decision("ETUDE")
+                .decision(DECISION_ETUDE)
                 .score(0.0)
                 .motif("Service IA temporairement indisponible — analyse manuelle requise")
                 .source("CIRCUIT_BREAKER")
