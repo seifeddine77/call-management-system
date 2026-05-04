@@ -508,7 +508,7 @@ spec:
             - name: SERVER_PORT
               value: "8086"
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:postgresql://postgres:5432/notifications_db
+              value: jdbc:postgresql://postgres:5432/notif_db
             - name: SPRING_RABBITMQ_HOST
               value: rabbitmq
             - name: SPRING_RABBITMQ_PORT
