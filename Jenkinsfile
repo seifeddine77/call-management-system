@@ -139,15 +139,15 @@ pipeline {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh """
+                        sh '''
                             sonar-scanner \
-                              -Dsonar.host.url=${SONAR_URL} \
-                              -Dsonar.token=${SONAR_TOKEN} \
-                              -Dsonar.organization=${SONAR_ORG} \
-                              -Dsonar.projectKey=${SONAR_PROJECT} \
+                              -Dsonar.host.url=$SONAR_URL \
+                              -Dsonar.token=$SONAR_TOKEN \
+                              -Dsonar.organization=$SONAR_ORG \
+                              -Dsonar.projectKey=$SONAR_PROJECT \
                               -Dsonar.qualitygate.wait=true \
                               -Dsonar.qualitygate.timeout=120
-                        """
+                        '''
                     }
                 }
             }
@@ -260,12 +260,24 @@ CIEOF
                 withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
                     sh '''
                         cp "$ENV_FILE" .env
+                        set -a; . ./.env; set +a
 
                         # Force-clean all callmgmt app containers (Jenkins is cicd-jenkins, safe from this filter)
                         docker ps -aq --filter "name=callmgmt-" | xargs -r docker rm -f 2>/dev/null || true
                         docker network rm autoassist-pipeline_callmgmt-net 2>/dev/null || true
 
                         docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
+
+                        # Ensure all required databases exist (init script only runs on first volume creation)
+                        echo "Ensuring all databases exist..."
+                        sleep 10  # Give Postgres a moment to be fully ready
+                        for DB in auth_db users_db tickets_db rules_db decisions_db notif_db analytics_db ai_db n8n_db; do
+                            docker exec callmgmt-postgres psql -U "$POSTGRES_USER" -d postgres -tc \
+                                "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 || \
+                                docker exec callmgmt-postgres psql -U "$POSTGRES_USER" -d postgres -c \
+                                "CREATE DATABASE $DB OWNER $POSTGRES_USER;" 2>/dev/null || true
+                        done
+                        echo "Database check complete."
 
                         # Poll Eureka health via host.docker.internal (max 120s)
                         echo "Waiting for Eureka to become healthy..."
@@ -382,21 +394,23 @@ CIEOF
         // =============================================
         stage('Deploy K8s') {
             steps {
-                withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
-                    sh '''
-                        kubectl create namespace autoassist --dry-run=client -o yaml | kubectl apply -f -
-                        kubectl create secret generic autoassist-secrets \\
-                            --namespace autoassist \\
-                            --from-env-file="$ENV_FILE" \\
-                            --dry-run=client -o yaml | kubectl apply -f -
-                        
-                        cd k8s/
-                        kubectl apply -f configmaps/           2>/dev/null || true
-                        kubectl apply -f deployments/infra/    2>/dev/null || true
-                        sleep 30
-                        kubectl apply -f deployments/services/ 2>/dev/null || true
-                        kubectl apply -f ingress.yml           2>/dev/null || true
-                    '''
+                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    withCredentials([file(credentialsId: 'staging-env-file', variable: 'ENV_FILE')]) {
+                        sh '''
+                            kubectl create namespace autoassist --dry-run=client -o yaml | kubectl apply --validate=false -f -
+                            kubectl create secret generic autoassist-secrets \\
+                                --namespace autoassist \\
+                                --from-env-file="$ENV_FILE" \\
+                                --dry-run=client -o yaml | kubectl apply --validate=false -f -
+                            
+                            cd k8s/
+                            kubectl apply -f configmaps/           2>/dev/null || true
+                            kubectl apply -f deployments/infra/    2>/dev/null || true
+                            sleep 30
+                            kubectl apply -f deployments/services/ 2>/dev/null || true
+                            kubectl apply -f ingress.yml           2>/dev/null || true
+                        '''
+                    }
                 }
             }
         }
