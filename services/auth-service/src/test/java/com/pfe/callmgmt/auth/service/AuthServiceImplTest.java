@@ -36,6 +36,15 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
+        // ── Test constants ────────────────────────────────────────
+        private static final String OPERATOR_EMAIL    = "operator@test.com";
+        private static final String PASSWORD_RAW      = "password123";
+        private static final String PASSWORD_HASH     = "$2a$12$hashedPassword";
+        private static final String ROLE_OPERATOR     = "OPERATOR";
+        private static final String ACCESS_TOKEN      = "access-token-123";
+        private static final String REFRESH_TOKEN     = "refresh-token-456";
+        private static final String TOKEN_BEARER      = "Bearer";
+
         @Mock
         private RefreshTokenRepository refreshTokenRepository;
 
@@ -59,10 +68,10 @@ class AuthServiceImplTest {
                 testUserId = UUID.randomUUID();
                 testUser = UserDto.builder()
                                 .id(testUserId)
-                                .email("operator@test.com")
-                                .passwordHash("$2a$12$hashedPassword")
+                                .email(OPERATOR_EMAIL)
+                                .passwordHash(PASSWORD_HASH)
                                 .nom("Test Operator").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agenceId(UUID.randomUUID())
                                 .actif(true)
                                 .build();
@@ -79,15 +88,15 @@ class AuthServiceImplTest {
                 @DisplayName("Login avec des identifiants valides retourne AuthResponse")
                 void login_success() {
                         // Given
-                        LoginRequest request = new LoginRequest("operator@test.com", "password123");
-                        when(userServiceClient.findByEmail("operator@test.com"))
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, PASSWORD_RAW);
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
                                         .thenReturn(ResponseEntity.ok(testUser));
-                        when(passwordEncoder.matches("password123", "$2a$12$hashedPassword"))
+                        when(passwordEncoder.matches(PASSWORD_RAW, PASSWORD_HASH))
                                         .thenReturn(true);
                         when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any()))
-                                        .thenReturn("access-token-123");
+                                        .thenReturn(ACCESS_TOKEN);
                         when(jwtUtils.generateRefreshToken(any(), anyString(), anyString(), any()))
-                                        .thenReturn("refresh-token-456");
+                                        .thenReturn(REFRESH_TOKEN);
                         when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
                         when(jwtUtils.getRefreshExpirationMs()).thenReturn(604800000L);
                         when(refreshTokenRepository.save(any(RefreshToken.class)))
@@ -98,11 +107,11 @@ class AuthServiceImplTest {
 
                         // Then
                         assertThat(response).isNotNull();
-                        assertThat(response.getAccessToken()).isEqualTo("access-token-123");
-                        assertThat(response.getRefreshToken()).isEqualTo("refresh-token-456");
-                        assertThat(response.getTokenType()).isEqualTo("Bearer");
-                        assertThat(response.getUser().getEmail()).isEqualTo("operator@test.com");
-                        assertThat(response.getUser().getRole()).isEqualTo("OPERATOR");
+                        assertThat(response.getAccessToken()).isEqualTo(ACCESS_TOKEN);
+                        assertThat(response.getRefreshToken()).isEqualTo(REFRESH_TOKEN);
+                        assertThat(response.getTokenType()).isEqualTo(TOKEN_BEARER);
+                        assertThat(response.getUser().getEmail()).isEqualTo(OPERATOR_EMAIL);
+                        assertThat(response.getUser().getRole()).isEqualTo(ROLE_OPERATOR);
 
                         verify(refreshTokenRepository).save(any(RefreshToken.class));
                 }
@@ -127,10 +136,10 @@ class AuthServiceImplTest {
                 @DisplayName("Login avec un mauvais mot de passe lève UnauthorizedException")
                 void login_wrongPassword_throws() {
                         // Given
-                        LoginRequest request = new LoginRequest("operator@test.com", "wrongpassword");
-                        when(userServiceClient.findByEmail("operator@test.com"))
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, "wrongpassword");
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
                                         .thenReturn(ResponseEntity.ok(testUser));
-                        when(passwordEncoder.matches("wrongpassword", "$2a$12$hashedPassword"))
+                        when(passwordEncoder.matches("wrongpassword", PASSWORD_HASH))
                                         .thenReturn(false);
 
                         // When/Then
@@ -144,8 +153,8 @@ class AuthServiceImplTest {
                 void login_inactiveUser_throws() {
                         // Given
                         testUser.setActif(false);
-                        LoginRequest request = new LoginRequest("operator@test.com", "password123");
-                        when(userServiceClient.findByEmail("operator@test.com"))
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, PASSWORD_RAW);
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
                                         .thenReturn(ResponseEntity.ok(testUser));
 
                         // When/Then
@@ -240,7 +249,7 @@ class AuthServiceImplTest {
 
                         when(jwtUtils.validateRefreshToken(oldRefreshToken)).thenReturn(mockClaims);
                         when(jwtUtils.extractUserId(mockClaims)).thenReturn(testUserId);
-                        when(jwtUtils.extractEmail(mockClaims)).thenReturn("operator@test.com");
+                        when(jwtUtils.extractEmail(mockClaims)).thenReturn(OPERATOR_EMAIL);
 
                         RefreshToken storedToken = RefreshToken.builder()
                                         .id(UUID.randomUUID())

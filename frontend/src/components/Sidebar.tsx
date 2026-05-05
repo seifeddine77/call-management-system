@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,9 +15,10 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType>({ mobileOpen: false, setMobileOpen: () => {} });
 export const useSidebar = () => useContext(SidebarContext);
 
-export function SidebarProvider({ children }: { children: React.ReactNode }) {
+export function SidebarProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  return <SidebarContext.Provider value={{ mobileOpen, setMobileOpen }}>{children}</SidebarContext.Provider>;
+  const value = useMemo(() => ({ mobileOpen, setMobileOpen }), [mobileOpen]);
+  return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 }
 
 const navGroups = [

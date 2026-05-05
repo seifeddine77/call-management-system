@@ -15,14 +15,14 @@ import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import PublicFormPage from './pages/PublicFormPage';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 /** Route guard by role — redirects to /dashboard if unauthorized */
-function RoleGuard({ children, minRole }: { children: React.ReactNode; minRole: 'SUPERVISOR' | 'ADMIN' }) {
+function RoleGuard({ children, minRole }: Readonly<{ children: React.ReactNode; minRole: 'SUPERVISOR' | 'ADMIN' }>) {
   const { user } = useAuth();
   const role = user?.role;
   if (minRole === 'ADMIN' && role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
