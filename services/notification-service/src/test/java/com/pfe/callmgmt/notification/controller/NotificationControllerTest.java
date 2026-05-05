@@ -26,6 +26,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class NotificationControllerTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String STATUS_FAILED = "FAILED";
+
     @Mock
     private NotificationLogRepository logRepository;
 
@@ -57,18 +60,18 @@ class NotificationControllerTest {
     @DisplayName("GET /logs?status=FAILED — filtre par status")
     void getLogs_withStatusFilter_returnsFilteredPage() {
         NotificationLog failedLog = NotificationLog.builder()
-                .id(UUID.randomUUID()).type("TICKET_CREATED").status("FAILED")
+                .id(UUID.randomUUID()).type("TICKET_CREATED").status(STATUS_FAILED)
                 .recipient("op@test.com").errorMessage("SMTP error")
                 .createdAt(LocalDateTime.now()).build();
 
         Page<NotificationLog> page = new PageImpl<>(List.of(failedLog));
-        when(logRepository.findByStatus(eq("FAILED"), any(PageRequest.class))).thenReturn(page);
+        when(logRepository.findByStatus(eq(STATUS_FAILED), any(PageRequest.class))).thenReturn(page);
 
-        ResponseEntity<Page<NotificationLog>> response = controller.getLogs("FAILED", 0, 20);
+        ResponseEntity<Page<NotificationLog>> response = controller.getLogs(STATUS_FAILED, 0, 20);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody().getContent().get(0).getStatus()).isEqualTo("FAILED");
-        verify(logRepository).findByStatus(eq("FAILED"), any());
+        assertThat(response.getBody().getContent().get(0).getStatus()).isEqualTo(STATUS_FAILED);
+        verify(logRepository).findByStatus(eq(STATUS_FAILED), any());
     }
 
     @Test

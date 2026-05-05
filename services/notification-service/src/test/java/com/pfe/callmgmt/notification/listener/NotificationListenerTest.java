@@ -17,6 +17,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class NotificationListenerTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String CLIENT_NOM = "Client Test";
+    private static final String TICKET_NUMERO = "T-20250001";
+    private static final String CLIENT_EMAIL = "client@test.com";
+
     @Mock
     private NotificationService notificationService;
 
@@ -45,8 +50,8 @@ class NotificationListenerTest {
     @DisplayName("onTicketCreated — envoie email à l'opérateur")
     void onTicketCreated_sendsEmailToOperator() {
         TicketCreatedEvent event = new TicketCreatedEvent();
-        event.setNumero("T-20250001");
-        event.setClientNom("Client Test");
+        event.setNumero(TICKET_NUMERO);
+        event.setClientNom(CLIENT_NOM);
         event.setCanal("CALL");
         event.setOperateurEmail("operateur@test.com");
 
@@ -54,7 +59,7 @@ class NotificationListenerTest {
 
         verify(notificationService).sendEmail(
                 eq("operateur@test.com"),
-                contains("T-20250001"),
+                contains(TICKET_NUMERO),
                 eq("emails/ticket-created"),
                 anyMap(),
                 eq("TICKET_CREATED"));
@@ -76,15 +81,15 @@ class NotificationListenerTest {
     @DisplayName("onTicketResolved — envoie email au client")
     void onTicketResolved_sendsEmailToClient() {
         TicketResolvedEvent event = new TicketResolvedEvent();
-        event.setNumero("T-20250001");
-        event.setClientNom("Client Test");
-        event.setClientEmail("client@test.com");
+        event.setNumero(TICKET_NUMERO);
+        event.setClientNom(CLIENT_NOM);
+        event.setClientEmail(CLIENT_EMAIL);
 
         notificationListener.onTicketResolved(event);
 
         verify(notificationService).sendEmail(
-                eq("client@test.com"),
-                contains("T-20250001"),
+                eq(CLIENT_EMAIL),
+                contains(TICKET_NUMERO),
                 eq("emails/ticket-resolved"),
                 anyMap(),
                 eq("TICKET_RESOLVED"));
@@ -106,15 +111,15 @@ class NotificationListenerTest {
     void onDecisionFinalized_favorable() {
         DecisionFinalizedEvent event = new DecisionFinalizedEvent();
         event.setTicketId(UUID.randomUUID());
-        event.setClientNom("Client Test");
-        event.setClientEmail("client@test.com");
+        event.setClientNom(CLIENT_NOM);
+        event.setClientEmail(CLIENT_EMAIL);
         event.setFinalDecision("FAVORABLE");
         event.setMotif("Pièce sous garantie");
 
         notificationListener.onDecisionFinalized(event);
 
         verify(notificationService).sendEmail(
-                eq("client@test.com"),
+                eq(CLIENT_EMAIL),
                 contains("acceptée"),
                 eq("emails/decision-favorable"),
                 anyMap(),
@@ -128,15 +133,15 @@ class NotificationListenerTest {
     void onDecisionFinalized_defavorable() {
         DecisionFinalizedEvent event = new DecisionFinalizedEvent();
         event.setTicketId(UUID.randomUUID());
-        event.setClientNom("Client Test");
-        event.setClientEmail("client@test.com");
+        event.setClientNom(CLIENT_NOM);
+        event.setClientEmail(CLIENT_EMAIL);
         event.setFinalDecision("DEFAVORABLE");
         event.setMotif("Hors garantie");
 
         notificationListener.onDecisionFinalized(event);
 
         verify(notificationService).sendEmail(
-                eq("client@test.com"),
+                eq(CLIENT_EMAIL),
                 contains("Réf."),
                 eq("emails/decision-defavorable"),
                 anyMap(),

@@ -17,6 +17,10 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsListenerTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String STATUT_EN_COURS = "EN_COURS";
+    private static final String TICKET_NUMERO = "T-20250001";
+
     @Mock
     private AnalyticsService analyticsService;
 
@@ -27,7 +31,7 @@ class AnalyticsListenerTest {
     @DisplayName("onTicketCreated — incrémente les stats avec le canal")
     void onTicketCreated_incrementsStats() {
         TicketCreatedEvent event = new TicketCreatedEvent();
-        event.setNumero("T-20250001");
+        event.setNumero(TICKET_NUMERO);
         event.setCanal("CALL");
 
         analyticsListener.onTicketCreated(event);
@@ -52,7 +56,7 @@ class AnalyticsListenerTest {
     void onTicketResolved_incrementsStats() {
         LocalDateTime createdAt = LocalDateTime.now().minusHours(2);
         TicketResolvedEvent event = new TicketResolvedEvent();
-        event.setNumero("T-20250001");
+        event.setNumero(TICKET_NUMERO);
         event.setTicketCreatedAt(createdAt);
 
         analyticsListener.onTicketResolved(event);
@@ -64,26 +68,26 @@ class AnalyticsListenerTest {
     @DisplayName("onTicketStatusChanged — transmet la transition au service")
     void onTicketStatusChanged_delegatesToService() {
         TicketStatusChangedEvent event = new TicketStatusChangedEvent();
-        event.setNumero("T-20250001");
+        event.setNumero(TICKET_NUMERO);
         event.setOldStatut("NOUVEAU");
-        event.setNewStatut("EN_COURS");
+        event.setNewStatut(STATUT_EN_COURS);
 
         analyticsListener.onTicketStatusChanged(event);
 
-        verify(analyticsService).onTicketStatusChanged("NOUVEAU", "EN_COURS");
+        verify(analyticsService).onTicketStatusChanged("NOUVEAU", STATUT_EN_COURS);
     }
 
     @Test
     @DisplayName("onTicketStatusChanged — gère les exceptions sans crash")
     void onTicketStatusChanged_handlesException() {
         TicketStatusChangedEvent event = new TicketStatusChangedEvent();
-        event.setOldStatut("EN_COURS");
+        event.setOldStatut(STATUT_EN_COURS);
         event.setNewStatut("RESOLU");
         doThrow(new RuntimeException("DB error")).when(analyticsService).onTicketStatusChanged(any(), any());
 
         analyticsListener.onTicketStatusChanged(event);
 
-        verify(analyticsService).onTicketStatusChanged("EN_COURS", "RESOLU");
+        verify(analyticsService).onTicketStatusChanged(STATUT_EN_COURS, "RESOLU");
     }
 
     @Test

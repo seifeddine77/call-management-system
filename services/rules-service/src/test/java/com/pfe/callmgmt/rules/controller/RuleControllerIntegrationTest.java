@@ -51,13 +51,23 @@ class RuleControllerIntegrationTest {
         private RuleController ruleController;
 
         private static final UUID RULE_ID = UUID.randomUUID();
+
+        // --- SonarCloud: extracted string constants ---
+        private static final String ACTION_FAVORABLE = "FAVORABLE";
+        private static final String ACTION_DEFAVORABLE = "DEFAVORABLE";
+        private static final String RULE_NOM = "Test Intégration — Pièce électronique";
+        private static final String CREATED_BY = "TestSupervisor";
+        private static final String TEST_ADMIN = "TestAdmin";
+        private static final String KEY_OPERATOR = "operator";
+        private static final String KEY_CONDITIONS = "conditions";
+
         private RuleResponse sampleRule;
 
         @BeforeEach
         void setUp() {
                 sampleRule = RuleResponse.builder()
                                 .id(RULE_ID)
-                                .nom("Test Intégration — Pièce électronique")
+                                .nom(RULE_NOM)
                                 .description("Règle de test")
                                 .conditions(Map.of("operator", "AND",
                                                 "conditions", List.of(
@@ -65,12 +75,12 @@ class RuleControllerIntegrationTest {
                                                                                 "ELECTRONIQUE"),
                                                                 Map.of("field", "ageVehiculeAns", "op", "LTE", "value",
                                                                                 3))))
-                                .action("FAVORABLE")
+                                .action(ACTION_FAVORABLE)
                                 .actionMotif("Pièce électronique sous garantie constructeur")
                                 .priorite((short) 7)
                                 .actif(true)
                                 .version((short) 1)
-                                .createdByName("TestSupervisor")
+                                .createdByName(CREATED_BY)
                                 .createdAt(LocalDateTime.now())
                                 .updatedAt(LocalDateTime.now())
                                 .build();
@@ -86,26 +96,26 @@ class RuleControllerIntegrationTest {
         when(ruleService.createRule(any(CreateRuleRequest.class), any(), any())).thenReturn(sampleRule);
 
         CreateRuleRequest request = new CreateRuleRequest();
-        request.setNom("Test Intégration — Pièce électronique");
+        request.setNom(RULE_NOM);
         request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
-        request.setAction("FAVORABLE");
+        request.setAction(ACTION_FAVORABLE);
         request.setActionMotif("Pièce électronique sous garantie constructeur");
         request.setPriorite((short) 7);
 
         ResponseEntity<RuleResponse> response = ruleController.create(
-                request, UUID.randomUUID().toString(), "TestSupervisor");
+                request, UUID.randomUUID().toString(), CREATED_BY);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getId()).isEqualTo(RULE_ID);
-        assertThat(response.getBody().getNom()).isEqualTo("Test Intégration — Pièce électronique");
-        assertThat(response.getBody().getAction()).isEqualTo("FAVORABLE");
+        assertThat(response.getBody().getNom()).isEqualTo(RULE_NOM);
+        assertThat(response.getBody().getAction()).isEqualTo(ACTION_FAVORABLE);
         assertThat(response.getBody().getPriorite()).isEqualTo((short) 7);
         assertThat(response.getBody().getActif()).isTrue();
         assertThat(response.getBody().getVersion()).isEqualTo((short) 1);
-        assertThat(response.getBody().getCreatedByName()).isEqualTo("TestSupervisor");
+        assertThat(response.getBody().getCreatedByName()).isEqualTo(CREATED_BY);
 
-        verify(ruleService).createRule(any(), any(), eq("TestSupervisor"));
+        verify(ruleService).createRule(any(), any(), eq(CREATED_BY));
     }
 
         // =====================================
@@ -152,7 +162,7 @@ class RuleControllerIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getId()).isEqualTo(RULE_ID);
-        assertThat(response.getBody().getNom()).isEqualTo("Test Intégration — Pièce électronique");
+        assertThat(response.getBody().getNom()).isEqualTo(RULE_NOM);
     }
 
         @Test
@@ -187,7 +197,7 @@ class RuleControllerIntegrationTest {
                                                                                 5),
                                                                 Map.of("field", "kilometrage", "op", "LT", "value",
                                                                                 80000))))
-                                .action("FAVORABLE")
+                                .action(ACTION_FAVORABLE)
                                 .actionMotif("Garantie étendue")
                                 .priorite((short) 8)
                                 .actif(true)
@@ -202,12 +212,12 @@ class RuleControllerIntegrationTest {
                 UpdateRuleRequest request = new UpdateRuleRequest();
                 request.setNom("Test Intégration — Pièce électronique (modifiée)");
                 request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
-                request.setAction("FAVORABLE");
+                request.setAction(ACTION_FAVORABLE);
                 request.setActionMotif("Garantie étendue");
                 request.setPriorite((short) 8);
 
                 ResponseEntity<RuleResponse> response = ruleController.update(
-                                RULE_ID, request, UUID.randomUUID().toString(), "TestAdmin");
+                                RULE_ID, request, UUID.randomUUID().toString(), TEST_ADMIN);
 
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
                 assertThat(response.getBody().getVersion()).isEqualTo((short) 2);
@@ -220,7 +230,7 @@ class RuleControllerIntegrationTest {
         void checkVersionHistory() {
                 RuleVersion version = new RuleVersion();
                 version.setVersion((short) 1);
-                version.setChangedByName("TestAdmin");
+                version.setChangedByName(TEST_ADMIN);
                 version.setConditions(Map.of("operator", "AND"));
                 version.setChangedAt(LocalDateTime.now());
 
@@ -231,7 +241,7 @@ class RuleControllerIntegrationTest {
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
                 assertThat(response.getBody()).hasSize(1);
                 assertThat(response.getBody().get(0).getVersion()).isEqualTo((short) 1);
-                assertThat(response.getBody().get(0).getChangedByName()).isEqualTo("TestAdmin");
+                assertThat(response.getBody().get(0).getChangedByName()).isEqualTo(TEST_ADMIN);
         }
 
         // =====================================
@@ -243,7 +253,7 @@ class RuleControllerIntegrationTest {
         void toggleRuleOff() {
                 RuleResponse toggled = RuleResponse.builder()
                                 .id(RULE_ID).nom("Test").conditions(Map.of())
-                                .action("FAVORABLE").actionMotif("Test").actif(false).build();
+                                .action(ACTION_FAVORABLE).actionMotif("Test").actif(false).build();
                 when(ruleService.toggleRule(RULE_ID)).thenReturn(toggled);
 
                 ResponseEntity<RuleResponse> response = ruleController.toggle(RULE_ID);
@@ -257,7 +267,7 @@ class RuleControllerIntegrationTest {
         void toggleRuleOn() {
                 RuleResponse toggled = RuleResponse.builder()
                                 .id(RULE_ID).nom("Test").conditions(Map.of())
-                                .action("FAVORABLE").actionMotif("Test").actif(true).build();
+                                .action(ACTION_FAVORABLE).actionMotif("Test").actif(true).build();
                 when(ruleService.toggleRule(RULE_ID)).thenReturn(toggled);
 
                 ResponseEntity<RuleResponse> response = ruleController.toggle(RULE_ID);
@@ -274,7 +284,7 @@ class RuleControllerIntegrationTest {
         @DisplayName("POST /api/rules/evaluate — Scénario FAVORABLE")
         void evaluateFavorable() {
                 EvaluateResponse evalResp = EvaluateResponse.builder()
-                                .decision("FAVORABLE").score(80.0).ambiguous(false)
+                                .decision(ACTION_FAVORABLE).score(80.0).ambiguous(false)
                                 .motif("Pièce mécanique sous garantie")
                                 .rulesApplied(List.of("Règle Mécanique Simple"))
                                 .totalRulesEvaluated(5).matchedRules(2).build();
@@ -290,7 +300,7 @@ class RuleControllerIntegrationTest {
                 ResponseEntity<EvaluateResponse> response = ruleController.evaluate(request);
 
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().getDecision()).isEqualTo("FAVORABLE");
+                assertThat(response.getBody().getDecision()).isEqualTo(ACTION_FAVORABLE);
                 assertThat(response.getBody().getScore()).isGreaterThan(60.0);
                 assertThat(response.getBody().getAmbiguous()).isFalse();
                 assertThat(response.getBody().getRulesApplied()).isNotEmpty();
@@ -301,7 +311,7 @@ class RuleControllerIntegrationTest {
         @DisplayName("POST /api/rules/evaluate — Scénario DEFAVORABLE")
         void evaluateDefavorable() {
                 EvaluateResponse evalResp = EvaluateResponse.builder()
-                                .decision("DEFAVORABLE").score(75.0).ambiguous(false)
+                                .decision(ACTION_DEFAVORABLE).score(75.0).ambiguous(false)
                                 .motif("Kilométrage excessif")
                                 .rulesApplied(List.of("Règle Kilométrage Excessif"))
                                 .totalRulesEvaluated(5).matchedRules(1).build();
@@ -317,7 +327,7 @@ class RuleControllerIntegrationTest {
                 ResponseEntity<EvaluateResponse> response = ruleController.evaluate(request);
 
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-                assertThat(response.getBody().getDecision()).isEqualTo("DEFAVORABLE");
+                assertThat(response.getBody().getDecision()).isEqualTo(ACTION_DEFAVORABLE);
                 assertThat(response.getBody().getScore()).isGreaterThan(60.0);
                 assertThat(response.getBody().getAmbiguous()).isFalse();
         }
@@ -474,7 +484,7 @@ class RuleControllerIntegrationTest {
         CreateRuleRequest request = new CreateRuleRequest();
         request.setNom("Test Rule");
         request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
-        request.setAction("FAVORABLE");
+        request.setAction(ACTION_FAVORABLE);
         request.setActionMotif("Test");
 
         ResponseEntity<RuleResponse> response = ruleController.create(request, null, null);
