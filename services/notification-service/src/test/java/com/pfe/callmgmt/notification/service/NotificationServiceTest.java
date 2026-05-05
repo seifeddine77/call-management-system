@@ -26,6 +26,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String TYPE_WELCOME = "WELCOME";
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String SUBJECT_BIENVENUE = "Bienvenue";
+
     @Mock private JavaMailSender mailSender;
     @Mock private TemplateEngine templateEngine;
     @Mock private NotificationLogRepository logRepository;
@@ -55,7 +60,7 @@ class NotificationServiceTest {
             Map<String, Object> vars = Map.of("fullName", "Ahmed Ben Ali", "role", "OPERATOR");
 
             notificationService.sendEmail(
-                    "ahmed@test.com", "Bienvenue", "emails/welcome", vars, "WELCOME");
+                    "ahmed@test.com", SUBJECT_BIENVENUE, "emails/welcome", vars, TYPE_WELCOME);
 
             verify(mailSender).send(mimeMessage);
 
@@ -65,8 +70,8 @@ class NotificationServiceTest {
             NotificationLog saved = captor.getValue();
             assertThat(saved.getStatus()).isEqualTo("SENT");
             assertThat(saved.getRecipient()).isEqualTo("ahmed@test.com");
-            assertThat(saved.getSubject()).isEqualTo("Bienvenue");
-            assertThat(saved.getType()).isEqualTo("WELCOME");
+            assertThat(saved.getSubject()).isEqualTo(SUBJECT_BIENVENUE);
+            assertThat(saved.getType()).isEqualTo(TYPE_WELCOME);
             assertThat(saved.getSentAt()).isNotNull();
         }
 
@@ -82,13 +87,13 @@ class NotificationServiceTest {
                     .thenAnswer(inv -> inv.getArgument(0));
 
             notificationService.sendEmail(
-                    "fail@test.com", "Test", "emails/welcome", Map.of(), "WELCOME");
+                    "fail@test.com", "Test", "emails/welcome", Map.of(), TYPE_WELCOME);
 
             ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
             verify(logRepository).save(captor.capture());
 
             NotificationLog saved = captor.getValue();
-            assertThat(saved.getStatus()).isEqualTo("FAILED");
+            assertThat(saved.getStatus()).isEqualTo(STATUS_FAILED);
             assertThat(saved.getErrorMessage()).contains("SMTP connection refused");
         }
 
@@ -141,10 +146,10 @@ class NotificationServiceTest {
         void retry_success() {
             NotificationLog failedLog = NotificationLog.builder()
                     .id(UUID.randomUUID())
-                    .type("WELCOME")
+                    .type(TYPE_WELCOME)
                     .recipient("user@test.com")
-                    .subject("Bienvenue")
-                    .status("FAILED")
+                    .subject(SUBJECT_BIENVENUE)
+                    .status(STATUS_FAILED)
                     .attempts((short) 1)
                     .errorMessage("SMTP error")
                     .metadata(Map.of("fullName", "Test User"))
@@ -175,7 +180,7 @@ class NotificationServiceTest {
 
             assertThatThrownBy(() -> notificationService.retry(sentLog.getId()))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("FAILED");
+                    .hasMessageContaining(STATUS_FAILED);
         }
 
         @Test

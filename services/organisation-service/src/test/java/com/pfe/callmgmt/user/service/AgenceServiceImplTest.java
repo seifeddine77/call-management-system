@@ -32,6 +32,13 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AgenceServiceImplTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String AGENCE_NOM = "Agence Test";
+    private static final String AGENCE_ADRESSE = "123 Rue Test";
+    private static final String AGENCE_TEL = "71234567";
+    private static final String AGENCE_EMAIL = "agence@test.com";
+    private static final String WHATSAPP_GROUP = "120363xxx@g.us";
+
     @Mock
     private AgenceRepository agenceRepository;
 
@@ -61,27 +68,27 @@ class AgenceServiceImplTest {
 
         agence = Agence.builder()
                 .id(agenceId)
-                .nom("Agence Test")
-                .adresse("123 Rue Test")
-                .telephone("71234567")
-                .email("agence@test.com")
+                .nom(AGENCE_NOM)
+                .adresse(AGENCE_ADRESSE)
+                .telephone(AGENCE_TEL)
+                .email(AGENCE_EMAIL)
                 .actif(true)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         agenceRequest = new AgenceRequest();
-        agenceRequest.setNom("Agence Test");
-        agenceRequest.setAdresse("123 Rue Test");
-        agenceRequest.setTelephone("71234567");
-        agenceRequest.setEmail("agence@test.com");
+        agenceRequest.setNom(AGENCE_NOM);
+        agenceRequest.setAdresse(AGENCE_ADRESSE);
+        agenceRequest.setTelephone(AGENCE_TEL);
+        agenceRequest.setEmail(AGENCE_EMAIL);
 
         agenceResponse = new AgenceResponse();
         agenceResponse.setId(agenceId);
-        agenceResponse.setNom("Agence Test");
-        agenceResponse.setAdresse("123 Rue Test");
-        agenceResponse.setTelephone("71234567");
-        agenceResponse.setEmail("agence@test.com");
+        agenceResponse.setNom(AGENCE_NOM);
+        agenceResponse.setAdresse(AGENCE_ADRESSE);
+        agenceResponse.setTelephone(AGENCE_TEL);
+        agenceResponse.setEmail(AGENCE_EMAIL);
         agenceResponse.setActif(true);
 
         user = User.builder()
@@ -102,7 +109,7 @@ class AgenceServiceImplTest {
         AgenceResponse result = agenceService.createAgence(agenceRequest, userId);
 
         assertNotNull(result);
-        assertEquals("Agence Test", result.getNom());
+        assertEquals(AGENCE_NOM, result.getNom());
         verify(agenceRepository).save(any(Agence.class));
     }
 
@@ -207,9 +214,9 @@ class AgenceServiceImplTest {
         when(agenceRepository.findById(agenceId)).thenReturn(Optional.of(agence));
         when(agenceRepository.save(any(Agence.class))).thenReturn(agence);
 
-        agenceService.updateWhatsappGroupId(agenceId, "120363xxx@g.us");
+        agenceService.updateWhatsappGroupId(agenceId, WHATSAPP_GROUP);
 
-        assertEquals("120363xxx@g.us", agence.getWhatsappGroupId());
+        assertEquals(WHATSAPP_GROUP, agence.getWhatsappGroupId());
         verify(agenceRepository).save(agence);
     }
 
@@ -219,6 +226,6 @@ class AgenceServiceImplTest {
         when(agenceRepository.findById(agenceId)).thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class,
-                () -> agenceService.updateWhatsappGroupId(agenceId, "120363xxx@g.us"));
+                () -> agenceService.updateWhatsappGroupId(agenceId, WHATSAPP_GROUP));
     }
 }

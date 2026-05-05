@@ -33,6 +33,12 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String EMAIL_TEST = "test@company.com";
+    private static final String USER_NAME = "Test User";
+    private static final String ROLE_OPERATOR = "OPERATOR";
+    private static final String NEW_PASS = "NewPass456";
+
     @Mock
     private UserRepository userRepository;
     @Mock
@@ -62,29 +68,29 @@ class UserServiceImplTest {
         agence = Agence.builder().id(agenceId).nom("Agence Test").build();
 
         validRequest = new UserRequest();
-        validRequest.setEmail("test@company.com");
+        validRequest.setEmail(EMAIL_TEST);
         validRequest.setPassword("SecurePass123");
-        validRequest.setNom("Test User"); /* prenom set below */;
+        validRequest.setNom(USER_NAME); /* prenom set below */;
         validRequest.setTelephone("12345678");
-        validRequest.setRole("OPERATOR");
+        validRequest.setRole(ROLE_OPERATOR);
         validRequest.setAgenceId(agenceId);
 
         savedUser = User.builder()
                 .id(userId)
-                .email("test@company.com")
+                .email(EMAIL_TEST)
                 .passwordHash("$2a$12$encoded")
-                .nom("Test User").prenom("")
+                .nom(USER_NAME).prenom("")
                 .telephone("12345678")
-                .role("OPERATOR")
+                .role(ROLE_OPERATOR)
                 .agence(agence)
                 .actif(true)
                 .build();
 
         userResponse = UserResponse.builder()
                 .id(userId)
-                .email("test@company.com")
-                .nom("Test User").prenom("")
-                .role("OPERATOR")
+                .email(EMAIL_TEST)
+                .nom(USER_NAME).prenom("")
+                .role(ROLE_OPERATOR)
                 .agenceId(agenceId)
                 .agenceName("Agence Test")
                 .actif(true)
@@ -94,7 +100,7 @@ class UserServiceImplTest {
     @Test
     @DisplayName("1. createUser — succès")
     void createUser_success() {
-        when(userRepository.existsByEmail("test@company.com")).thenReturn(false);
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(false);
         when(passwordEncoder.encode("SecurePass123")).thenReturn("$2a$12$encoded");
         when(agenceRepository.findById(agenceId)).thenReturn(Optional.of(agence));
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
@@ -103,7 +109,7 @@ class UserServiceImplTest {
         UserResponse result = userService.createUser(validRequest, null);
 
         assertNotNull(result);
-        assertEquals("test@company.com", result.getEmail());
+        assertEquals(EMAIL_TEST, result.getEmail());
         verify(userRepository).save(any(User.class));
         verify(eventPublisher).publishUserCreated(any());
     }
@@ -111,7 +117,7 @@ class UserServiceImplTest {
     @Test
     @DisplayName("2. createUser — email déjà existant → ConflictException")
     void createUser_emailExists_throwsConflict() {
-        when(userRepository.existsByEmail("test@company.com")).thenReturn(true);
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(true);
 
         assertThrows(UserServiceImpl.ConflictException.class, () ->
                 userService.createUser(validRequest, null));
@@ -139,11 +145,11 @@ class UserServiceImplTest {
         UUID otherUserId = UUID.randomUUID();
         UUID operatorId = UUID.randomUUID();
 
-        User otherUser = User.builder().id(otherUserId).role("OPERATOR").agence(agence).build();
+        User otherUser = User.builder().id(otherUserId).role(ROLE_OPERATOR).agence(agence).build();
         when(userRepository.findById(otherUserId)).thenReturn(Optional.of(otherUser));
 
         assertThrows(AccessDeniedException.class,
-                () -> userService.updateUser(otherUserId, validRequest, operatorId, "OPERATOR", agenceId));
+                () -> userService.updateUser(otherUserId, validRequest, operatorId, ROLE_OPERATOR, agenceId));
     }
 
     @Test
@@ -186,13 +192,13 @@ class UserServiceImplTest {
     @DisplayName("8. getAllUsers — filtre par rôle")
     void getAllUsers_filterByRole() {
         Page<User> userPage = new PageImpl<>(List.of(savedUser));
-        when(userRepository.findByActifTrueAndRole(eq("OPERATOR"), any(Pageable.class))).thenReturn(userPage);
+        when(userRepository.findByActifTrueAndRole(eq(ROLE_OPERATOR), any(Pageable.class))).thenReturn(userPage);
         when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
 
-        Page<UserResponse> result = userService.getAllUsers("OPERATOR", null, 0, 20);
+        Page<UserResponse> result = userService.getAllUsers(ROLE_OPERATOR, null, 0, 20);
 
         assertEquals(1, result.getTotalElements());
-        assertEquals("OPERATOR", result.getContent().get(0).getRole());
+        assertEquals(ROLE_OPERATOR, result.getContent().get(0).getRole());
     }
 
     @Test
@@ -200,12 +206,12 @@ class UserServiceImplTest {
     void changePassword_success() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(savedUser));
         when(passwordEncoder.matches("OldPass123", savedUser.getPasswordHash())).thenReturn(true);
-        when(passwordEncoder.encode("NewPass456")).thenReturn("$2a$12$newEncoded");
+        when(passwordEncoder.encode(NEW_PASS)).thenReturn("$2a$12$newEncoded");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
-        userService.changePassword(userId, "OldPass123", "NewPass456");
+        userService.changePassword(userId, "OldPass123", NEW_PASS);
 
-        verify(passwordEncoder).encode("NewPass456");
+        verify(passwordEncoder).encode(NEW_PASS);
         verify(userRepository).save(savedUser);
     }
 
@@ -216,7 +222,7 @@ class UserServiceImplTest {
         when(passwordEncoder.matches("WrongPass", savedUser.getPasswordHash())).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->
-                userService.changePassword(userId, "WrongPass", "NewPass456"));
+                userService.changePassword(userId, "WrongPass", NEW_PASS));
         verify(userRepository, never()).save(any());
     }
 }
