@@ -17,6 +17,8 @@ import java.util.UUID;
 @Component
 public class JwtUtils {
 
+    private static final String CLAIM_EMAIL = "email";
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -38,7 +40,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
-                .claim("email", email)
+                .claim(CLAIM_EMAIL, email)
                 .claim("role", role)
                 .claim("agenceId", agenceId != null ? agenceId.toString() : null)
                 .claim("type", "ACCESS")
@@ -57,7 +59,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
-                .claim("email", email)
+                .claim(CLAIM_EMAIL, email)
                 .claim("role", role)
                 .claim("agenceId", agenceId != null ? agenceId.toString() : null)
                 .claim("type", "REFRESH")
@@ -94,7 +96,7 @@ public class JwtUtils {
     }
 
     public String extractEmail(Jws<Claims> claims) {
-        return claims.getPayload().get("email", String.class);
+        return claims.getPayload().get(CLAIM_EMAIL, String.class);
     }
 
     public String extractRole(Jws<Claims> claims) {
@@ -110,8 +112,6 @@ public class JwtUtils {
         try {
             validateAccessToken(token);
             return false;
-        } catch (ExpiredJwtException e) {
-            return true;
         } catch (JwtException e) {
             return true;
         }

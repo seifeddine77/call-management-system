@@ -27,13 +27,13 @@ export const analyticsService = {
       params: { period },
       responseType: 'blob',
     });
-    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const url = globalThis.URL.createObjectURL(new Blob([res.data]));
     const a = document.createElement('a');
     a.href = url;
     a.download = `autoassist_analytics_${period || '30d'}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    window.URL.revokeObjectURL(url);
+    globalThis.URL.revokeObjectURL(url);
   },
 };

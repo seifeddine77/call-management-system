@@ -14,21 +14,23 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TicketEventPublisher {
 
+    private static final String TICKET_EXCHANGE = "ticket.exchange";
+
     private final RabbitTemplate rabbitTemplate;
 
     public void publishTicketCreated(TicketCreatedEvent event) {
         log.info("Publishing TicketCreatedEvent for ticket: {}", event.getNumero());
-        rabbitTemplate.convertAndSend("ticket.exchange", "ticket.created", event);
+        rabbitTemplate.convertAndSend(TICKET_EXCHANGE, "ticket.created", event);
     }
 
     public void publishTicketResolved(TicketResolvedEvent event) {
         log.info("Publishing TicketResolvedEvent for ticket: {}", event.getNumero());
-        rabbitTemplate.convertAndSend("ticket.exchange", "ticket.resolved", event);
+        rabbitTemplate.convertAndSend(TICKET_EXCHANGE, "ticket.resolved", event);
     }
 
     public void publishTicketStatusChanged(TicketStatusChangedEvent event) {
         log.info("Publishing TicketStatusChangedEvent for ticket: {} ({} → {})",
                 event.getNumero(), event.getOldStatut(), event.getNewStatut());
-        rabbitTemplate.convertAndSend("ticket.exchange", "ticket.status-changed", event);
+        rabbitTemplate.convertAndSend(TICKET_EXCHANGE, "ticket.status-changed", event);
     }
 }

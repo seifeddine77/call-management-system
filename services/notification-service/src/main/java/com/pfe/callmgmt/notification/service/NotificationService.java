@@ -21,6 +21,8 @@ import java.util.Map;
 @Slf4j
 public class NotificationService {
 
+    private static final String STATUS_FAILED = "FAILED";
+
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
     private final NotificationLogRepository logRepository;
@@ -83,12 +85,12 @@ public class NotificationService {
             log.info("📧 Email envoyé → {} | Sujet: {}", to, subject);
 
         } catch (MessagingException e) {
-            notifLog.setStatus("FAILED");
+            notifLog.setStatus(STATUS_FAILED);
             notifLog.setErrorMessage(e.getMessage());
             notifLog.setAttempts((short) 1);
             log.error("❌ Échec envoi email → {} | Sujet: {} | Erreur: {}", to, subject, e.getMessage());
         } catch (Exception e) {
-            notifLog.setStatus("FAILED");
+            notifLog.setStatus(STATUS_FAILED);
             notifLog.setErrorMessage(e.getMessage());
             notifLog.setAttempts((short) 1);
             log.error("❌ Erreur inattendue envoi email → {} | {}", to, e.getMessage());
@@ -104,7 +106,7 @@ public class NotificationService {
         NotificationLog notifLog = logRepository.findById(id)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Notification introuvable : " + id));
 
-        if (!"FAILED".equals(notifLog.getStatus())) {
+        if (!STATUS_FAILED.equals(notifLog.getStatus())) {
             throw new IllegalStateException("Seules les notifications FAILED peuvent être relancées");
         }
 

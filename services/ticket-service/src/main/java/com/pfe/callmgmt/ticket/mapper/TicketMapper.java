@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+
 
 @Component
 @Slf4j
@@ -68,7 +68,7 @@ public class TicketMapper {
         if (actions != null) {
             builder.actions(actions.stream()
                     .map(this::toActionResponse)
-                    .collect(Collectors.toList()));
+                    .toList());
         } else {
             builder.actions(Collections.emptyList());
         }

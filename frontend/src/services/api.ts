@@ -47,7 +47,7 @@ api.interceptors.response.use(
         }
       } catch {
         localStorage.removeItem('aurora-auth');
-        window.location.href = '/login';
+        globalThis.location.href = '/login';
       }
     }
 

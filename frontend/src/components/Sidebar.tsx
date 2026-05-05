@@ -96,7 +96,7 @@ export default function Sidebar() {
       {!collapsed && (
         <div className="px-3.5 mb-2">
           <button
-            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            onClick={() => globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
             className="w-full flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border)] text-[var(--text-3)] cursor-pointer hover:border-[var(--border-visible)] hover:text-[var(--text-2)] transition-all"
           >
             <Search size={13} />

@@ -19,13 +19,17 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private static final String KEY_TIMESTAMP = "timestamp";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_ERROR = "error";
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
         log.error("Erreur: {}", ex.getMessage());
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", 404);
-        body.put("error", "Not Found");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, 404);
+        body.put(KEY_ERROR, "Not Found");
         body.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
@@ -33,9 +37,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", 400);
-        body.put("error", "Validation Error");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, 400);
+        body.put(KEY_ERROR, "Validation Error");
 
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
@@ -50,9 +54,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", 400);
-        body.put("error", "Bad Request");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, 400);
+        body.put(KEY_ERROR, "Bad Request");
         body.put("message", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
     }

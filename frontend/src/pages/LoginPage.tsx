@@ -27,9 +27,9 @@ function useParallax() {
   const sx = useSpring(mx, { stiffness: 40, damping: 18 });
   const sy = useSpring(my, { stiffness: 40, damping: 18 });
   useEffect(() => {
-    const h = (e: MouseEvent) => { mx.set((e.clientX/window.innerWidth-0.5)*2); my.set((e.clientY/window.innerHeight-0.5)*2); };
-    window.addEventListener('mousemove', h);
-    return () => window.removeEventListener('mousemove', h);
+    const h = (e: MouseEvent) => { mx.set((e.clientX/globalThis.innerWidth-0.5)*2); my.set((e.clientY/globalThis.innerHeight-0.5)*2); };
+    globalThis.addEventListener('mousemove', h);
+    return () => globalThis.removeEventListener('mousemove', h);
   }, [mx, my]);
   return { sx, sy };
 }

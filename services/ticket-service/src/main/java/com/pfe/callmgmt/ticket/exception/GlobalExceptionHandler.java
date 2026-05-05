@@ -13,6 +13,10 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String KEY_TIMESTAMP = "timestamp";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_ERROR = "error";
+
     @ExceptionHandler(InvalidTransitionException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidTransition(InvalidTransitionException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
@@ -31,9 +35,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", 400);
-        body.put("error", "Erreur de validation");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, 400);
+        body.put(KEY_ERROR, "Erreur de validation");
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getFieldErrors()
                 .forEach(e -> fieldErrors.put(e.getField(), e.getDefaultMessage()));
@@ -48,9 +52,9 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, status.value());
+        body.put(KEY_ERROR, status.getReasonPhrase());
         body.put("message", message);
         return new ResponseEntity<>(body, status);
     }

@@ -221,7 +221,7 @@ public class RuleService {
         // Analyser les résultats
         List<String> rulesAppliedNames = matchedRules.stream()
                 .map(Rule::getNom)
-                .collect(Collectors.toList());
+                .toList();
 
         Map<String, Long> actionCounts = matchedRules.stream()
                 .collect(Collectors.groupingBy(Rule::getAction, Collectors.counting()));

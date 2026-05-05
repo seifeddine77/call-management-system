@@ -9,7 +9,7 @@ interface ModalProps {
   children: React.ReactNode;
 }
 
-export default function Modal({ open, onClose, title, size = 'md', children }: ModalProps) {
+export default function Modal({ open, onClose, title, size = 'md', children }: Readonly<ModalProps>) {
   const widths = { sm: 'max-w-[420px]', md: 'max-w-[560px]', lg: 'max-w-[720px]' };
 
   return (

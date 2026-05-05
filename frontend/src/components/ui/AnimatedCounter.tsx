@@ -17,7 +17,7 @@ export default function AnimatedCounter({
   suffix = '',
   decimals = 0,
   className = '',
-}: AnimatedCounterProps) {
+}: Readonly<AnimatedCounterProps>) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
   const [display, setDisplay] = useState(0);

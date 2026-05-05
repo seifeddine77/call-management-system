@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 /**
  * CDC 4.B — Service de paramétrage des listes de référence.
@@ -49,7 +49,7 @@ public class ReferenceDataService {
                         .code(entity.getCode())
                         .label(entity.getLabel())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -87,14 +87,14 @@ public class ReferenceDataService {
             }
 
             return builder.build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     private List<String> getActiveCodesForCategory(String category) {
         return referenceItemRepository.findByCategoryAndActifTrueOrderByDisplayOrderAsc(category)
                 .stream()
                 .map(com.pfe.callmgmt.rules.entity.ReferenceItem::getCode)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // Opérateurs de comparaison (statiques — pas besoin d'être en BDD)
