@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.dataset.theme = theme;
     localStorage.setItem('aurora-theme', theme);
   }, [theme]);
 
