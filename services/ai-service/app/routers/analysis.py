@@ -6,7 +6,7 @@ GET  /analyze/{tid} → retrieve existing analysis
 """
 import logging
 import re
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -158,7 +158,7 @@ def extract_keywords_spacy(text: str, nlp) -> List[str]:
 def analyze_text(
     request_body: AnalysisRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Analyze text using local NLP (no external API calls).
@@ -218,7 +218,7 @@ def analyze_text(
 
 
 @router.get("/{ticket_id}", response_model=AnalysisResultResponse)
-def get_analysis(ticket_id: str, db: Session = Depends(get_db)):
+def get_analysis(ticket_id: str, db: Annotated[Session, Depends(get_db)]):
     """Retrieve an existing analysis by ticket ID."""
     result = db.query(AnalysisResult).filter(AnalysisResult.ticket_id == ticket_id).first()
     if not result:

@@ -11,6 +11,7 @@ Endpoints:
 """
 import logging
 from pydantic import BaseModel, Field
+from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.rag import rag_service
@@ -83,7 +84,7 @@ async def chat_endpoint(request: ChatRequest):
 
 @router.get("/test", response_model=ChatResponse)
 async def chat_test_endpoint(
-    q: str = Query(..., min_length=1, max_length=500, description="Question to test"),
+    q: Annotated[str, Query(min_length=1, max_length=500, description="Question to test")],
 ):
     """
     Quick test endpoint — accessible from browser URL bar.

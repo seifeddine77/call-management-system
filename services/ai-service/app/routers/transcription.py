@@ -7,6 +7,7 @@ GET  /transcribe/{tid} → retrieve existing transcription
 import logging
 import os
 import uuid
+from typing import Annotated
 
 import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -35,9 +36,9 @@ MAX_SIZE_BYTES = settings.MAX_AUDIO_SIZE_MB * 1024 * 1024
 @router.post("/", response_model=TranscribeResponse)
 async def transcribe_audio(
     request: Request,
-    file: UploadFile = File(...),
-    ticket_id: str = Form(...),
-    db: Session = Depends(get_db),
+    file: Annotated[UploadFile, File(...)],
+    ticket_id: Annotated[str, Form(...)],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Upload an audio file, transcribe it with Whisper, and store the result.
@@ -155,7 +156,7 @@ async def transcribe_audio(
 @router.post("/quick")
 async def quick_transcribe(
     request: Request,
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File(...)],
 ):
     """
     Quick transcription for WhatsApp voice messages.
@@ -198,7 +199,7 @@ async def quick_transcribe(
 
 
 @router.get("/{ticket_id}", response_model=AudioRecordResponse)
-def get_transcription(ticket_id: str, db: Session = Depends(get_db)):
+def get_transcription(ticket_id: str, db: Annotated[Session, Depends(get_db)]):
     """Retrieve an existing transcription by ticket ID."""
     record = db.query(AudioRecord).filter(AudioRecord.ticket_id == ticket_id).first()
     if not record:
