@@ -37,6 +37,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class DecisionIntegrationTest {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String API_DECISIONS_ANALYZE = "/api/decisions/analyze";
+        private static final String API_DECISIONS = "/api/decisions/";
+        private static final String JSON_DECISION = "$.decision";
+        private static final String FAVORABLE = "FAVORABLE";
+        private static final String DEFAVORABLE = "DEFAVORABLE";
+        private static final String STANDARD = "STANDARD";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -70,7 +78,7 @@ class DecisionIntegrationTest {
         void fullFlow_analyze_accept_letter() throws Exception {
                 // 1. Mock rules-service response
                 RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(85.0)
                                 .motif("Pièce mécanique sous garantie")
                                 .rulesApplied(List.of("Règle garantie"))
@@ -90,11 +98,11 @@ class DecisionIntegrationTest {
                 request.setCategorieClient("PREMIUM");
                 request.setTypeSinistre("PANNE");
 
-                MvcResult analyzeResult = mockMvc.perform(post("/api/decisions/analyze")
+                MvcResult analyzeResult = mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.decision").value("FAVORABLE"))
+                                .andExpect(jsonPath(JSON_DECISION).value(FAVORABLE))
                                 .andExpect(jsonPath("$.score").value(85.0))
                                 .andExpect(jsonPath("$.source").value("RULES"))
                                 .andReturn();
@@ -108,18 +116,18 @@ class DecisionIntegrationTest {
 
                 // 3. POST /accept
                 OverrideRequest acceptReq = new OverrideRequest();
-                acceptReq.setFinalDecision("FAVORABLE");
+                acceptReq.setFinalDecision(FAVORABLE);
                 acceptReq.setMotif("Confirmé par opérateur");
 
-                mockMvc.perform(post("/api/decisions/" + decisionId + "/accept")
+                mockMvc.perform(post(API_DECISIONS + decisionId + "/accept")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(acceptReq)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.finalDecision").value("FAVORABLE"))
+                                .andExpect(jsonPath("$.finalDecision").value(FAVORABLE))
                                 .andExpect(jsonPath("$.overrideMotif").value("Confirmé par opérateur"));
 
                 // 4. GET /letter (PDF)
-                mockMvc.perform(get("/api/decisions/" + decisionId + "/letter"))
+                mockMvc.perform(get(API_DECISIONS + decisionId + "/letter"))
                                 .andExpect(status().isOk())
                                 .andExpect(content().contentType(MediaType.APPLICATION_PDF));
         }
@@ -128,7 +136,7 @@ class DecisionIntegrationTest {
         @DisplayName("Flux complet : analyze → reject → vérifier 409 sur re-reject")
         void fullFlow_analyze_reject_doubleReject() throws Exception {
                 RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                                .decision("DEFAVORABLE")
+                                .decision(DEFAVORABLE)
                                 .score(70.0)
                                 .motif("Kilométrage trop élevé")
                                 .rulesApplied(List.of("Règle km"))
@@ -143,14 +151,14 @@ class DecisionIntegrationTest {
                 request.setTypePiece("MECANIQUE");
                 request.setAgeVehiculeAns(8);
                 request.setKilometrage(180000);
-                request.setCategorieClient("STANDARD");
+                request.setCategorieClient(STANDARD);
                 request.setTypeSinistre("USURE");
 
-                MvcResult analyzeResult = mockMvc.perform(post("/api/decisions/analyze")
+                MvcResult analyzeResult = mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.decision").value("DEFAVORABLE"))
+                                .andExpect(jsonPath(JSON_DECISION).value(DEFAVORABLE))
                                 .andReturn();
 
                 DecisionResult result = objectMapper.readValue(
@@ -158,17 +166,17 @@ class DecisionIntegrationTest {
 
                 // Reject
                 OverrideRequest rejectReq = new OverrideRequest();
-                rejectReq.setFinalDecision("DEFAVORABLE");
+                rejectReq.setFinalDecision(DEFAVORABLE);
                 rejectReq.setMotif("Usure normale confirmée");
 
-                mockMvc.perform(post("/api/decisions/" + result.getDecisionId() + "/reject")
+                mockMvc.perform(post(API_DECISIONS + result.getDecisionId() + "/reject")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(rejectReq)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.finalDecision").value("DEFAVORABLE"));
+                                .andExpect(jsonPath("$.finalDecision").value(DEFAVORABLE));
 
                 // Double reject → 409 Conflict
-                mockMvc.perform(post("/api/decisions/" + result.getDecisionId() + "/reject")
+                mockMvc.perform(post(API_DECISIONS + result.getDecisionId() + "/reject")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(rejectReq)))
                                 .andExpect(status().isConflict());
@@ -178,7 +186,7 @@ class DecisionIntegrationTest {
         @DisplayName("analyze — ticket déjà traité → retour identique (idempotent)")
         void analyze_sameTicket_idempotent() throws Exception {
                 RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                                .decision("FAVORABLE").score(90.0).motif("OK")
+                                .decision(FAVORABLE).score(90.0).motif("OK")
                                 .rulesApplied(List.of("R1")).ambiguous(false).matchedRules(1).build();
                 when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
 
@@ -192,14 +200,14 @@ class DecisionIntegrationTest {
                 request.setTypeSinistre("DEFAUT_FABRICATION");
 
                 // Premier appel
-                MvcResult first = mockMvc.perform(post("/api/decisions/analyze")
+                MvcResult first = mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
                                 .andReturn();
 
                 // Deuxième appel avec le même ticketId
-                MvcResult second = mockMvc.perform(post("/api/decisions/analyze")
+                MvcResult second = mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
@@ -219,7 +227,7 @@ class DecisionIntegrationTest {
         @DisplayName("GET /ticket/{id} — ticket trouvé après analyze")
         void getByTicketId_afterAnalyze() throws Exception {
                 RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                                .decision("FAVORABLE").score(80.0).motif("OK")
+                                .decision(FAVORABLE).score(80.0).motif("OK")
                                 .rulesApplied(List.of("R1")).ambiguous(false).matchedRules(1).build();
                 when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
 
@@ -229,10 +237,10 @@ class DecisionIntegrationTest {
                 request.setTypePiece("CARROSSERIE");
                 request.setAgeVehiculeAns(4);
                 request.setKilometrage(80000);
-                request.setCategorieClient("STANDARD");
+                request.setCategorieClient(STANDARD);
                 request.setTypeSinistre("ACCIDENT");
 
-                mockMvc.perform(post("/api/decisions/analyze")
+                mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk());
@@ -240,7 +248,7 @@ class DecisionIntegrationTest {
                 mockMvc.perform(get("/api/decisions/ticket/" + ticketId))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.ticketId").value(ticketId.toString()))
-                                .andExpect(jsonPath("$.decision").value("FAVORABLE"));
+                                .andExpect(jsonPath(JSON_DECISION).value(FAVORABLE));
         }
 
         @Test
@@ -265,21 +273,21 @@ class DecisionIntegrationTest {
                 request.setTypePiece("ELECTRONIQUE");
                 request.setAgeVehiculeAns(5);
                 request.setKilometrage(100000);
-                request.setCategorieClient("STANDARD");
+                request.setCategorieClient(STANDARD);
                 request.setTypeSinistre("PANNE");
 
-                MvcResult result = mockMvc.perform(post("/api/decisions/analyze")
+                MvcResult result = mockMvc.perform(post(API_DECISIONS_ANALYZE)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.decision").value("ETUDE"))
+                                .andExpect(jsonPath(JSON_DECISION).value("ETUDE"))
                                 .andReturn();
 
                 DecisionResult dr = objectMapper.readValue(result.getResponse().getContentAsString(),
                                 DecisionResult.class);
 
                 // PDF pour ETUDE → 400
-                mockMvc.perform(get("/api/decisions/" + dr.getDecisionId() + "/letter"))
+                mockMvc.perform(get(API_DECISIONS + dr.getDecisionId() + "/letter"))
                                 .andExpect(status().isBadRequest());
         }
 }

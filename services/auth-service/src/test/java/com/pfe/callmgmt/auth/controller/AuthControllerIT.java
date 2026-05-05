@@ -38,6 +38,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("Auth Controller — Integration Tests")
 class AuthControllerIT {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String API_AUTH_LOGIN = "/api/auth/login";
+        private static final String EMAIL_OPERATOR = "operator@test.com";
+        private static final String EMAIL_NEW = "new@test.com";
+        private static final String PASSWORD_123 = "password123";
+        private static final String ROLE_OPERATOR = "OPERATOR";
+        private static final String JSON_ACCESS_TOKEN = "$.accessToken";
+        private static final String JSON_REFRESH_TOKEN = "$.refreshToken";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -62,11 +71,11 @@ class AuthControllerIT {
                 testUserId = UUID.randomUUID();
                 testUser = UserDto.builder()
                                 .id(testUserId)
-                                .email("operator@test.com")
-                                // Dynamically generate BCrypt hash for "password123"
-                                .passwordHash(passwordEncoder.encode("password123"))
+                                .email(EMAIL_OPERATOR)
+                                // Dynamically generate BCrypt hash for PASSWORD_123
+                                .passwordHash(passwordEncoder.encode(PASSWORD_123))
                                 .nom("Test Operator").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agenceId(UUID.randomUUID())
                                 .actif(true)
                                 .build();
@@ -82,20 +91,20 @@ class AuthControllerIT {
         @Test
         @DisplayName("Login réussi retourne 200 avec access + refresh tokens")
         void login_success_returns200() throws Exception {
-            when(userServiceClient.findByEmail("operator@test.com"))
+            when(userServiceClient.findByEmail(EMAIL_OPERATOR))
                     .thenReturn(ResponseEntity.ok(testUser));
 
-            LoginRequest request = new LoginRequest("operator@test.com", "password123");
+            LoginRequest request = new LoginRequest(EMAIL_OPERATOR, PASSWORD_123);
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post(API_AUTH_LOGIN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                    .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                    .andExpect(jsonPath(JSON_ACCESS_TOKEN).isNotEmpty())
+                    .andExpect(jsonPath(JSON_REFRESH_TOKEN).isNotEmpty())
                     .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                    .andExpect(jsonPath("$.user.email").value("operator@test.com"))
-                    .andExpect(jsonPath("$.user.role").value("OPERATOR"));
+                    .andExpect(jsonPath("$.user.email").value(EMAIL_OPERATOR))
+                    .andExpect(jsonPath("$.user.role").value(ROLE_OPERATOR));
 
             // Verify refresh token is saved in DB
             assertThat(refreshTokenRepository.findByUserId(testUserId)).isNotEmpty();
@@ -104,9 +113,9 @@ class AuthControllerIT {
                 @Test
                 @DisplayName("Login avec email invalide retourne 400")
                 void login_invalidEmail_returns400() throws Exception {
-                        LoginRequest request = new LoginRequest("invalid-email", "password123");
+                        LoginRequest request = new LoginRequest("invalid-email", PASSWORD_123);
 
-                        mockMvc.perform(post("/api/auth/login")
+                        mockMvc.perform(post(API_AUTH_LOGIN)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                         .andExpect(status().isBadRequest())
@@ -116,12 +125,12 @@ class AuthControllerIT {
         @Test
         @DisplayName("Login avec mauvais mot de passe retourne 401")
         void login_wrongPassword_returns401() throws Exception {
-            when(userServiceClient.findByEmail("operator@test.com"))
+            when(userServiceClient.findByEmail(EMAIL_OPERATOR))
                     .thenReturn(ResponseEntity.ok(testUser));
 
-            LoginRequest request = new LoginRequest("operator@test.com", "wrongpassword");
+            LoginRequest request = new LoginRequest(EMAIL_OPERATOR, "wrongpassword");
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post(API_AUTH_LOGIN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
@@ -136,9 +145,9 @@ class AuthControllerIT {
                         when(userServiceClient.findByEmail("unknown@test.com"))
                                         .thenThrow(new FeignException.NotFound("Not Found", feignRequest, null, null));
 
-                        LoginRequest request = new LoginRequest("unknown@test.com", "password123");
+                        LoginRequest request = new LoginRequest("unknown@test.com", PASSWORD_123);
 
-                        mockMvc.perform(post("/api/auth/login")
+                        mockMvc.perform(post(API_AUTH_LOGIN)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                         .andExpect(status().isUnauthorized());
@@ -147,7 +156,7 @@ class AuthControllerIT {
                 @Test
                 @DisplayName("Login sans body retourne 400")
                 void login_emptyBody_returns400() throws Exception {
-                        mockMvc.perform(post("/api/auth/login")
+                        mockMvc.perform(post(API_AUTH_LOGIN)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content("{}"))
                                         .andExpect(status().isBadRequest());
@@ -166,31 +175,31 @@ class AuthControllerIT {
                 void register_success_returns201() throws Exception {
                         Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
                                         new RequestTemplate());
-                        when(userServiceClient.findByEmail("new@test.com"))
+                        when(userServiceClient.findByEmail(EMAIL_NEW))
                                         .thenThrow(new FeignException.NotFound("Not Found", feignRequest, null, null));
 
                         UserDto createdUser = UserDto.builder()
                                         .id(UUID.randomUUID())
-                                        .email("new@test.com")
+                                        .email(EMAIL_NEW)
                                         .nom("Nouveau User").prenom("")
-                                        .role("OPERATOR")
+                                        .role(ROLE_OPERATOR)
                                         .actif(true)
                                         .build();
                         when(userServiceClient.createUser(any())).thenReturn(ResponseEntity.ok(createdUser));
 
                         RegisterRequest request = new RegisterRequest();
-                        request.setEmail("new@test.com");
-                        request.setPassword("password123");
+                        request.setEmail(EMAIL_NEW);
+                        request.setPassword(PASSWORD_123);
                         request.setNom("Nouveau User"); /* prenom set below */;
-                        request.setRole("OPERATOR");
+                        request.setRole(ROLE_OPERATOR);
 
                         mockMvc.perform(post("/api/auth/register")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                         .andExpect(status().isCreated())
-                                        .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                                        .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-                                        .andExpect(jsonPath("$.user.email").value("new@test.com"));
+                                        .andExpect(jsonPath(JSON_ACCESS_TOKEN).isNotEmpty())
+                                        .andExpect(jsonPath(JSON_REFRESH_TOKEN).isNotEmpty())
+                                        .andExpect(jsonPath("$.user.email").value(EMAIL_NEW));
                 }
 
         @Test
@@ -201,9 +210,9 @@ class AuthControllerIT {
 
             RegisterRequest request = new RegisterRequest();
             request.setEmail("existing@test.com");
-            request.setPassword("password123");
+            request.setPassword(PASSWORD_123);
             request.setNom("Existing User"); /* prenom set below */;
-            request.setRole("OPERATOR");
+            request.setRole(ROLE_OPERATOR);
 
             mockMvc.perform(post("/api/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -224,12 +233,12 @@ class AuthControllerIT {
         @DisplayName("Refresh token valide retourne de nouveaux tokens")
         void refreshToken_success_returns200() throws Exception {
             // First, login to get a valid refresh token
-            when(userServiceClient.findByEmail("operator@test.com"))
+            when(userServiceClient.findByEmail(EMAIL_OPERATOR))
                     .thenReturn(ResponseEntity.ok(testUser));
 
-            LoginRequest loginRequest = new LoginRequest("operator@test.com", "password123");
+            LoginRequest loginRequest = new LoginRequest(EMAIL_OPERATOR, PASSWORD_123);
 
-            MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+            MvcResult loginResult = mockMvc.perform(post(API_AUTH_LOGIN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isOk())
@@ -245,8 +254,8 @@ class AuthControllerIT {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(refreshRequest)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                    .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+                    .andExpect(jsonPath(JSON_ACCESS_TOKEN).isNotEmpty())
+                    .andExpect(jsonPath(JSON_REFRESH_TOKEN).isNotEmpty());
         }
 
                 @Test
@@ -272,12 +281,12 @@ class AuthControllerIT {
         @DisplayName("Logout réussi retourne 204")
         void logout_success_returns204() throws Exception {
             // First, login
-            when(userServiceClient.findByEmail("operator@test.com"))
+            when(userServiceClient.findByEmail(EMAIL_OPERATOR))
                     .thenReturn(ResponseEntity.ok(testUser));
 
-            LoginRequest loginRequest = new LoginRequest("operator@test.com", "password123");
+            LoginRequest loginRequest = new LoginRequest(EMAIL_OPERATOR, PASSWORD_123);
 
-            MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+            MvcResult loginResult = mockMvc.perform(post(API_AUTH_LOGIN)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isOk())

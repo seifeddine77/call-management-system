@@ -30,6 +30,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserControllerIT {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String API_USERS = "/api/users";
+        private static final String API_USERS_ID = "/api/users/{id}";
+        private static final String JSON_NOM = "$.nom";
+        private static final String ROLE_OPERATOR = "OPERATOR";
+        private static final String PRENOM_OPERATEUR = "Opérateur";
+        private static final String EMAIL_INTERNAL = "internal@callmgmt.com";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -75,19 +83,19 @@ class UserControllerIT {
                 request.setEmail("operator1@callmgmt.com");
                 request.setPassword("SecurePass123");
                 request.setNom("Test");
-                request.setPrenom("Opérateur");
+                request.setPrenom(PRENOM_OPERATEUR);
                 request.setTelephone("98111222");
-                request.setRole("OPERATOR");
+                request.setRole(ROLE_OPERATOR);
                 request.setAgenceId(testAgence.getId());
 
-                mockMvc.perform(post("/api/users")
+                mockMvc.perform(post(API_USERS)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.email").value("operator1@callmgmt.com"))
-                                .andExpect(jsonPath("$.nom").value("Test"))
+                                .andExpect(jsonPath(JSON_NOM).value("Test"))
                                 .andExpect(jsonPath("$.prenom").value("Opérateur"))
-                                .andExpect(jsonPath("$.role").value("OPERATOR"))
+                                .andExpect(jsonPath("$.role").value(ROLE_OPERATOR))
                                 .andExpect(jsonPath("$.actif").value(true));
 
                 assertThat(userRepository.count()).isEqualTo(1);
@@ -102,7 +110,7 @@ class UserControllerIT {
                                 .email("dup@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("Dup User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
@@ -112,10 +120,10 @@ class UserControllerIT {
                 request.setPassword("AnotherPass1");
                 request.setNom("User");
                 request.setPrenom("Another");
-                request.setRole("OPERATOR");
+                request.setRole(ROLE_OPERATOR);
                 request.setAgenceId(testAgence.getId());
 
-                mockMvc.perform(post("/api/users")
+                mockMvc.perform(post(API_USERS)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isConflict());
@@ -128,7 +136,7 @@ class UserControllerIT {
                 UserRequest request = new UserRequest();
                 // Missing all required fields
 
-                mockMvc.perform(post("/api/users")
+                mockMvc.perform(post(API_USERS)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest());
@@ -146,12 +154,12 @@ class UserControllerIT {
                                 .email("list@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("List User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
 
-                mockMvc.perform(get("/api/users"))
+                mockMvc.perform(get(API_USERS))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.content").isArray())
                                 .andExpect(jsonPath("$.content[0].email").value("list@callmgmt.com"));
@@ -170,9 +178,9 @@ class UserControllerIT {
                                 .actif(true)
                                 .build());
 
-                mockMvc.perform(get("/api/users/{id}", user.getId()))
+                mockMvc.perform(get(API_USERS_ID, user.getId()))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.nom").value("ById User"))
+                                .andExpect(jsonPath(JSON_NOM).value("ById User"))
                                 .andExpect(jsonPath("$.role").value("SUPERVISOR"));
         }
 
@@ -180,7 +188,7 @@ class UserControllerIT {
         @DisplayName("GET /api/users/{id} — non trouvé → 404")
         @Order(6)
         void getUserById_notFound_returns404() throws Exception {
-                mockMvc.perform(get("/api/users/{id}", UUID.randomUUID()))
+                mockMvc.perform(get(API_USERS_ID, UUID.randomUUID()))
                                 .andExpect(status().isNotFound());
         }
 
@@ -189,17 +197,17 @@ class UserControllerIT {
         @Order(7)
         void getUserByEmail_returns200() throws Exception {
                 userRepository.save(User.builder()
-                                .email("internal@callmgmt.com")
+                                .email(EMAIL_INTERNAL)
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("Internal User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
 
-                mockMvc.perform(get("/api/users/email/{email}", "internal@callmgmt.com"))
+                mockMvc.perform(get("/api/users/email/{email}", EMAIL_INTERNAL))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.email").value("internal@callmgmt.com"))
+                                .andExpect(jsonPath("$.email").value(EMAIL_INTERNAL))
                                 .andExpect(jsonPath("$.passwordHash").isNotEmpty());
         }
 
@@ -215,7 +223,7 @@ class UserControllerIT {
                                 .email("update@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("Old Name").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
@@ -225,16 +233,16 @@ class UserControllerIT {
                 update.setNom("New Name");
                 update.setPrenom("Updated");
                 update.setTelephone("99888777");
-                update.setRole("OPERATOR");
+                update.setRole(ROLE_OPERATOR);
                 update.setAgenceId(testAgence.getId());
 
-                mockMvc.perform(put("/api/users/{id}", user.getId())
+                mockMvc.perform(put(API_USERS_ID, user.getId())
                                 .header("X-User-Id", user.getId().toString())
                                 .header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(update)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.nom").value("New Name"));
+                                .andExpect(jsonPath(JSON_NOM).value("New Name"));
         }
 
         // ─────────────────────────────────────────────────────
@@ -249,12 +257,12 @@ class UserControllerIT {
                                 .email("deactivate@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("Deactivate User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
 
-                mockMvc.perform(delete("/api/users/{id}", user.getId()))
+                mockMvc.perform(delete(API_USERS_ID, user.getId()))
                                 .andExpect(status().isNoContent());
 
                 User updated = userRepository.findById(user.getId()).orElseThrow();
@@ -274,7 +282,7 @@ class UserControllerIT {
                                 .email("pwdchange@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode(rawPassword))
                                 .nom("Password User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .actif(true)
                                 .build());
@@ -305,13 +313,13 @@ class UserControllerIT {
                 request.setEmail("planning@callmgmt.com");
                 request.setPassword("SecurePass123");
                 request.setNom("Planning");
-                request.setPrenom("Opérateur");
+                request.setPrenom(PRENOM_OPERATEUR);
                 request.setTelephone("98222333");
-                request.setRole("OPERATOR");
+                request.setRole(ROLE_OPERATOR);
                 request.setAgenceId(testAgence.getId());
                 request.setPlanning("Lundi-Vendredi 08:00-17:00, Samedi 09:00-13:00");
 
-                mockMvc.perform(post("/api/users")
+                mockMvc.perform(post(API_USERS)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
@@ -327,7 +335,7 @@ class UserControllerIT {
                                 .email("planupdate@callmgmt.com")
                                 .passwordHash(passwordEncoder.encode("pass"))
                                 .nom("Plan User").prenom("")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .agence(testAgence)
                                 .planning("Lundi-Vendredi 08:00-17:00")
                                 .actif(true)
@@ -337,11 +345,11 @@ class UserControllerIT {
                 update.setEmail("planupdate@callmgmt.com");
                 update.setNom("Plan User");
                 update.setPrenom("Updated");
-                update.setRole("OPERATOR");
+                update.setRole(ROLE_OPERATOR);
                 update.setAgenceId(testAgence.getId());
                 update.setPlanning("Lundi-Samedi 07:00-19:00");
 
-                mockMvc.perform(put("/api/users/{id}", user.getId())
+                mockMvc.perform(put(API_USERS_ID, user.getId())
                                 .header("X-User-Id", user.getId().toString())
                                 .header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
