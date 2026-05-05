@@ -57,6 +57,13 @@ class TicketServiceImplTest {
     private static final UUID SUPERVISOR_ID = UUID.randomUUID();
     private static final UUID TICKET_ID = UUID.randomUUID();
 
+    private static final String CLIENT_NOM = "Client Test";
+    private static final String CLIENT_TEL = "98111222";
+    private static final String ADMIN_EMAIL = "admin@test.com";
+    private static final String ROLE_OPERATOR = "OPERATOR";
+    private static final String OPERATEUR_NAME = "Operateur";
+    private static final String STATUT_EN_COURS = "EN_COURS";
+
     @BeforeEach
     void setUp() {
         ticketMapper = new TicketMapper();
@@ -69,8 +76,8 @@ class TicketServiceImplTest {
         return Ticket.builder()
                 .id(TICKET_ID)
                 .numero("T-20260301-0042")
-                .clientNom("Client Test")
-                .clientTel("98111222")
+                .clientNom(CLIENT_NOM)
+                .clientTel(CLIENT_TEL)
                 .clientEmail("client@test.com")
                 .canal(Ticket.Canal.CALL)
                 .statut(statut)
@@ -93,8 +100,8 @@ class TicketServiceImplTest {
         @DisplayName("Création réussie : sauvegarde, log action, publie événement, envoie WebSocket")
         void createTicket_success() {
             CreateTicketRequest request = new CreateTicketRequest();
-            request.setClientNom("Client Test");
-            request.setClientTel("98111222");
+            request.setClientNom(CLIENT_NOM);
+            request.setClientTel(CLIENT_TEL);
             request.setClientEmail("client@test.com");
             request.setCanal("CALL");
             request.setAgenceId(AGENCE_ID);
@@ -108,7 +115,7 @@ class TicketServiceImplTest {
             TicketResponse result = ticketService.createTicket(request, OPERATOR_ID, "operator@test.com");
 
             assertThat(result).isNotNull();
-            assertThat(result.getClientNom()).isEqualTo("Client Test");
+            assertThat(result.getClientNom()).isEqualTo(CLIENT_NOM);
             assertThat(result.getStatut()).isEqualTo("NOUVEAU");
             assertThat(result.getCanal()).isEqualTo("CALL");
 
@@ -122,8 +129,8 @@ class TicketServiceImplTest {
         @DisplayName("Le numéro de ticket généré commence par T-")
         void createTicket_generatesUniqueNumero() {
             CreateTicketRequest request = new CreateTicketRequest();
-            request.setClientNom("Client Test");
-            request.setClientTel("98111222");
+            request.setClientNom(CLIENT_NOM);
+            request.setClientTel(CLIENT_TEL);
             request.setCanal("EMAIL");
             request.setAgenceId(AGENCE_ID);
 
@@ -153,10 +160,10 @@ class TicketServiceImplTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
-            TicketResponse result = ticketService.assignTicket(TICKET_ID, OPERATOR_ID, OPERATOR_ID, "OPERATOR", AGENCE_ID);
+            TicketResponse result = ticketService.assignTicket(TICKET_ID, OPERATOR_ID, OPERATOR_ID, ROLE_OPERATOR, AGENCE_ID);
 
             assertThat(result.getOperateurId()).isEqualTo(OPERATOR_ID);
-            assertThat(result.getStatut()).isEqualTo("EN_COURS"); // Auto-transition
+            assertThat(result.getStatut()).isEqualTo(STATUT_EN_COURS); // Auto-transition
         }
 
         @Test
@@ -167,7 +174,7 @@ class TicketServiceImplTest {
             when(ticketRepository.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
 
             UUID otherOperator = UUID.randomUUID();
-            assertThatThrownBy(() -> ticketService.assignTicket(TICKET_ID, otherOperator, OPERATOR_ID, "OPERATOR", AGENCE_ID))
+            assertThatThrownBy(() -> ticketService.assignTicket(TICKET_ID, otherOperator, OPERATOR_ID, ROLE_OPERATOR, AGENCE_ID))
                     .isInstanceOf(AccessDeniedException.class);
         }
     }
@@ -187,10 +194,10 @@ class TicketServiceImplTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
-            UpdateStatutRequest request = new UpdateStatutRequest("EN_COURS", null);
-            TicketResponse result = ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, "Operateur");
+            UpdateStatutRequest request = new UpdateStatutRequest(STATUT_EN_COURS, null);
+            TicketResponse result = ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, OPERATEUR_NAME);
 
-            assertThat(result.getStatut()).isEqualTo("EN_COURS");
+            assertThat(result.getStatut()).isEqualTo(STATUT_EN_COURS);
             verify(actionRepository).save(any(TicketAction.class));
         }
 
@@ -202,7 +209,7 @@ class TicketServiceImplTest {
 
             UpdateStatutRequest request = new UpdateStatutRequest("NOUVEAU", null);
 
-            assertThatThrownBy(() -> ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, "Operateur"))
+            assertThatThrownBy(() -> ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, OPERATEUR_NAME))
                     .isInstanceOf(InvalidTransitionException.class)
                     .hasMessageContaining("Transition interdite");
         }
@@ -216,7 +223,7 @@ class TicketServiceImplTest {
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
             UpdateStatutRequest request = new UpdateStatutRequest("RESOLU", "Problème résolu");
-            ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, "Operateur");
+            ticketService.updateStatut(TICKET_ID, request, OPERATOR_ID, OPERATEUR_NAME);
 
             verify(eventPublisher).publishTicketResolved(any());
         }
@@ -240,7 +247,7 @@ class TicketServiceImplTest {
                     any(Pageable.class)))
                     .thenReturn(page);
 
-            Page<TicketResponse> result = ticketService.getTickets(filter, "OPERATOR", OPERATOR_ID, AGENCE_ID);
+            Page<TicketResponse> result = ticketService.getTickets(filter, ROLE_OPERATOR, OPERATOR_ID, AGENCE_ID);
 
             // Verify that agenceId was forced to OPERATOR's agence (AGENCE_ID, not
             // AGENCE_ID_OTHER)
@@ -292,7 +299,7 @@ class TicketServiceImplTest {
             ticket.setAgenceId(AGENCE_ID_OTHER);
             when(ticketRepository.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
 
-            assertThatThrownBy(() -> ticketService.getTicketById(TICKET_ID, "OPERATOR", OPERATOR_ID, AGENCE_ID))
+            assertThatThrownBy(() -> ticketService.getTicketById(TICKET_ID, ROLE_OPERATOR, OPERATOR_ID, AGENCE_ID))
                     .isInstanceOf(AccessDeniedException.class);
         }
     }
@@ -340,7 +347,7 @@ class TicketServiceImplTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
-            TicketResponse result = ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, "admin@test.com");
+            TicketResponse result = ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, ADMIN_EMAIL);
 
             assertThat(result.getClientNom()).isEqualTo("***ANONYMISÉ***");
             assertThat(result.getClientTel()).isEqualTo("***");
@@ -359,7 +366,7 @@ class TicketServiceImplTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
-            TicketResponse result = ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, "admin@test.com");
+            TicketResponse result = ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, ADMIN_EMAIL);
 
             assertThat(result.getAudioPath()).isNull();
             assertThat(result.getTranscription()).isNull();
@@ -375,7 +382,7 @@ class TicketServiceImplTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
             when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
 
-            ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, "admin@test.com");
+            ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, ADMIN_EMAIL);
 
             ArgumentCaptor<TicketAction> actionCaptor = ArgumentCaptor.forClass(TicketAction.class);
             verify(actionRepository).save(actionCaptor.capture());
@@ -387,7 +394,7 @@ class TicketServiceImplTest {
         void anonymizeTicket_notFound() {
             when(ticketRepository.findById(TICKET_ID)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, "admin@test.com"))
+            assertThatThrownBy(() -> ticketService.anonymizeTicket(TICKET_ID, SUPERVISOR_ID, ADMIN_EMAIL))
                     .isInstanceOf(NotFoundException.class);
         }
     }

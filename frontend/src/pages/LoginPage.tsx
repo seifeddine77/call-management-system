@@ -35,7 +35,7 @@ function useParallax() {
 }
 
 /* ── Animated Background ── */
-function AnimatedBg({ isDark }: { isDark: boolean }) {
+function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {[
@@ -65,7 +65,7 @@ function AnimatedBg({ isDark }: { isDark: boolean }) {
 }
 
 /* ── Animated SVG Scene — Car + Call Center ── */
-function AnimatedScene({ isDark, sx, sy }: { isDark: boolean; sx: any; sy: any }) {
+function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; sy: any }>) {
   const carX = useTransform(sx, [-1,1], [-12,12]);
   const carY = useTransform(sy, [-1,1], [-8,8]);
   const el1X = useTransform(sx, [-1,1], [8,-8]);

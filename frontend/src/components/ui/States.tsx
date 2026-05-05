@@ -1,4 +1,4 @@
-export function CardSkeleton({ rows = 3 }: { rows?: number }) {
+export function CardSkeleton({ rows = 3 }: Readonly<{ rows?: number }>) {
   return (
     <div className="card-aurora rounded-[14px] p-5 animate-pulse space-y-3">
       <div className="h-3 w-24 bg-[var(--muted)] rounded" />
@@ -9,7 +9,7 @@ export function CardSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+export function TableSkeleton({ rows = 5, cols = 4 }: Readonly<{ rows?: number; cols?: number }>) {
   return (
     <div className="card-aurora rounded-[14px] overflow-hidden animate-pulse">
       <div className="px-5 py-3.5 border-b border-border">
@@ -36,7 +36,7 @@ export function KpiSkeleton() {
   );
 }
 
-export function EmptyState({ icon, title, subtitle, action }: { icon: string; title: string; subtitle: string; action?: React.ReactNode }) {
+export function EmptyState({ icon, title, subtitle, action }: Readonly<{ icon: string; title: string; subtitle: string; action?: React.ReactNode }>) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="text-4xl mb-3 opacity-40">{icon}</div>
@@ -47,7 +47,7 @@ export function EmptyState({ icon, title, subtitle, action }: { icon: string; ti
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorState({ message, onRetry }: Readonly<{ message: string; onRetry?: () => void }>) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="text-4xl mb-3">⚠️</div>

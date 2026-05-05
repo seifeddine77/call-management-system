@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types/auth';
 import { authService } from '../services/authService';
 
@@ -15,7 +15,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,19 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const role = user?.role;
 
+  const value = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    logout,
+    isAdmin: role === 'ADMIN',
+    isSupervisor: role === 'SUPERVISOR' || role === 'ADMIN',
+    isOperator: role === 'OPERATOR',
+  }), [user, isLoading, login, logout, role]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        isAdmin: role === 'ADMIN',
-        isSupervisor: role === 'SUPERVISOR' || role === 'ADMIN',
-        isOperator: role === 'OPERATOR',
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

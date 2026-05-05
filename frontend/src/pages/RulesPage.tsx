@@ -10,10 +10,10 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 
 // ─── Sortable Condition Row ───
-function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: {
+function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: Readonly<{
   id: string; cond: RuleCondition; index: number; refs: ReferenceData | null;
   formErrors: { conditions?: string }; onChange: (i: number, c: RuleCondition) => void; onRemove: (i: number) => void;
-}) {
+}>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 'auto' };
 
@@ -52,11 +52,11 @@ function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onR
 }
 
 // ─── Conditions Editor with DnD ───
-function ConditionsEditor({ conditions, onChange, refs, formErrors }: {
+function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
   conditions: { operator: 'AND' | 'OR'; conditions: RuleCondition[] };
   onChange: (c: { operator: 'AND' | 'OR'; conditions: RuleCondition[] }) => void;
   refs: ReferenceData | null; formErrors: { conditions?: string };
-}) {
+}>) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

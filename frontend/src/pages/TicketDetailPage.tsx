@@ -13,7 +13,7 @@ import type { DecisionResult } from '../types/decision';
 import type { ReferenceData, FieldDef } from '../types/rule';
 
 /* ───── Live Transcription Component (Streaming STT) ───── */
-function LiveTranscription({ ticketId, onTranscriptionUpdate }: { ticketId: string; onTranscriptionUpdate?: (text: string) => void }) {
+function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticketId: string; onTranscriptionUpdate?: (text: string) => void }>) {
   const [isRecording, setIsRecording] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [elapsed, setElapsed] = useState(0);
