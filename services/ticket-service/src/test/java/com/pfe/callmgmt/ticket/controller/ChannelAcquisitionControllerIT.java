@@ -34,6 +34,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class ChannelAcquisitionControllerIT {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String API_CHANNELS_CALL = "/api/channels/call";
+    private static final String API_TICKETS_QUEUE = "/api/tickets/queue";
+    private static final String HEADER_USER_ROLE = "X-User-Role";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String STATUT_NOUVEAU = "NOUVEAU";
+    private static final String JSON_STATUT = "$.statut";
+    private static final String JSON_CANAL = "$.canal";
+    private static final String JSON_CLIENT_NOM = "$.clientNom";
+    private static final String JSON_OPERATEUR_ID = "$.operateurId";
+    private static final String JSON_TOTAL_EN_ATTENTE = "$.totalEnAttente";
+    private static final String JSON_TICKETS_0_CLIENT_NOM = "$.tickets[0].clientNom";
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -68,16 +81,16 @@ class ChannelAcquisitionControllerIT {
             req.setDescription("Problème frein arrière");
             req.setPriorite((short) 2);
 
-            mockMvc.perform(post("/api/channels/call")
+            mockMvc.perform(post(API_CHANNELS_CALL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.numero", startsWith("T-")))
-                    .andExpect(jsonPath("$.canal").value("CALL"))
-                    .andExpect(jsonPath("$.statut").value("NOUVEAU"))
-                    .andExpect(jsonPath("$.clientNom").value("Mohamed Ben Ali"))
+                    .andExpect(jsonPath(JSON_CANAL).value("CALL"))
+                    .andExpect(jsonPath(JSON_STATUT).value(STATUT_NOUVEAU))
+                    .andExpect(jsonPath(JSON_CLIENT_NOM).value("Mohamed Ben Ali"))
                     .andExpect(jsonPath("$.clientTel").value("+216 98 111 222"))
-                    .andExpect(jsonPath("$.operateurId").isEmpty())
+                    .andExpect(jsonPath(JSON_OPERATEUR_ID).isEmpty())
                     .andExpect(jsonPath("$.priorite").value(2));
 
             assertThat(ticketRepository.count()).isEqualTo(1);
@@ -92,7 +105,7 @@ class ChannelAcquisitionControllerIT {
             req.setCallerNumber("71234567");
             req.setAgenceId(AGENCE_ID);
 
-            mockMvc.perform(post("/api/channels/call")
+            mockMvc.perform(post(API_CHANNELS_CALL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isCreated())
@@ -106,7 +119,7 @@ class ChannelAcquisitionControllerIT {
             req.setAgenceId(AGENCE_ID);
             // callerNumber manquant
 
-            mockMvc.perform(post("/api/channels/call")
+            mockMvc.perform(post(API_CHANNELS_CALL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isBadRequest());
@@ -134,11 +147,11 @@ class ChannelAcquisitionControllerIT {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.canal").value("EMAIL"))
-                    .andExpect(jsonPath("$.statut").value("NOUVEAU"))
-                    .andExpect(jsonPath("$.clientNom").value("Fatma Trabelsi"))
+                    .andExpect(jsonPath(JSON_CANAL).value("EMAIL"))
+                    .andExpect(jsonPath(JSON_STATUT).value(STATUT_NOUVEAU))
+                    .andExpect(jsonPath(JSON_CLIENT_NOM).value("Fatma Trabelsi"))
                     .andExpect(jsonPath("$.clientEmail").value("client@gmail.com"))
-                    .andExpect(jsonPath("$.operateurId").isEmpty())
+                    .andExpect(jsonPath(JSON_OPERATEUR_ID).isEmpty())
                     .andExpect(jsonPath("$.description", containsString("alternateur")));
 
             assertThat(ticketRepository.count()).isEqualTo(1);
@@ -182,12 +195,12 @@ class ChannelAcquisitionControllerIT {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.canal").value("WEB"))
-                    .andExpect(jsonPath("$.statut").value("NOUVEAU"))
-                    .andExpect(jsonPath("$.clientNom").value("Ahmed Bouazizi"))
+                    .andExpect(jsonPath(JSON_CANAL).value("WEB"))
+                    .andExpect(jsonPath(JSON_STATUT).value(STATUT_NOUVEAU))
+                    .andExpect(jsonPath(JSON_CLIENT_NOM).value("Ahmed Bouazizi"))
                     .andExpect(jsonPath("$.clientTel").value("55123456"))
                     .andExpect(jsonPath("$.clientEmail").value("ahmed@outlook.com"))
-                    .andExpect(jsonPath("$.operateurId").isEmpty())
+                    .andExpect(jsonPath(JSON_OPERATEUR_ID).isEmpty())
                     .andExpect(jsonPath("$.priorite").value(4));
 
             assertThat(ticketRepository.count()).isEqualTo(1);
@@ -218,10 +231,10 @@ class ChannelAcquisitionControllerIT {
         @Test
         @DisplayName("200 — File d'attente vide")
         void getQueue_empty() throws Exception {
-            mockMvc.perform(get("/api/tickets/queue")
-                    .header("X-User-Role", "ADMIN"))
+            mockMvc.perform(get(API_TICKETS_QUEUE)
+                    .header(HEADER_USER_ROLE, ROLE_ADMIN))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalEnAttente").value(0))
+                    .andExpect(jsonPath(JSON_TOTAL_EN_ATTENTE).value(0))
                     .andExpect(jsonPath("$.tickets", hasSize(0)));
         }
 
@@ -245,11 +258,11 @@ class ChannelAcquisitionControllerIT {
                     .priorite((short) 1).agenceId(AGENCE_ID)
                     .operateurId(UUID.randomUUID()).build());
 
-            mockMvc.perform(get("/api/tickets/queue")
-                    .header("X-User-Role", "ADMIN"))
+            mockMvc.perform(get(API_TICKETS_QUEUE)
+                    .header(HEADER_USER_ROLE, ROLE_ADMIN))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalEnAttente").value(3)) // 3, pas 4
-                    .andExpect(jsonPath("$.tickets[0].clientNom").value("Client1")) // P1
+                    .andExpect(jsonPath(JSON_TOTAL_EN_ATTENTE).value(3)) // 3, pas 4
+                    .andExpect(jsonPath(JSON_TICKETS_0_CLIENT_NOM).value("Client1")) // P1
                     .andExpect(jsonPath("$.tickets[1].clientNom").value("Client2")) // P3
                     .andExpect(jsonPath("$.tickets[2].clientNom").value("Client3")); // P5
         }
@@ -267,12 +280,12 @@ class ChannelAcquisitionControllerIT {
                     .priorite((short) 3).agenceId(otherAgence).build());
 
             // Opérateur voit uniquement sa file d'agence via X-User-Agence-Id
-            mockMvc.perform(get("/api/tickets/queue")
-                    .header("X-User-Role", "OPERATOR")
+            mockMvc.perform(get(API_TICKETS_QUEUE)
+                    .header(HEADER_USER_ROLE, "OPERATOR")
                     .header("X-User-Agence-Id", AGENCE_ID.toString()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalEnAttente").value(1))
-                    .andExpect(jsonPath("$.tickets[0].clientNom").value("Mon agence"));
+                    .andExpect(jsonPath(JSON_TOTAL_EN_ATTENTE).value(1))
+                    .andExpect(jsonPath(JSON_TICKETS_0_CLIENT_NOM).value("Mon agence"));
         }
     }
 
@@ -292,21 +305,21 @@ class ChannelAcquisitionControllerIT {
             callReq.setCallerName("Flux Test");
             callReq.setAgenceId(AGENCE_ID);
 
-            String createResponse = mockMvc.perform(post("/api/channels/call")
+            String createResponse = mockMvc.perform(post(API_CHANNELS_CALL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(callReq)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.statut").value("NOUVEAU"))
+                    .andExpect(jsonPath(JSON_STATUT).value(STATUT_NOUVEAU))
                     .andReturn().getResponse().getContentAsString();
 
             String ticketId = objectMapper.readTree(createResponse).get("id").asText();
 
             // 2. Vérifier qu'il est dans la file d'attente
-            mockMvc.perform(get("/api/tickets/queue")
-                    .header("X-User-Role", "ADMIN"))
+            mockMvc.perform(get(API_TICKETS_QUEUE)
+                    .header(HEADER_USER_ROLE, ROLE_ADMIN))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalEnAttente").value(1))
-                    .andExpect(jsonPath("$.tickets[0].clientNom").value("Flux Test"));
+                    .andExpect(jsonPath(JSON_TOTAL_EN_ATTENTE).value(1))
+                    .andExpect(jsonPath(JSON_TICKETS_0_CLIENT_NOM).value("Flux Test"));
 
             // 3. Un opérateur se self-assign
             UUID operatorId = UUID.fromString("33333333-3333-3333-3333-333333333333");
@@ -316,17 +329,17 @@ class ChannelAcquisitionControllerIT {
             mockMvc.perform(patch("/api/tickets/{id}/assign", ticketId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-User-Id", operatorId.toString())
-                    .header("X-User-Role", "OPERATOR")
+                    .header(HEADER_USER_ROLE, "OPERATOR")
                     .content(assignBody))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.statut").value("EN_COURS"))
-                    .andExpect(jsonPath("$.operateurId").value(operatorId.toString()));
+                    .andExpect(jsonPath(JSON_STATUT).value("EN_COURS"))
+                    .andExpect(jsonPath(JSON_OPERATEUR_ID).value(operatorId.toString()));
 
             // 4. Vérifier qu'il n'est plus dans la file d'attente
-            mockMvc.perform(get("/api/tickets/queue")
-                    .header("X-User-Role", "ADMIN"))
+            mockMvc.perform(get(API_TICKETS_QUEUE)
+                    .header(HEADER_USER_ROLE, ROLE_ADMIN))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalEnAttente").value(0));
+                    .andExpect(jsonPath(JSON_TOTAL_EN_ATTENTE).value(0));
         }
     }
 }
