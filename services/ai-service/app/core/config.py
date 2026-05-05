@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """AI Service configuration."""
 
-    DATABASE_URL: str = "postgresql://callmgmt:callmgmt_secret_2024@localhost:5432/ai_db"
+    DATABASE_URL: str = ""  # Set via environment variable or .env file
     AUDIO_STORAGE_PATH: str = "./audio_storage"
     MAX_AUDIO_SIZE_MB: int = 50
     WHISPER_MODEL: str = "small"
