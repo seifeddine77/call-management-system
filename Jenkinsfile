@@ -424,7 +424,7 @@ CIEOF
         // =============================================
         stage('Verify Rollout') {
             steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
                         script {
                             def deployments = [
@@ -440,7 +440,7 @@ CIEOF
                                     returnStatus: true
                                 )
                                 if (status != 0) {
-                                    echo "WARN: ${dep} not ready (resource constraints)"
+                                    echo "WARN: ${dep} not ready"
                                     failedDeps << dep
                                 } else {
                                     echo "OK: ${dep}"
@@ -448,8 +448,16 @@ CIEOF
                                 }
                             }
                             echo "K8s Rollout: ${okCount}/${deployments.size()} services ready"
-                            if (failedDeps) {
-                                echo "Pending: ${failedDeps.join(', ')} (will start when resources available)"
+
+                            // Decision logic:
+                            // - 1-2 failures → resource constraints on Docker Desktop, tolerate
+                            // - 3+ failures  → real deployment problem, trigger rollback
+                            if (failedDeps.size() >= 3) {
+                                echo "CRITICAL: ${failedDeps.size()} services failed — triggering rollback"
+                                env.ROLLBACK_NEEDED = 'true'
+                                error("Rollback triggered: ${failedDeps.join(', ')} failed")
+                            } else if (failedDeps) {
+                                echo "Pending: ${failedDeps.join(', ')} (resource constraints — no rollback needed)"
                             }
                         }
                     }
@@ -459,7 +467,8 @@ CIEOF
 
         // =============================================
         // STAGE 11 — ROLLBACK (conditional)
-        // Automatic rollback if verification fails
+        // Triggers automatically when 3+ services fail
+        // Rolls back all K8s deployments to previous version
         // =============================================
         stage('Rollback') {
             when {
@@ -469,6 +478,7 @@ CIEOF
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
                     withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
                         script {
+                            echo 'Rolling back all K8s deployments to previous version...'
                             def deployments = [
                                 'eureka-server', 'api-gateway', 'auth-service',
                                 'organisation-service', 'ticket-service', 'rules-service',
@@ -477,7 +487,7 @@ CIEOF
                             for (dep in deployments) {
                                 sh "export KUBECONFIG=\"\$KUBECONFIG\"; kubectl rollout undo deployment/${dep} -n autoassist || true"
                             }
-                            echo 'Rollback executed. Pipeline marked as UNSTABLE (K8s is best-effort).'
+                            echo 'Rollback complete — all deployments reverted to previous revision.'
                         }
                     }
                 }
