@@ -6,6 +6,7 @@ GET  /transcribe/{tid} → retrieve existing transcription
 """
 import logging
 import os
+import re
 import uuid
 from typing import Annotated
 
@@ -73,6 +74,9 @@ async def transcribe_audio(
         )
 
     # ── Save file to disk ───────────────────────────────────────
+    # Sanitize ticket_id to prevent path traversal (SonarCloud Security Blocker)
+    if not re.match(r'^[a-zA-Z0-9_-]+$', ticket_id):
+        raise HTTPException(status_code=400, detail="Invalid ticket_id format")
     ticket_dir = os.path.join(settings.AUDIO_STORAGE_PATH, ticket_id)
     os.makedirs(ticket_dir, exist_ok=True)
 

@@ -120,6 +120,7 @@ async def softphone_page():
 
 # Proxy: forward call ticket creation to ticket-service
 import httpx as _httpx
+from typing import Annotated
 from fastapi import Request, UploadFile, File
 
 @app.post("/api/channels/call", tags=["softphone"])
@@ -131,7 +132,7 @@ async def proxy_create_call_ticket(request: Request):
         return r.json()
 
 @app.post("/api/tickets/{ticket_id}/audio", tags=["softphone"])
-async def proxy_upload_audio(ticket_id: str, file: UploadFile = File(...)):
+async def proxy_upload_audio(ticket_id: str, file: Annotated[UploadFile, File(...)]):
     """
     Proxy audio upload to ticket-service.
     This triggers the FULL pipeline: Whisper → NLP → save transcription to ticket.
