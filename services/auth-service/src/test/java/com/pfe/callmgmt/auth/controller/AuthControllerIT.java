@@ -190,7 +190,7 @@ class AuthControllerIT {
                         RegisterRequest request = new RegisterRequest();
                         request.setEmail(EMAIL_NEW);
                         request.setPassword(PASSWORD_123);
-                        request.setNom("Nouveau User"); /* prenom set below */;
+                        request.setNom("Nouveau User"); /* prenom set below */
                         request.setRole(ROLE_OPERATOR);
 
                         mockMvc.perform(post("/api/auth/register")
@@ -211,7 +211,7 @@ class AuthControllerIT {
             RegisterRequest request = new RegisterRequest();
             request.setEmail("existing@test.com");
             request.setPassword(PASSWORD_123);
-            request.setNom("Existing User"); /* prenom set below */;
+            request.setNom("Existing User"); /* prenom set below */
             request.setRole(ROLE_OPERATOR);
 
             mockMvc.perform(post("/api/auth/register")

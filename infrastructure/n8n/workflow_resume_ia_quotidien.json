@@ -1,0 +1,122 @@
+{
+  "name": "AutoAssist — Résumé IA Quotidien (Gemma 4)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 18 * * 1-5" }]
+        }
+      },
+      "name": "Chaque jour à 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "id": "cron-ia-summary"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/stats",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Stats Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [420, 200],
+      "id": "get-stats-ia"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-analytics:8087/api/analytics/kpis?period=today",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET KPIs Aujourd'hui",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [420, 400],
+      "id": "get-kpis-ia",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-analytics:8087/api/analytics/kpis/comparison?period=7d",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Comparaison 7j",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [420, 550],
+      "id": "get-comparison-ia",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Fusionner toutes les données pour construire la question au chatbot\nlet stats = {};\nlet kpis = {};\nlet comparison = {};\n\ntry { stats = $('GET Stats Tickets').first().json || {}; } catch(e) {}\ntry { kpis = $(\"GET KPIs Aujourd'hui\").first().json || {}; } catch(e) {}\ntry { comparison = $('GET Comparaison 7j').first().json || {}; } catch(e) {}\n\nconst today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\n\n// Construire une question riche pour Gemma 4 avec les données réelles\nconst question = `En tant que superviseur, génère-moi un résumé professionnel et détaillé de l'activité d'aujourd'hui (${today}) pour la plateforme AutoAssist de gestion des réclamations pièces automobiles. Voici les données réelles :\n\nStatistiques tickets du jour :\n- Nouveaux tickets: ${stats.nouveau || 0}\n- En cours de traitement: ${stats.enCours || 0}\n- Résolus: ${stats.resolu || 0}\n- Fermés: ${stats.ferme || 0}\n- Total: ${stats.total || 0}\n\nKPIs :\n- Taux de résolution: ${kpis.tauxResolution || 'N/A'}%\n- Temps moyen de résolution: ${kpis.tempsMoyenMinutes || 'N/A'} minutes\n- Total tickets période: ${kpis.totalTickets || 'N/A'}\n\nComparaison vs semaine précédente :\n- Delta tickets: ${comparison.deltaTickets || 'N/A'}%\n- Delta résolution: ${comparison.deltaResolution || 'N/A'}%\n\nRédige un résumé en français avec des recommandations concrètes pour le superviseur. Utilise des emojis pour rendre le rapport lisible. Mentionne les points forts et les points d'attention.`;\n\nreturn [{ json: { question, group_name: 'n8n-daily-report', today, stats, kpis } }];"
+      },
+      "name": "Construire Question IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "build-question"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ai:8000/chat/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ question: $json.question, group_name: $json.group_name }) }}",
+        "options": { "timeout": 180000 }
+      },
+      "name": "Appel Gemma 4 (RAG)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [940, 300],
+      "id": "call-gemma4",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const gemmaResponse = $('Appel Gemma 4 (RAG)').first().json;\nconst questionData = $('Construire Question IA').first().json;\nconst today = questionData.today;\nconst stats = questionData.stats || {};\nconst kpis = questionData.kpis || {};\n\n// Récupérer la réponse de Gemma 4\nlet aiSummary = '';\nlet llmUsed = 'N/A';\nlet responseTime = 'N/A';\n\nif (gemmaResponse && gemmaResponse.answer) {\n  aiSummary = gemmaResponse.answer;\n  llmUsed = gemmaResponse.llm_used || 'gemma4';\n  responseTime = gemmaResponse.response_time_ms ? `${(gemmaResponse.response_time_ms / 1000).toFixed(1)}s` : 'N/A';\n} else {\n  aiSummary = '⚠️ Le résumé IA n\\'a pas pu être généré. Voici les données brutes ci-dessous.';\n}\n\n// Convertir les sauts de ligne markdown en HTML\nconst aiHtml = aiSummary\n  .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')\n  .replace(/\\*(.*?)\\*/g, '<em>$1</em>')\n  .replace(/\\n/g, '<br>');\n\nconst html = `\n<div style=\"font-family:'Segoe UI',Arial,sans-serif;max-width:650px;margin:0 auto;\">\n  <div style=\"background:linear-gradient(135deg,#00695C,#00897B);color:white;padding:25px;border-radius:12px 12px 0 0;text-align:center;\">\n    <h1 style=\"margin:0;\">🧠 Résumé IA — AutoAssist</h1>\n    <p style=\"margin:5px 0 0;opacity:0.9;\">${today}</p>\n    <p style=\"margin:3px 0 0;opacity:0.7;font-size:12px;\">Généré par ${llmUsed} en ${responseTime}</p>\n  </div>\n  \n  <div style=\"background:white;padding:25px;border:1px solid #e0e0e0;\">\n    <div style=\"background:#E0F2F1;border-left:4px solid #00897B;padding:15px;margin-bottom:20px;border-radius:0 8px 8px 0;\">\n      <h3 style=\"margin:0 0 8px;color:#00695C;\">🤖 Analyse par Intelligence Artificielle</h3>\n      <div style=\"line-height:1.6;color:#333;\">${aiHtml}</div>\n    </div>\n\n    <h3 style=\"color:#333;\">📊 Données brutes du jour</h3>\n    <table style=\"width:100%;border-collapse:collapse;margin-top:10px;\">\n      <tr style=\"background:#E0F2F1;\">\n        <td style=\"padding:10px;\"><strong>🆕 Nouveaux</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;color:#1565C0;\">${stats.nouveau || 0}</td>\n        <td style=\"padding:10px;\"><strong>⏳ En cours</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;color:#F57C00;\">${stats.enCours || 0}</td>\n      </tr>\n      <tr>\n        <td style=\"padding:10px;\"><strong>✅ Résolus</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;color:#2E7D32;\">${stats.resolu || 0}</td>\n        <td style=\"padding:10px;\"><strong>🔒 Fermés</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;color:#757575;\">${stats.ferme || 0}</td>\n      </tr>\n      <tr style=\"background:#E0F2F1;\">\n        <td style=\"padding:10px;\"><strong>📈 Total</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;font-size:18px;\">${stats.total || 0}</td>\n        <td style=\"padding:10px;\"><strong>📊 Résolution</strong></td>\n        <td style=\"padding:10px;text-align:right;font-weight:700;color:#00695C;\">${kpis.tauxResolution || 'N/A'}%</td>\n      </tr>\n    </table>\n  </div>\n  \n  <div style=\"background:#f8f9fa;padding:15px;border-radius:0 0 12px 12px;text-align:center;\">\n    <a href=\"http://localhost:3000/dashboard\" style=\"color:#00897B;font-weight:700;\">Ouvrir le Dashboard →</a>\n    <p style=\"color:#888;font-size:11px;margin:8px 0 0;\">© 2026 AutoAssist — Résumé IA quotidien via n8n + Gemma 4</p>\n  </div>\n</div>`;\n\nreturn [{ json: { html, subject: `🧠 Résumé IA AutoAssist — ${today}` } }];"
+      },
+      "name": "Formater Email IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 300],
+      "id": "format-ia-email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Résumé IA",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1380, 300],
+      "id": "send-ia-summary"
+    }
+  ],
+  "connections": {
+    "Chaque jour à 18h": {
+      "main": [
+        [
+          { "node": "GET Stats Tickets", "type": "main", "index": 0 },
+          { "node": "GET KPIs Aujourd'hui", "type": "main", "index": 0 },
+          { "node": "GET Comparaison 7j", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "GET Stats Tickets": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
+    "GET KPIs Aujourd'hui": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
+    "GET Comparaison 7j": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
+    "Construire Question IA": { "main": [[{ "node": "Appel Gemma 4 (RAG)", "type": "main", "index": 0 }]] },
+    "Appel Gemma 4 (RAG)": { "main": [[{ "node": "Formater Email IA", "type": "main", "index": 0 }]] },
+    "Formater Email IA": { "main": [[{ "node": "Envoyer Résumé IA", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "IA" }, { "name": "Gemma4" }, { "name": "RAG" }]
+}

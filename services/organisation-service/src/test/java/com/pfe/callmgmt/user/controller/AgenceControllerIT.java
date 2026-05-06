@@ -13,7 +13,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -60,14 +59,13 @@ class AgenceControllerIT {
                 request.setTelephone("71000111");
                 request.setEmail("tunis@callmgmt.com");
 
-                MvcResult result = mockMvc.perform(post(API_AGENCES)
+                mockMvc.perform(post(API_AGENCES)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath(JSON_NOM).value("Agence Tunis"))
                                 .andExpect(jsonPath("$.actif").value(true))
-                                .andExpect(jsonPath("$.id").isNotEmpty())
-                                .andReturn();
+                                .andExpect(jsonPath("$.id").isNotEmpty());
 
                 assertThat(agenceRepository.count()).isEqualTo(1);
         }

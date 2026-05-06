@@ -73,8 +73,7 @@ public class TicketServiceImpl implements TicketService {
                 .description(request.getDescription())
                 .consentementEnregistrement(
                         request.getConsentementEnregistrement() != null
-                                ? request.getConsentementEnregistrement()
-                                : false)
+                                && request.getConsentementEnregistrement())
                 .build();
 
         ticket = ticketRepository.save(ticket);
@@ -311,7 +310,10 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional(readOnly = true)
     public TicketStats getTicketStats(UUID agenceId) {
-        long nouveau, enCours, resolu, ferme;
+        long nouveau;
+        long enCours;
+        long resolu;
+        long ferme;
 
         if (agenceId != null) {
             nouveau = ticketRepository.countByStatutAndAgenceId(Ticket.Statut.NOUVEAU, agenceId);

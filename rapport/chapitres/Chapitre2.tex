@@ -1,0 +1,336 @@
+\chapter{Conception}
+\label{chap:conception}
+
+\section*{Introduction}
+
+Ce chapitre présente la conception technique du système AutoAssist. Nous commencerons par décrire l'architecture globale du système, puis nous détaillerons la conception via les vues statique (diagrammes de classes) et dynamique (diagrammes de séquence).
+
+%% ═══════════════════════════════════════════════════
+%% 2.1 ARCHITECTURE
+%% (Réf: 2.1 Architecture physique)
+%% ═══════════════════════════════════════════════════
+\section{Architecture du système}
+
+\subsection{Architecture physique}
+
+Le système AutoAssist est déployé sous forme de 14 conteneurs Docker orchestrés via Docker Compose, répartis en trois couches~:
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/architecture_physique.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Diagramme d'architecture physique — à insérer]}\vspace{3cm}}}
+    \caption{Architecture physique du système AutoAssist}
+    \label{fig:archi_physique}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Conteneurs Docker du système AutoAssist}
+\label{tab:conteneurs}
+\begin{tabular}{|p{3.5cm}|p{3cm}|c|p{4cm}|}
+\hline
+\textbf{Service} & \textbf{Technologie} & \textbf{Port} & \textbf{Base de données} \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Infrastructure}} \\
+\hline
+postgres & PostgreSQL 15 & 5432 & 8 bases (multi-tenant) \\
+\hline
+redis & Redis 7 & 6379 & Cache décisions \\
+\hline
+rabbitmq & RabbitMQ 3 & 5672 & Files de messages \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Découverte et Routage}} \\
+\hline
+eureka-server & Spring Cloud & 8761 & -- \\
+\hline
+api-gateway & Spring Cloud Gateway & 8080 & Redis (rate limiting) \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Services Métier (Java / Spring Boot 3)}} \\
+\hline
+auth-service & Java 21 & 8081 & auth\_db \\
+\hline
+organisation-service & Java 21 & 8082 & users\_db \\
+\hline
+ticket-service & Java 21 & 8083 & tickets\_db \\
+\hline
+rules-service & Java 21 & 8084 & rules\_db \\
+\hline
+decision-service & Java 21 & 8085 & decisions\_db \\
+\hline
+notification-service & Java 21 & 8086 & notif\_db \\
+\hline
+analytics-service & Java 21 & 8087 & analytics\_db \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche IA et Intégration}} \\
+\hline
+ai-service & Python FastAPI & 8000 & ai\_db + ChromaDB \\
+\hline
+whatsapp-service & Node.js & -- & -- \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Présentation}} \\
+\hline
+frontend & React 18 / Vite & 3000 & -- \\
+\hline
+mobile-app & Flutter Web & 5555 & -- \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Architecture logique}
+
+L'architecture logique suit le patron microservices avec les principes suivants~:
+
+\begin{itemize}
+    \item \textbf{Service Discovery}~: chaque service s'enregistre auprès d'Eureka Server au démarrage. Le gateway résout les routes dynamiquement~;
+    \item \textbf{Communication synchrone}~: via REST (OpenFeign pour les appels inter-services Java, HTTP pour les appels vers ai-service Python)~;
+    \item \textbf{Communication asynchrone}~: via RabbitMQ (événements \texttt{ticket.created}, \texttt{decision.finalized}, \texttt{agence.created})~;
+    \item \textbf{Sécurité}~: le gateway valide le JWT sur chaque requête entrante. Les services internes communiquent sans JWT sur le réseau Docker interne~;
+    \item \textbf{Cache}~: Redis stocke les décisions calculées (clé MD5, TTL 1h) pour éviter les recalculs coûteux~;
+    \item \textbf{Résilience}~: Circuit Breaker Resilience4j sur l'appel au LLM Gemma~4, avec fallback automatique vers la décision ETUDE.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/architecture_logique.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Diagramme d'architecture logique — à insérer]}\vspace{3cm}}}
+    \caption{Architecture logique du système AutoAssist}
+    \label{fig:archi_logique}
+\end{figure}
+
+\subsection{Architecture du pipeline d'aide à la décision}
+
+Le pipeline de décision est l'innovation principale du système. Il évalue chaque demande en trois étapes successives~:
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/pipeline_decision.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme du pipeline de décision 3 étapes — à insérer]}\vspace{2.5cm}}}
+    \caption{Pipeline d'aide à la décision en trois étapes}
+    \label{fig:pipeline}
+\end{figure}
+
+\begin{enumerate}
+    \item \textbf{Étape 1 — Cache Redis}~: calcul d'un hash MD5 à partir des paramètres (typePiece, ageVehicule, kilometrage, categorieClient, typeSinistre). Si un résultat identique existe en cache (TTL = 3600s), il est retourné immédiatement ($<$ 50ms)~;
+    \item \textbf{Étape 2 — Moteur de règles}~: appel Feign vers le rules-service. Les règles JSONB actives sont évaluées avec un score. Si le score $\geq$ 60\% et la décision n'est pas ambiguë, elle est retournée ($<$ 2s)~;
+    \item \textbf{Étape 3 — LLM Gemma~4}~: pour les cas ambigus, le modèle local est sollicité via Docker Model Runner. Un prompt structuré demande un JSON \{decision, score, motif\}. Un Circuit Breaker Resilience4j protège contre les timeouts ($<$ 12s).
+\end{enumerate}
+
+\subsection{Architecture du chatbot RAG}
+
+Le chatbot WhatsApp utilise une architecture RAG (Retrieval-Augmented Generation) avec huit améliorations~:
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/architecture_rag.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme d'architecture RAG — à insérer]}\vspace{2.5cm}}}
+    \caption{Architecture RAG du chatbot WhatsApp}
+    \label{fig:rag}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Les 8 améliorations du pipeline RAG}
+\label{tab:rag_improvements}
+\begin{tabular}{|c|p{3.5cm}|p{7.5cm}|}
+\hline
+\textbf{\#} & \textbf{Amélioration} & \textbf{Description technique} \\
+\hline
+1 & Sync dynamique règles & Récupération des règles actives depuis rules-service via HTTP \\
+\hline
+2 & Embeddings multilingues & Modèle \texttt{paraphrase-multilingual-MiniLM-L12-v2} (FR/AR/EN) \\
+\hline
+3 & Mémoire de conversation & Historique par groupe WhatsApp (deque, maxlen=10) \\
+\hline
+4 & Hybrid Search & Recherche sémantique ChromaDB + recherche par mots-clés \\
+\hline
+5 & Re-ranking & Re-classement combiné (score sémantique + keyword) \\
+\hline
+6 & Chunking & Découpage des longs documents (max 600 caractères) \\
+\hline
+7 & Feedback loop & Réactions 👍/👎 stockées en DB pour amélioration continue \\
+\hline
+8 & Auto-refresh & Endpoint de ré-indexation à chaud sans redémarrage \\
+\hline
+\end{tabular}
+\end{table}
+
+%% ═══════════════════════════════════════════════════
+%% 2.2 CONCEPTION DÉTAILLÉE
+%% (Réf: 2.2 Conception détaillée)
+%% ═══════════════════════════════════════════════════
+\section{Conception détaillée}
+
+\subsection{Vue Statique~: diagrammes de classes}
+
+\subsubsection{Diagramme de classes du auth-service}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.8\textwidth]{figures/class_auth.png}
+    \fbox{\parbox{0.75\textwidth}{\centering\vspace{2cm}\textit{[Diagramme de classes auth-service — à insérer]}\vspace{2cm}}}
+    \caption{Diagramme de classes -- auth-service}
+    \label{fig:class_auth}
+\end{figure}
+
+Le service d'authentification gère l'entité \texttt{LocalUser} avec les attributs~: id (UUID), email, password (BCrypt), nom, prenom, role (ADMIN/SUPERVISOR/OPERATOR), enabled, agenceId. Il produit des tokens JWT (access 15min, refresh 7j) via la classe \texttt{JwtUtils}.
+
+\subsubsection{Diagramme de classes du ticket-service}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/class_ticket.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}\textit{[Diagramme de classes ticket-service — à insérer]}\vspace{2cm}}}
+    \caption{Diagramme de classes -- ticket-service}
+    \label{fig:class_ticket}
+\end{figure}
+
+L'entité \texttt{Ticket} comprend~: id (UUID), ticketNumber (T-YYYYMMDD-XXXX), canal (CALL/EMAIL/WEB), statut (NOUVEAU/EN\_COURS/RESOLU/FERME), priorité, clientNom, clientEmail, sujet, description, agenceId, assignedTo, audioPath, transcription, nlpAnalysis (JSONB), timestamps. Le service gère également les \texttt{TicketEvent} pour l'audit trail.
+
+\subsubsection{Diagramme de classes du rules-service}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/class_rules.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}\textit{[Diagramme de classes rules-service — à insérer]}\vspace{2cm}}}
+    \caption{Diagramme de classes -- rules-service}
+    \label{fig:class_rules}
+\end{figure}
+
+L'entité \texttt{Rule} contient~: id, nom, description, conditions (JSONB), action (FAVORABLE/DEFAVORABLE/ETUDE), score, active, version, createdAt, updatedAt. Les conditions JSONB suivent le format~: \texttt{\{operator: "AND", conditions: [\{field, op, value\}]\}}. Le \texttt{ReferenceItem} gère le référentiel (types pièces, catégories clients, etc.).
+
+\subsubsection{Diagramme de classes du decision-service}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/class_decision.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}\textit{[Diagramme de classes decision-service — à insérer]}\vspace{2cm}}}
+    \caption{Diagramme de classes -- decision-service}
+    \label{fig:class_decision}
+\end{figure}
+
+L'entité \texttt{Decision} comprend~: id, ticketId, decision (FAVORABLE/DEFAVORABLE/ETUDE), score (BigDecimal), motif, source (CACHE/RULES/AI/HYBRID), rulesApplied (liste), finalDecision, overrideMotif, overrideBy, overriddenAt. Le service utilise \texttt{StringRedisTemplate} pour le cache et \texttt{RabbitTemplate} pour publier les événements.
+
+\subsection{Vue Dynamique~: diagrammes de séquence}
+
+\subsubsection{Diagramme de séquence «~Authentification~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/seq_auth.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme de séquence — Authentification — à insérer]}\vspace{2.5cm}}}
+    \caption{Diagramme de séquence -- Authentification JWT}
+    \label{fig:seq_auth}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Créer un ticket multicanal~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/seq_ticket.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme de séquence — Création ticket — à insérer]}\vspace{2.5cm}}}
+    \caption{Diagramme de séquence -- Création de ticket multicanal}
+    \label{fig:seq_ticket}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Transcription audio et analyse NLP~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/seq_transcription.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme de séquence — Transcription — à insérer]}\vspace{2.5cm}}}
+    \caption{Diagramme de séquence -- Transcription audio et analyse NLP}
+    \label{fig:seq_transcription}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Analyse décisionnelle (pipeline 3 étapes)~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/seq_decision.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Diagramme de séquence — Pipeline décision — à insérer]}\vspace{3cm}}}
+    \caption{Diagramme de séquence -- Pipeline de décision en 3 étapes}
+    \label{fig:seq_decision}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Chatbot WhatsApp RAG~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/seq_chatbot.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Diagramme de séquence — Chatbot RAG — à insérer]}\vspace{3cm}}}
+    \caption{Diagramme de séquence -- Interrogation du chatbot WhatsApp}
+    \label{fig:seq_chatbot}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Configurer une règle d'assurance~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/seq_rules.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme de séquence — Configuration règle — à insérer]}\vspace{2.5cm}}}
+    \caption{Diagramme de séquence -- Configuration d'une règle d'assurance}
+    \label{fig:seq_rules}
+\end{figure}
+
+\subsubsection{Diagramme de séquence «~Notification et envoi de courrier~»}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/seq_notification.png}
+    \fbox{\parbox{0.85\textwidth}{\centering\vspace{2.5cm}\textit{[Diagramme de séquence — Notification — à insérer]}\vspace{2.5cm}}}
+    \caption{Diagramme de séquence -- Notification et envoi de courrier PDF}
+    \label{fig:seq_notification}
+\end{figure}
+
+\subsection{Conception de la base de données}
+
+Le système utilise une approche \textbf{Database-per-Service}, chaque microservice possédant sa propre base PostgreSQL.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/schema_bdd.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Schéma de la base de données — à insérer]}\vspace{3cm}}}
+    \caption{Schéma global de la base de données (Database-per-Service)}
+    \label{fig:bdd}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Bases de données par microservice}
+\label{tab:bdd}
+\begin{tabular}{|p{3cm}|p{2.5cm}|p{7.5cm}|}
+\hline
+\textbf{Service} & \textbf{Base} & \textbf{Tables principales} \\
+\hline
+auth-service & auth\_db & local\_users, refresh\_tokens \\
+\hline
+organisation-service & users\_db & users, agences \\
+\hline
+ticket-service & tickets\_db & tickets, ticket\_events, ticket\_attachments \\
+\hline
+rules-service & rules\_db & rules, rule\_versions, reference\_items \\
+\hline
+decision-service & decisions\_db & decisions \\
+\hline
+notification-service & notif\_db & notifications, email\_logs \\
+\hline
+analytics-service & analytics\_db & analytics\_events, daily\_stats \\
+\hline
+ai-service & ai\_db & transcriptions, rag\_feedback \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Diagramme de déploiement}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/deploiement.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}\textit{[Diagramme de déploiement UML — à insérer]}\vspace{3cm}}}
+    \caption{Diagramme de déploiement du système AutoAssist}
+    \label{fig:deploiement}
+\end{figure}
+
+\section*{Conclusion}
+
+Dans ce chapitre, nous avons présenté la conception technique du système AutoAssist. L'architecture microservices a été détaillée avec ses 14 conteneurs Docker, ses patterns de communication (REST synchrone + RabbitMQ asynchrone) et ses mécanismes de résilience (Circuit Breaker, cache Redis). Les vues statique et dynamique ont été modélisées via des diagrammes de classes et de séquence pour les principaux cas d'utilisation. Le chapitre suivant sera consacré à la réalisation et aux tests.

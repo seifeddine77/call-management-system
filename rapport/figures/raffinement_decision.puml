@@ -1,0 +1,35 @@
+@startuml raffinement_decision
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #FEFECE
+  BorderColor #A80036
+}
+
+actor "Operateur" as op
+
+rectangle "AutoAssist" {
+  usecase "S'authentifier" as auth
+  usecase "Lancer l'analyse\ndecisionnelle" as UC1
+  usecase "Soumettre les\nparametres du dossier" as UC2
+  usecase "Verifier le cache\nRedis (MD5)" as UC3
+  usecase "Evaluer les\nregles metier" as UC4
+  usecase "Consulter le LLM\nGemma 4" as UC5
+  usecase "Retourner la\ndecision" as UC6
+  usecase "Mettre en cache\nle resultat" as UC7
+}
+
+op --> UC1
+UC1 ..> auth : <<include>>
+UC1 ..> UC2 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC3 ..> UC4 : <<extend>>
+UC4 ..> UC5 : <<extend>>
+UC3 ..> UC6 : <<include>>
+UC4 ..> UC6 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC6 ..> UC7 : <<include>>
+
+@enduml

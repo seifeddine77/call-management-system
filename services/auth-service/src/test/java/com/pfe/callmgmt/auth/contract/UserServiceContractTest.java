@@ -67,7 +67,7 @@ public class UserServiceContractTest {
         RegisterRequest request = new RegisterRequest();
         request.setEmail("newuser@test.com");
         request.setPassword("$2a$10$hashedpassword");
-        request.setNom("Nouveau Utilisateur"); /* prenom set below */;
+        request.setNom("Nouveau Utilisateur"); /* prenom set below */
         request.setTelephone("98222333");
         request.setRole(ROLE_OPERATOR);
 

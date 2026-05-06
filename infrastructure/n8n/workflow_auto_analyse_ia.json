@@ -1,0 +1,95 @@
+{
+  "name": "AutoAssist — Auto-Analyse IA des Tickets",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 10 }]
+        }
+      },
+      "name": "Polling 10min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "id": "n-cron"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets?size=50&sort=createdAt,desc",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [400, 300],
+      "id": "n-get"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst tickets = data.content || data || [];\nif (!Array.isArray(tickets) || tickets.length === 0) return [];\nreturn tickets.map(t => ({ json: { ticketId: t.id, numero: t.numero || 'N/A', clientNom: t.clientNom || 'N/A', canal: t.canal || '', description: t.description || '', transcription: t.transcription || '', agenceNom: t.agenceNom || 'N/A', statut: t.statut || '' } }));"
+      },
+      "name": "Extraire Tickets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "id": "n-extract"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://callmgmt-decision:8085/api/decisions/ticket/' + $json.ticketId }}",
+        "options": { "timeout": 8000 }
+      },
+      "name": "GET Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [800, 300],
+      "id": "n-decision",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const ticketItems = $('Extraire Tickets').all();\nconst decisionItems = $input.all();\nconst now = new Date().toLocaleString('fr-FR');\n\nlet favorable = 0, defavorable = 0, enEtude = 0, sansDecision = 0;\n\nconst rows = ticketItems.map((t, i) => {\n  const ticket = t.json;\n  const dec = (decisionItems[i] || {}).json || {};\n  \n  let decision = dec.decision || dec.finalDecision || null;\n  let score = dec.score;\n  let source = dec.source || '';\n  let motif = dec.motif || dec.overrideMotif || '';\n  let hasDecision = !!decision;\n  \n  if (!hasDecision) {\n    sansDecision++;\n    decision = 'EN ATTENTE';\n    score = null;\n  } else if (decision === 'FAVORABLE') {\n    favorable++;\n  } else if (decision === 'DEFAVORABLE') {\n    defavorable++;\n  } else {\n    enEtude++;\n  }\n\n  const emoji = decision === 'FAVORABLE' ? '&#9989;' : decision === 'DEFAVORABLE' ? '&#10060;' : decision === 'EN ATTENTE' ? '&#9203;' : '&#128269;';\n  const color = decision === 'FAVORABLE' ? '#2E7D32' : decision === 'DEFAVORABLE' ? '#C62828' : decision === 'EN ATTENTE' ? '#9E9E9E' : '#F57C00';\n  const scoreStr = score != null ? Number(score).toFixed(0) + '/100' : '-';\n  const statutBadge = ticket.statut ? '<span style=\"background:#E3F2FD;color:#1565C0;padding:2px 6px;border-radius:4px;font-size:11px;\">' + ticket.statut + '</span>' : '';\n\n  return '<tr>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;font-weight:600;\">' + ticket.numero + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;\">' + ticket.clientNom + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;\">' + statutBadge + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;color:' + color + ';font-weight:700;\">' + emoji + ' ' + decision + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;font-weight:700;text-align:center;\">' + scoreStr + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;font-size:11px;color:#666;\">' + source + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #eee;font-size:11px;\">' + motif.substring(0, 80) + '</td>' +\n    '</tr>';\n}).join('');\n\nconst total = ticketItems.length;\nconst analyzes = total - sansDecision;\n\nconst html = '<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:800px;margin:0 auto;\">' +\n  '<div style=\"background:linear-gradient(135deg,#4A148C,#7B1FA2);color:white;padding:30px;border-radius:12px 12px 0 0;text-align:center;\">' +\n    '<h1 style=\"margin:0;font-size:22px;\">&#129302; Auto-Analyse IA \\u2014 AutoAssist</h1>' +\n    '<p style=\"margin:8px 0 0;opacity:0.9;\">' + total + ' tickets \\u2022 ' + analyzes + ' avec d\\u00e9cision IA</p>' +\n    '<p style=\"margin:4px 0 0;opacity:0.7;font-size:12px;\">' + now + '</p>' +\n  '</div>' +\n  '<div style=\"background:white;padding:20px;border:1px solid #e0e0e0;\">' +\n    '<table style=\"width:100%;margin-bottom:20px;\"><tr>' +\n      '<td style=\"background:#E8F5E9;border-radius:8px;padding:15px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:28px;font-weight:700;color:#2E7D32;\">' + favorable + '</div>' +\n        '<div style=\"font-size:11px;color:#555;\">&#9989; Favorables</div></td>' +\n      '<td style=\"background:#FFEBEE;border-radius:8px;padding:15px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:28px;font-weight:700;color:#C62828;\">' + defavorable + '</div>' +\n        '<div style=\"font-size:11px;color:#555;\">&#10060; D\\u00e9favorables</div></td>' +\n      '<td style=\"background:#FFF3E0;border-radius:8px;padding:15px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:28px;font-weight:700;color:#F57C00;\">' + enEtude + '</div>' +\n        '<div style=\"font-size:11px;color:#555;\">&#128269; En \\u00e9tude</div></td>' +\n      '<td style=\"background:#F5F5F5;border-radius:8px;padding:15px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:28px;font-weight:700;color:#9E9E9E;\">' + sansDecision + '</div>' +\n        '<div style=\"font-size:11px;color:#555;\">&#9203; En attente</div></td>' +\n    '</tr></table>' +\n    '<table style=\"width:100%;border-collapse:collapse;\">' +\n      '<tr style=\"background:#EDE7F6;\">' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">Ticket</th>' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">Client</th>' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">Statut</th>' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">D\\u00e9cision IA</th>' +\n        '<th style=\"padding:10px;text-align:center;font-size:12px;\">Score</th>' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">Source</th>' +\n        '<th style=\"padding:10px;text-align:left;font-size:12px;\">Motif</th>' +\n      '</tr>' + rows + '</table>' +\n  '</div>' +\n  '<div style=\"background:#f8f9fa;padding:15px;border-radius:0 0 12px 12px;text-align:center;border:1px solid #e0e0e0;border-top:none;\">' +\n    '<a href=\"http://localhost:3000/tickets\" style=\"color:#7B1FA2;font-weight:700;text-decoration:none;\">&#128200; Ouvrir le Dashboard</a>' +\n    '<p style=\"color:#aaa;font-size:10px;margin:8px 0 0;\">\\u00a9 2026 AutoAssist \\u2014 n8n + Gemma 4</p>' +\n  '</div>' +\n'</div>';\n\nreturn [{ json: { html: html, subject: '&#129302; Rapport IA \\u2014 ' + analyzes + '/' + total + ' tickets analys\\u00e9s' } }];"
+      },
+      "name": "Rapport HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "id": "n-report"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1200, 300],
+      "id": "n-email"
+    }
+  ],
+  "connections": {
+    "Polling 10min": {
+      "main": [[{ "node": "GET Tickets", "type": "main", "index": 0 }]]
+    },
+    "GET Tickets": {
+      "main": [[{ "node": "Extraire Tickets", "type": "main", "index": 0 }]]
+    },
+    "Extraire Tickets": {
+      "main": [[{ "node": "GET Decision", "type": "main", "index": 0 }]]
+    },
+    "GET Decision": {
+      "main": [[{ "node": "Rapport HTML", "type": "main", "index": 0 }]]
+    },
+    "Rapport HTML": {
+      "main": [[{ "node": "Envoyer Email", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "IA" }, { "name": "Gemma4" }]
+}

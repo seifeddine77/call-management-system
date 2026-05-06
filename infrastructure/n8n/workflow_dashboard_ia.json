@@ -1,0 +1,149 @@
+{
+  "name": "AutoAssist \u2014 Tableau de Bord IA Quotidien",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 18 * * 1-5" }]
+        }
+      },
+      "name": "Chaque jour 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "id": "n1"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/stats",
+        "options": { "timeout": 10000 }
+      },
+      "name": "Stats Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 150],
+      "id": "n2"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-analytics:8087/api/analytics/kpis?period=today",
+        "options": { "timeout": 10000 }
+      },
+      "name": "KPIs Aujourd'hui",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 300],
+      "id": "n3",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-analytics:8087/api/analytics/kpis/comparison?period=7d",
+        "options": { "timeout": 10000 }
+      },
+      "name": "Tendance 7j",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 450],
+      "id": "n4",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets/queue",
+        "options": { "timeout": 10000 }
+      },
+      "name": "File Attente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 600],
+      "id": "n5",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Collecter les donn\u00e9es de tous les appels parall\u00e8les\nlet stats, kpis, trend, queue;\ntry { stats = $('Stats Tickets').first().json; } catch(e) { stats = {}; }\ntry { kpis = $(\"KPIs Aujourd'hui\").first().json; } catch(e) { kpis = {}; }\ntry { trend = $('Tendance 7j').first().json; } catch(e) { trend = {}; }\ntry { queue = $('File Attente').first().json; } catch(e) { queue = {}; }\n\nconst today = new Date().toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });\n\n// Construire la question pour Gemma 4\nconst prompt = [\n  'Tu es un analyste expert en gestion de r\\u00e9clamations automobiles.',\n  'G\\u00e9n\\u00e8re un rapport d\\'activit\\u00e9 professionnel et concis pour le superviseur.',\n  'Date: ' + today,\n  '',\n  'DONN\\u00c9ES DU JOUR:',\n  '- Nouveaux tickets: ' + (stats.nouveau || 0),\n  '- En cours: ' + (stats.enCours || 0),\n  '- R\\u00e9solus: ' + (stats.resolu || 0),\n  '- Ferm\\u00e9s: ' + (stats.ferme || 0),\n  '- Total: ' + (stats.total || 0),\n  '',\n  'KPIs:',\n  '- Taux de r\\u00e9solution: ' + (kpis.tauxResolution || 'N/A') + '%',\n  '- Temps moyen: ' + (kpis.tempsMoyenMinutes || 'N/A') + ' min',\n  '- D\\u00e9cisions IA favorables: ' + (kpis.decisionsAiFavorable || 0),\n  '- D\\u00e9cisions IA d\\u00e9favorables: ' + (kpis.decisionsAiDefavorable || 0),\n  '- Canaux: Appels=' + (kpis.ticketsCall || 0) + ' Emails=' + (kpis.ticketsEmail || 0) + ' Web=' + (kpis.ticketsWeb || 0),\n  '',\n  'Tickets en file d\\'attente (non assign\\u00e9s): ' + (queue.totalInQueue || 0),\n  'Temps d\\'attente moyen: ' + (queue.averageWaitMinutes || 'N/A') + ' min',\n  '',\n  'R\\u00e8gles:',\n  '1. R\\u00e9dige en fran\\u00e7ais avec des emojis',\n  '2. Commence par un r\\u00e9sum\\u00e9 en 2 lignes',\n  '3. Identifie les points forts et les alertes',\n  '4. Termine par 3 recommandations concr\\u00e8tes',\n  '5. Maximum 300 mots'\n].join('\\n');\n\nreturn [{ json: { prompt, stats, kpis, trend, queue, today } }];"
+      },
+      "name": "Fusionner Donn\u00e9es",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "n6"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ai:8000/chat/",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ question: $json.prompt, group_name: 'n8n-dashboard' }) }}",
+        "options": { "timeout": 180000 }
+      },
+      "name": "Gemma 4 (RAG)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [940, 300],
+      "id": "n7",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $('Fusionner Donn\\u00e9es').first().json;\nconst gemma = $('Gemma 4 (RAG)').first().json;\n\nconst stats = data.stats || {};\nconst kpis = data.kpis || {};\nconst trend = data.trend || {};\nconst queue = data.queue || {};\nconst today = data.today;\n\n// R\\u00e9ponse IA\nlet aiAnswer = '';\nlet llmUsed = 'N/A';\nlet responseTime = '';\nif (gemma && gemma.answer) {\n  aiAnswer = gemma.answer;\n  llmUsed = gemma.llm_used || 'gemma4';\n  responseTime = gemma.response_time_ms ? (gemma.response_time_ms / 1000).toFixed(1) + 's' : '';\n} else {\n  aiAnswer = 'Le r\\u00e9sum\\u00e9 IA n\\'a pas pu \\u00eatre g\\u00e9n\\u00e9r\\u00e9. Consultez les donn\\u00e9es ci-dessous.';\n}\n\n// Markdown \\u2192 HTML basique\nconst aiHtml = aiAnswer\n  .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')\n  .replace(/\\*(.*?)\\*/g, '<em>$1</em>')\n  .replace(/^### (.*$)/gm, '<h4 style=\"margin:12px 0 4px;color:#4A148C;\">$1</h4>')\n  .replace(/^## (.*$)/gm, '<h3 style=\"margin:15px 0 5px;color:#4A148C;\">$1</h3>')\n  .replace(/^- (.*$)/gm, '\\u2022 $1<br>')\n  .replace(/^\\d+\\. (.*$)/gm, '$1<br>')\n  .replace(/\\n/g, '<br>');\n\n// Tendances\nconst deltaTickets = trend.deltaTickets != null ? (trend.deltaTickets > 0 ? '+' : '') + Number(trend.deltaTickets).toFixed(0) + '%' : 'N/A';\nconst deltaResolution = trend.deltaResolution != null ? (trend.deltaResolution > 0 ? '+' : '') + Number(trend.deltaResolution).toFixed(0) + '%' : 'N/A';\nconst trendColorT = (trend.deltaTickets || 0) > 0 ? '#C62828' : '#2E7D32';\nconst trendColorR = (trend.deltaResolution || 0) > 0 ? '#2E7D32' : '#C62828';\n\nconst total = stats.total || 0;\nconst tauxRes = kpis.tauxResolution != null ? Number(kpis.tauxResolution).toFixed(0) : 'N/A';\nconst tempsMoyen = kpis.tempsMoyenMinutes != null ? Number(kpis.tempsMoyenMinutes).toFixed(0) : 'N/A';\nconst queueCount = queue.totalInQueue || 0;\n\nconst html = '<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f0f0f0;\">' +\n'<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:700px;margin:20px auto;\">' +\n\n  // HEADER\n  '<div style=\"background:linear-gradient(135deg,#1A237E,#4A148C,#7B1FA2);color:white;padding:30px;border-radius:16px 16px 0 0;text-align:center;\">' +\n    '<div style=\"font-size:40px;margin-bottom:8px;\">\\ud83d\\udcca</div>' +\n    '<h1 style=\"margin:0;font-size:22px;letter-spacing:0.5px;\">Tableau de Bord IA</h1>' +\n    '<p style=\"margin:6px 0 0;opacity:0.85;font-size:14px;\">AutoAssist \\u2014 ' + today + '</p>' +\n    (llmUsed !== 'N/A' ? '<p style=\"margin:4px 0 0;opacity:0.6;font-size:11px;\">Analys\\u00e9 par ' + llmUsed + ' en ' + responseTime + '</p>' : '') +\n  '</div>' +\n\n  // KPI CARDS\n  '<div style=\"background:white;padding:20px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;\">' +\n    '<table style=\"width:100%;border-spacing:8px;border-collapse:separate;\"><tr>' +\n      '<td style=\"background:linear-gradient(135deg,#E3F2FD,#BBDEFB);border-radius:12px;padding:18px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:32px;font-weight:800;color:#1565C0;\">' + total + '</div>' +\n        '<div style=\"font-size:11px;color:#555;margin-top:4px;\">Total tickets</div>' +\n      '</td>' +\n      '<td style=\"background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border-radius:12px;padding:18px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:32px;font-weight:800;color:#2E7D32;\">' + tauxRes + '<span style=\"font-size:16px;\">%</span></div>' +\n        '<div style=\"font-size:11px;color:#555;margin-top:4px;\">R\\u00e9solution</div>' +\n      '</td>' +\n      '<td style=\"background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:12px;padding:18px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:32px;font-weight:800;color:#E65100;\">' + tempsMoyen + '<span style=\"font-size:14px;\">min</span></div>' +\n        '<div style=\"font-size:11px;color:#555;margin-top:4px;\">Temps moyen</div>' +\n      '</td>' +\n      '<td style=\"background:linear-gradient(135deg,#FCE4EC,#F8BBD0);border-radius:12px;padding:18px;text-align:center;width:25%;\">' +\n        '<div style=\"font-size:32px;font-weight:800;color:#C62828;\">' + queueCount + '</div>' +\n        '<div style=\"font-size:11px;color:#555;margin-top:4px;\">En file</div>' +\n      '</td>' +\n    '</tr></table>' +\n  '</div>' +\n\n  // DETAILS\n  '<div style=\"background:#FAFAFA;padding:20px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;\">' +\n    '<table style=\"width:100%;border-collapse:collapse;\">' +\n      '<tr style=\"background:#EDE7F6;\"><th colspan=\"4\" style=\"padding:10px;text-align:left;font-size:13px;color:#4A148C;\">\\ud83d\\udce6 R\\u00e9partition par statut</th></tr>' +\n      '<tr>' +\n        '<td style=\"padding:10px;text-align:center;\"><div style=\"font-size:20px;font-weight:700;color:#1976D2;\">' + (stats.nouveau || 0) + '</div><div style=\"font-size:10px;color:#888;\">Nouveaux</div></td>' +\n        '<td style=\"padding:10px;text-align:center;\"><div style=\"font-size:20px;font-weight:700;color:#F57C00;\">' + (stats.enCours || 0) + '</div><div style=\"font-size:10px;color:#888;\">En cours</div></td>' +\n        '<td style=\"padding:10px;text-align:center;\"><div style=\"font-size:20px;font-weight:700;color:#2E7D32;\">' + (stats.resolu || 0) + '</div><div style=\"font-size:10px;color:#888;\">R\\u00e9solus</div></td>' +\n        '<td style=\"padding:10px;text-align:center;\"><div style=\"font-size:20px;font-weight:700;color:#757575;\">' + (stats.ferme || 0) + '</div><div style=\"font-size:10px;color:#888;\">Ferm\\u00e9s</div></td>' +\n      '</tr>' +\n    '</table>' +\n  '</div>' +\n\n  // CANAUX + DECISIONS IA\n  '<div style=\"background:white;padding:20px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;\">' +\n    '<table style=\"width:100%;border-collapse:collapse;\">' +\n      '<tr>' +\n        '<td style=\"width:50%;vertical-align:top;padding-right:10px;\">' +\n          '<div style=\"font-size:12px;font-weight:700;color:#4A148C;margin-bottom:8px;\">\\ud83d\\udcde Canaux</div>' +\n          '<div style=\"background:#F5F5F5;border-radius:8px;padding:12px;\">' +\n            '<div style=\"margin-bottom:6px;\"><span style=\"color:#1565C0;\">\\u260e</span> Appels: <strong>' + (kpis.ticketsCall || 0) + '</strong></div>' +\n            '<div style=\"margin-bottom:6px;\"><span style=\"color:#EF6C00;\">\\u2709</span> Emails: <strong>' + (kpis.ticketsEmail || 0) + '</strong></div>' +\n            '<div><span style=\"color:#2E7D32;\">\\ud83c\\udf10</span> Web: <strong>' + (kpis.ticketsWeb || 0) + '</strong></div>' +\n          '</div>' +\n        '</td>' +\n        '<td style=\"width:50%;vertical-align:top;padding-left:10px;\">' +\n          '<div style=\"font-size:12px;font-weight:700;color:#4A148C;margin-bottom:8px;\">\\ud83e\\udd16 D\\u00e9cisions IA</div>' +\n          '<div style=\"background:#F5F5F5;border-radius:8px;padding:12px;\">' +\n            '<div style=\"margin-bottom:6px;\"><span style=\"color:#2E7D32;\">\\u2705</span> Favorables: <strong>' + (kpis.decisionsAiFavorable || 0) + '</strong></div>' +\n            '<div style=\"margin-bottom:6px;\"><span style=\"color:#C62828;\">\\u274c</span> D\\u00e9favorables: <strong>' + (kpis.decisionsAiDefavorable || 0) + '</strong></div>' +\n            '<div><span style=\"color:#F57C00;\">\\ud83d\\udd0d</span> En \\u00e9tude: <strong>' + (kpis.decisionsAiEtude || 0) + '</strong></div>' +\n          '</div>' +\n        '</td>' +\n      '</tr>' +\n    '</table>' +\n  '</div>' +\n\n  // TENDANCES\n  '<div style=\"background:#FAFAFA;padding:15px 20px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;\">' +\n    '<div style=\"font-size:12px;font-weight:700;color:#4A148C;margin-bottom:8px;\">\\ud83d\\udcc8 Tendances vs semaine pr\\u00e9c\\u00e9dente</div>' +\n    '<table style=\"width:100%;\"><tr>' +\n      '<td style=\"text-align:center;\"><span style=\"font-size:18px;font-weight:700;color:' + trendColorT + ';\">' + deltaTickets + '</span><br><span style=\"font-size:10px;color:#888;\">Volume tickets</span></td>' +\n      '<td style=\"text-align:center;\"><span style=\"font-size:18px;font-weight:700;color:' + trendColorR + ';\">' + deltaResolution + '</span><br><span style=\"font-size:10px;color:#888;\">Taux r\\u00e9solution</span></td>' +\n    '</tr></table>' +\n  '</div>' +\n\n  // ANALYSE IA (GEMMA 4)\n  '<div style=\"background:white;padding:20px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;\">' +\n    '<div style=\"background:linear-gradient(135deg,#EDE7F6,#E8EAF6);border-radius:12px;padding:20px;border-left:4px solid #7B1FA2;\">' +\n      '<div style=\"font-size:14px;font-weight:700;color:#4A148C;margin-bottom:10px;\">\\ud83e\\udde0 Analyse IA \\u2014 Gemma 4</div>' +\n      '<div style=\"line-height:1.7;color:#333;font-size:13px;\">' + aiHtml + '</div>' +\n    '</div>' +\n  '</div>' +\n\n  // FOOTER\n  '<div style=\"background:linear-gradient(135deg,#37474F,#263238);padding:20px;border-radius:0 0 16px 16px;text-align:center;\">' +\n    '<a href=\"http://localhost:3000/dashboard\" style=\"color:#BB86FC;font-weight:700;text-decoration:none;font-size:14px;\">\\ud83d\\udcca Ouvrir le Dashboard</a>' +\n    '<p style=\"color:#78909C;font-size:10px;margin:10px 0 0;\">\\u00a9 2026 AutoAssist \\u2014 Orchestration n8n \\u00b7 IA Gemma 4 \\u00b7 4 microservices</p>' +\n  '</div>' +\n\n'</div></body></html>';\n\nreturn [{ json: { html: html, subject: '\\ud83d\\udcca Tableau de Bord IA \\u2014 ' + today } }];"
+      },
+      "name": "G\u00e9n\u00e9rer Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 300],
+      "id": "n8"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "saifrezgui77@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}"
+      },
+      "name": "Envoyer Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1420, 300],
+      "id": "n9"
+    }
+  ],
+  "connections": {
+    "Chaque jour 18h": {
+      "main": [[
+        { "node": "Stats Tickets", "type": "main", "index": 0 },
+        { "node": "KPIs Aujourd'hui", "type": "main", "index": 0 },
+        { "node": "Tendance 7j", "type": "main", "index": 0 },
+        { "node": "File Attente", "type": "main", "index": 0 }
+      ]]
+    },
+    "Stats Tickets": {
+      "main": [[{ "node": "Fusionner Donn\u00e9es", "type": "main", "index": 0 }]]
+    },
+    "KPIs Aujourd'hui": {
+      "main": [[{ "node": "Fusionner Donn\u00e9es", "type": "main", "index": 0 }]]
+    },
+    "Tendance 7j": {
+      "main": [[{ "node": "Fusionner Donn\u00e9es", "type": "main", "index": 0 }]]
+    },
+    "File Attente": {
+      "main": [[{ "node": "Fusionner Donn\u00e9es", "type": "main", "index": 0 }]]
+    },
+    "Fusionner Donn\u00e9es": {
+      "main": [[{ "node": "Gemma 4 (RAG)", "type": "main", "index": 0 }]]
+    },
+    "Gemma 4 (RAG)": {
+      "main": [[{ "node": "G\u00e9n\u00e9rer Email", "type": "main", "index": 0 }]]
+    },
+    "G\u00e9n\u00e9rer Email": {
+      "main": [[{ "node": "Envoyer Email", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "IA" }, { "name": "Gemma4" }, { "name": "Dashboard" }]
+}

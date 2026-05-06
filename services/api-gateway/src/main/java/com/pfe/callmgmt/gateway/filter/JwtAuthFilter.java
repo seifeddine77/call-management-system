@@ -33,8 +33,9 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
         super(Config.class);
     }
 
+    @SuppressWarnings("java:S2094") // Required by AbstractGatewayFilterFactory — must exist even if empty
     public static class Config {
-        // Configuration properties if needed
+        // Configuration properties can be added here if needed
     }
 
     @Override

@@ -247,7 +247,7 @@ class TicketServiceImplTest {
                     any(Pageable.class)))
                     .thenReturn(page);
 
-            Page<TicketResponse> result = ticketService.getTickets(filter, ROLE_OPERATOR, OPERATOR_ID, AGENCE_ID);
+            ticketService.getTickets(filter, ROLE_OPERATOR, OPERATOR_ID, AGENCE_ID);
 
             // Verify that agenceId was forced to OPERATOR's agence (AGENCE_ID, not
             // AGENCE_ID_OTHER)

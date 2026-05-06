@@ -39,7 +39,6 @@ public class TicketController {
 
     // SonarCloud HIGH fix — centralize "ADMIN" literal (duplicated 7x) into a constant
     private static final String ROLE_ADMIN = "ADMIN";
-    private static final String ROLE_OPERATOR = "OPERATOR";
 
     private final TicketService ticketService;
     private final QueueService queueService;

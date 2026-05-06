@@ -280,7 +280,7 @@ public class AnalyticsService {
         switch (statut.toUpperCase()) {
             case "NOUVEAU" -> stat.setTicketsNouveau(stat.getTicketsNouveau() + 1);
             case "EN_COURS" -> stat.setTicketsEnCours(stat.getTicketsEnCours() + 1);
-            case "RESOLU" -> { /* Géré par incrementTicketResolved */ }
+            case "RESOLU" -> log.trace("RESOLU increment handled by incrementTicketResolved");
             case "FERME" -> stat.setTicketsFerme(stat.getTicketsFerme() + 1);
             default -> log.debug("Statut inconnu ignoré (increment): {}", statut);
         }
@@ -291,7 +291,7 @@ public class AnalyticsService {
         switch (statut.toUpperCase()) {
             case "NOUVEAU" -> stat.setTicketsNouveau(Math.max(0, stat.getTicketsNouveau() - 1));
             case "EN_COURS" -> stat.setTicketsEnCours(Math.max(0, stat.getTicketsEnCours() - 1));
-            case "RESOLU" -> { /* Ne pas décrémenter ticketsResolus ici */ }
+            case "RESOLU" -> log.trace("RESOLU decrement skipped — resolved count is append-only");
             case "FERME" -> stat.setTicketsFerme(Math.max(0, stat.getTicketsFerme() - 1));
             default -> log.debug("Statut inconnu ignoré (decrement): {}", statut);
         }

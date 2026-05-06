@@ -70,7 +70,7 @@ class UserServiceImplTest {
         validRequest = new UserRequest();
         validRequest.setEmail(EMAIL_TEST);
         validRequest.setPassword("SecurePass123");
-        validRequest.setNom(USER_NAME); /* prenom set below */;
+        validRequest.setNom(USER_NAME); /* prenom set below */
         validRequest.setTelephone("12345678");
         validRequest.setRole(ROLE_OPERATOR);
         validRequest.setAgenceId(agenceId);

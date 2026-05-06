@@ -8,11 +8,16 @@
 
 ## Workflows disponibles
 
-| # | Workflow | Fichier | Déclencheur |
-|---|---------|---------|-------------|
-| 1 | **Rapport Quotidien** | `workflow_rapport_quotidien.json` | Cron toutes les 24h |
-| 2 | **Alerte SLA** | `workflow_alerte_sla.json` | Cron toutes les 30 min |
-| 3 | **Webhook Web → Ticket** | `workflow_webhook_web.json` | HTTP POST `/webhook/autoassist-web-form` |
+| # | Workflow | Fichier | Déclencheur | Services utilisés |
+|---|---------|---------|-------------|-------------------|
+| 1 | **📊 Rapport Quotidien** | `workflow_rapport_quotidien.json` | Cron 24h | ticket, analytics |
+| 2 | **⚠️ Alerte SLA (Email)** | `workflow_alerte_sla.json` | Cron 30min | ticket |
+| 3 | **🌐 Webhook Web → Ticket** | `workflow_webhook_web.json` | HTTP POST | ticket |
+| 4 | **📱 Alerte SLA (SMS Twilio)** | `workflow_whatsapp_alerte.json` | Cron 30min | ticket, Twilio |
+| 5 | **🏥 Health Check** | `workflow_health_check.json` | Cron 5min | tous (9 services) |
+| 6 | **🚀 DevOps Pipeline** | `workflows/devops-pipeline-notifications.json` | Webhook GitHub/Prometheus | ticket |
+| 7 | **🤖 Auto-Analyse IA** | `workflow_auto_analyse_ia.json` | Cron 10min | ticket, decision, ai (Gemma 4) |
+| 8 | **🧠 Résumé IA Quotidien** | `workflow_resume_ia_quotidien.json` | Cron 18h | ticket, analytics, ai (Gemma 4 RAG) |
 
 ## Import des workflows
 
@@ -35,29 +40,51 @@ Après import, configurer les credentials :
 
 ## Description des workflows
 
-### 1. Rapport Quotidien
+### 1. 📊 Rapport Quotidien
 ```
-[Cron 24h] → [GET /api/tickets/stats] → [GET /api/analytics/summary] → [Formater HTML] → [Envoyer Email]
+[Cron 24h] → [GET /api/tickets/stats] → [GET /api/analytics/kpis] → [Formater HTML] → [Email]
 ```
-Envoie un résumé quotidien avec le nombre de tickets par statut au superviseur.
 
-### 2. Alerte SLA
+### 2. ⚠️ Alerte SLA (Email)
 ```
-[Cron 30min] → [GET /api/tickets/queue] → [Filtrer > 2h] → [Envoyer Alerte]
+[Cron 30min] → [GET /api/tickets/queue] → [Filtrer > 2h] → [Email Alerte]
 ```
-Détecte les tickets NOUVEAU en attente depuis plus de 2 heures et envoie une alerte email.
 
-### 3. Webhook Web → Ticket
+### 3. 🌐 Webhook Web → Ticket
 ```
 [POST /webhook/autoassist-web-form] → [Valider] → [POST /api/channels/web] → [Réponse JSON]
 ```
-Reçoit les soumissions de formulaires externes et crée un ticket WEB automatiquement.
 
-**URL du webhook** : `http://localhost:5678/webhook/autoassist-web-form`
-
-**Exemple d'appel** :
-```bash
-curl -X POST http://localhost:5678/webhook/autoassist-web-form \
-  -H "Content-Type: application/json" \
-  -d '{"clientNom":"Test n8n","clientTel":"+21650000000","clientEmail":"test@test.com","description":"Test via n8n webhook","priorite":2}'
+### 4. 📱 Alerte SLA (SMS Twilio)
 ```
+[Cron 30min] → [GET /api/tickets/queue] → [Filtrer > 2h] → [SMS via Twilio]
+```
+
+### 5. 🏥 Health Check Microservices
+```
+[Cron 5min] → [GET /health × 9 services] → [Analyser] → [Email si DOWN]
+```
+
+### 6. 🚀 DevOps Pipeline Notifications
+```
+[Webhook GitHub] → [Success?] → [Email succès/échec]
+[Webhook Prometheus] → [Critical?] → [Email + Auto-Create Ticket]
+```
+
+### 7. 🤖 Auto-Analyse IA des Tickets (NOUVEAU)
+```
+[Cron 10min] → [GET Tickets NOUVEAU] → [Vérifier si décision existe]
+    → [Extraire type pièce/sinistre] → [POST /api/decisions/analyze]
+    → [Formater résultats] → [Email rapport IA au superviseur]
+```
+**Chaîne 4 microservices** : ticket-service → decision-service (Rules + Gemma 4) → notification par email.
+Le workflow détecte automatiquement le type de pièce et sinistre depuis la description du ticket.
+
+### 8. 🧠 Résumé IA Quotidien via Gemma 4 (NOUVEAU)
+```
+[Cron 18h] → [GET Stats + KPIs + Comparaison] (en parallèle)
+    → [Construire question enrichie] → [POST /chat/ (RAG + Gemma 4)]
+    → [Formater email HTML] → [Email résumé IA au superviseur]
+```
+**Utilise le chatbot RAG** pour générer un résumé en langage naturel avec recommandations.
+Au lieu de chiffres bruts, le superviseur reçoit une analyse intelligente rédigée par Gemma 4.

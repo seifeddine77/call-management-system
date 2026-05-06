@@ -178,7 +178,7 @@ class AuthServiceImplTest {
                         RegisterRequest request = new RegisterRequest();
                         request.setEmail("new@test.com");
                         request.setPassword("password123");
-                        request.setNom("Nouveau User"); /* prenom set below */;
+                        request.setNom("Nouveau User"); /* prenom set below */
                         request.setRole("OPERATOR");
 
                         Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
@@ -218,7 +218,7 @@ class AuthServiceImplTest {
                         RegisterRequest request = new RegisterRequest();
                         request.setEmail("existing@test.com");
                         request.setPassword("password123");
-                        request.setNom("Existing User"); /* prenom set below */;
+                        request.setNom("Existing User"); /* prenom set below */
                         request.setRole("OPERATOR");
 
                         when(userServiceClient.findByEmail("existing@test.com"))

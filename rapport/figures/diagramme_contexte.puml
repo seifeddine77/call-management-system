@@ -1,0 +1,24 @@
+@startuml diagramme_contexte
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam packageStyle rectangle
+skinparam actorStyle default
+skinparam padding 8
+
+left to right direction
+
+actor "Administrateur" as admin
+actor "Superviseur" as sup
+actor "Operateur" as op
+actor "Client" as client
+
+rectangle "<<Systeme>>\nAutoAssist" as sys {
+}
+
+admin "1" --> sys
+sup "1..*" --> sys
+op "1..*" --> sys
+client "0..*" --> sys
+
+@enduml

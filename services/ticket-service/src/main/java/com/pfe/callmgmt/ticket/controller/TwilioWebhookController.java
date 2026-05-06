@@ -2,7 +2,6 @@ package com.pfe.callmgmt.ticket.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pfe.callmgmt.ticket.client.AiServiceClient;
-import com.pfe.callmgmt.ticket.config.TwilioConfig;
 import com.pfe.callmgmt.ticket.dto.CreateTicketRequest;
 import com.pfe.callmgmt.ticket.dto.TicketResponse;
 import com.pfe.callmgmt.ticket.service.AudioEncryptionService;
@@ -54,7 +53,7 @@ public class TwilioWebhookController {
     private String defaultAgenceId;
 
     public TwilioWebhookController(TicketService ticketService, TwilioService twilioService,
-            TwilioConfig twilioConfig, AiServiceClient aiServiceClient,
+            AiServiceClient aiServiceClient,
             AudioEncryptionService audioEncryptionService, ObjectMapper objectMapper) {
         this.ticketService = ticketService;
         this.twilioService = twilioService;
