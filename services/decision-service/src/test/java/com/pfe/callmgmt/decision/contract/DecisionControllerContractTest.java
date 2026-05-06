@@ -38,6 +38,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DecisionController.class)
 class DecisionControllerContractTest {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String FAVORABLE = "FAVORABLE";
+        private static final String DEFAVORABLE = "DEFAVORABLE";
+        private static final String SOURCE_RULES = "RULES";
+        private static final String API_DECISIONS = "/api/decisions/";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -65,10 +71,10 @@ class DecisionControllerContractTest {
                         DecisionResult result = DecisionResult.builder()
                                         .decisionId(UUID.randomUUID())
                                         .ticketId(ticketId)
-                                        .decision("FAVORABLE")
+                                        .decision(FAVORABLE)
                                         .score(85.0)
                                         .motif("Pièce sous garantie")
-                                        .source("RULES")
+                                        .source(SOURCE_RULES)
                                         .rulesApplied(List.of("Règle 1"))
                                         .ambiguous(false)
                                         .cached(false)
@@ -90,10 +96,10 @@ class DecisionControllerContractTest {
                                         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                                         .andExpect(jsonPath("$.decisionId").exists())
                                         .andExpect(jsonPath("$.ticketId").value(ticketId.toString()))
-                                        .andExpect(jsonPath("$.decision").value("FAVORABLE"))
+                                        .andExpect(jsonPath("$.decision").value(FAVORABLE))
                                         .andExpect(jsonPath("$.score").value(85.0))
                                         .andExpect(jsonPath("$.motif").isString())
-                                        .andExpect(jsonPath("$.source").value("RULES"))
+                                        .andExpect(jsonPath("$.source").value(SOURCE_RULES))
                                         .andExpect(jsonPath("$.rulesApplied").isArray())
                                         .andExpect(jsonPath("$.rulesApplied", hasSize(1)))
                                         .andExpect(jsonPath("$.ambiguous").value(false))
@@ -174,24 +180,24 @@ class DecisionControllerContractTest {
                         DecisionResult result = DecisionResult.builder()
                                         .decisionId(decisionId)
                                         .ticketId(UUID.randomUUID())
-                                        .decision("FAVORABLE")
+                                        .decision(FAVORABLE)
                                         .score(85.0)
                                         .motif("Test")
-                                        .source("RULES")
-                                        .finalDecision("FAVORABLE")
+                                        .source(SOURCE_RULES)
+                                        .finalDecision(FAVORABLE)
                                         .overrideMotif("Confirmé")
                                         .build();
                         when(decisionService.acceptDecision(eq(decisionId), any())).thenReturn(result);
 
                         OverrideRequest req = new OverrideRequest();
-                        req.setFinalDecision("FAVORABLE");
+                        req.setFinalDecision(FAVORABLE);
                         req.setMotif("Confirmé par l'opérateur");
 
                         mockMvc.perform(post("/api/decisions/" + decisionId + "/accept")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isOk())
-                                        .andExpect(jsonPath("$.finalDecision").value("FAVORABLE"))
+                                        .andExpect(jsonPath("$.finalDecision").value(FAVORABLE))
                                         .andExpect(jsonPath("$.overrideMotif").value("Confirmé"));
                 }
 
@@ -219,7 +225,7 @@ class DecisionControllerContractTest {
                                         .thenThrow(new NoSuchElementException("Décision introuvable"));
 
                         OverrideRequest req = new OverrideRequest();
-                        req.setFinalDecision("FAVORABLE");
+                        req.setFinalDecision(FAVORABLE);
                         req.setMotif("OK");
 
                         mockMvc.perform(post("/api/decisions/" + id + "/accept")
@@ -236,7 +242,7 @@ class DecisionControllerContractTest {
                                         .thenThrow(new IllegalStateException("Déjà finalisée"));
 
                         OverrideRequest req = new OverrideRequest();
-                        req.setFinalDecision("FAVORABLE");
+                        req.setFinalDecision(FAVORABLE);
                         req.setMotif("OK");
 
                         mockMvc.perform(post("/api/decisions/" + id + "/accept")
@@ -261,21 +267,21 @@ class DecisionControllerContractTest {
                         DecisionResult result = DecisionResult.builder()
                                         .decisionId(decisionId)
                                         .ticketId(UUID.randomUUID())
-                                        .decision("FAVORABLE")
-                                        .finalDecision("DEFAVORABLE")
+                                        .decision(FAVORABLE)
+                                        .finalDecision(DEFAVORABLE)
                                         .overrideMotif("Usure normale")
                                         .build();
                         when(decisionService.rejectDecision(eq(decisionId), any())).thenReturn(result);
 
                         OverrideRequest req = new OverrideRequest();
-                        req.setFinalDecision("DEFAVORABLE");
+                        req.setFinalDecision(DEFAVORABLE);
                         req.setMotif("Usure normale");
 
                         mockMvc.perform(post("/api/decisions/" + decisionId + "/reject")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isOk())
-                                        .andExpect(jsonPath("$.finalDecision").value("DEFAVORABLE"));
+                                        .andExpect(jsonPath("$.finalDecision").value(DEFAVORABLE));
                 }
         }
 
@@ -294,17 +300,17 @@ class DecisionControllerContractTest {
                         DecisionResult result = DecisionResult.builder()
                                         .decisionId(UUID.randomUUID())
                                         .ticketId(ticketId)
-                                        .decision("FAVORABLE")
+                                        .decision(FAVORABLE)
                                         .score(80.0)
                                         .motif("OK")
-                                        .source("RULES")
+                                        .source(SOURCE_RULES)
                                         .build();
                         when(decisionService.getByTicketId(ticketId)).thenReturn(result);
 
                         mockMvc.perform(get("/api/decisions/ticket/" + ticketId))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.ticketId").value(ticketId.toString()))
-                                        .andExpect(jsonPath("$.decision").value("FAVORABLE"));
+                                        .andExpect(jsonPath("$.decision").value(FAVORABLE));
                 }
 
                 @Test
@@ -334,10 +340,10 @@ class DecisionControllerContractTest {
                         Decision decision = Decision.builder()
                                         .id(id)
                                         .ticketId(UUID.randomUUID())
-                                        .decision("FAVORABLE")
-                                        .finalDecision("FAVORABLE")
+                                        .decision(FAVORABLE)
+                                        .finalDecision(FAVORABLE)
                                         .motif("OK")
-                                        .source("RULES")
+                                        .source(SOURCE_RULES)
                                         .build();
                         when(decisionService.findById(id)).thenReturn(Optional.of(decision));
                         when(letterService.generateLetter(any())).thenReturn(new byte[] { 1, 2, 3, 4 });
@@ -358,7 +364,7 @@ class DecisionControllerContractTest {
                                         .ticketId(UUID.randomUUID())
                                         .decision("ETUDE")
                                         .motif("Ambigu")
-                                        .source("RULES")
+                                        .source(SOURCE_RULES)
                                         .build();
                         when(decisionService.findById(id)).thenReturn(Optional.of(decision));
 

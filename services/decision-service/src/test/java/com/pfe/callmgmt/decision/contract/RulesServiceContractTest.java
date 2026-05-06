@@ -31,6 +31,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class RulesServiceContractTest {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String FAVORABLE = "FAVORABLE";
+        private static final String DEFAVORABLE = "DEFAVORABLE";
+        private static final String ETUDE = "ETUDE";
+
         @Mock
         private RulesServiceClient rulesServiceClient;
 
@@ -39,7 +44,7 @@ public class RulesServiceContractTest {
         void shouldEvaluateAndReturnFavorable() {
                 // Given — the expected response from rules-service
                 RulesEvaluateResponse expectedResponse = RulesEvaluateResponse.builder()
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(85.0)
                                 .motif("Pièce mécanique, véhicule récent, faible kilométrage")
                                 .rulesApplied(List.of("Règle Mécanique Simple", "Règle Véhicule Récent"))
@@ -63,7 +68,7 @@ public class RulesServiceContractTest {
 
                 // Then — verify contract fields
                 assertThat(response).isNotNull();
-                assertThat(response.getDecision()).isEqualTo("FAVORABLE");
+                assertThat(response.getDecision()).isEqualTo(FAVORABLE);
                 assertThat(response.getScore()).isEqualTo(85.0);
                 assertThat(response.getMotif()).isNotBlank();
                 assertThat(response.getRulesApplied()).isNotEmpty();
@@ -78,7 +83,7 @@ public class RulesServiceContractTest {
         @DisplayName("Contract: POST /api/rules/evaluate → DEFAVORABLE with high km")
         void shouldEvaluateAndReturnDefavorable() {
                 RulesEvaluateResponse expectedResponse = RulesEvaluateResponse.builder()
-                                .decision("DEFAVORABLE")
+                                .decision(DEFAVORABLE)
                                 .score(25.0)
                                 .motif("Véhicule trop ancien, kilométrage excessif")
                                 .rulesApplied(List.of("Règle Kilométrage Excessif"))
@@ -99,7 +104,7 @@ public class RulesServiceContractTest {
 
                 RulesEvaluateResponse response = rulesServiceClient.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo("DEFAVORABLE");
+                assertThat(response.getDecision()).isEqualTo(DEFAVORABLE);
                 assertThat(response.getScore()).isLessThan(50.0);
                 assertThat(response.getRulesApplied()).hasSize(1);
         }
@@ -108,7 +113,7 @@ public class RulesServiceContractTest {
         @DisplayName("Contract: POST /api/rules/evaluate → ETUDE (ambiguous)")
         void shouldEvaluateAndReturnEtude() {
                 RulesEvaluateResponse expectedResponse = RulesEvaluateResponse.builder()
-                                .decision("ETUDE")
+                                .decision(ETUDE)
                                 .score(50.0)
                                 .motif("Situation ambiguë, étude manuelle requise")
                                 .rulesApplied(List.of("Règle Accident Carrosserie"))
@@ -129,7 +134,7 @@ public class RulesServiceContractTest {
 
                 RulesEvaluateResponse response = rulesServiceClient.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo("ETUDE");
+                assertThat(response.getDecision()).isEqualTo(ETUDE);
                 assertThat(response.getAmbiguous()).isTrue();
         }
 

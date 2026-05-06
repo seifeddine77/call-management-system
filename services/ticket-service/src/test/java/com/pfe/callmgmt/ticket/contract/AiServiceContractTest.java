@@ -33,6 +33,13 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 public class AiServiceContractTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String KEY_TICKET_ID = "ticket_id";
+    private static final String KEY_TEXT = "text";
+    private static final String KEY_TYPE_SINISTRE = "type_sinistre";
+    private static final String KEY_CONFIDENCE = "confidence";
+    private static final String KEY_TRANSCRIPTION = "transcription";
+
     @MockBean
     private AiServiceClient aiServiceClient;
 
@@ -41,13 +48,13 @@ public class AiServiceContractTest {
     void shouldAnalyzeTextAndReturnExpectedFields() {
         // Given — the expected response from ai-service /analyze/
         Map<String, Object> expectedResponse = new HashMap<>();
-        expectedResponse.put("ticket_id", "test-ticket-123");
+        expectedResponse.put(KEY_TICKET_ID, "test-ticket-123");
         expectedResponse.put("piece_reference", "ALT-4892");
-        expectedResponse.put("type_sinistre", "PANNE");
+        expectedResponse.put(KEY_TYPE_SINISTRE, "PANNE");
         expectedResponse.put("type_piece", "MECANIQUE");
         expectedResponse.put("sentiment", "NEGATIF");
         expectedResponse.put("urgency", "HIGH");
-        expectedResponse.put("confidence", 0.92);
+        expectedResponse.put(KEY_CONFIDENCE, 0.92);
         expectedResponse.put("keywords", List.of("alternateur", "panne", "moteur"));
         expectedResponse.put("summary", "Client signale une panne d'alternateur");
 
@@ -55,23 +62,23 @@ public class AiServiceContractTest {
 
         // When — send request matching ai-service contract
         Map<String, String> request = new HashMap<>();
-        request.put("ticket_id", "test-ticket-123");
-        request.put("text", "Mon alternateur ALT-4892 est en panne depuis hier. Le moteur ne démarre plus.");
+        request.put(KEY_TICKET_ID, "test-ticket-123");
+        request.put(KEY_TEXT, "Mon alternateur ALT-4892 est en panne depuis hier. Le moteur ne démarre plus.");
 
         Map<String, Object> response = aiServiceClient.analyzeText(request);
 
         // Then — verify contract response fields
         assertThat(response).isNotNull();
-        assertThat(response).containsKey("ticket_id");
+        assertThat(response).containsKey(KEY_TICKET_ID);
         assertThat(response).containsKey("piece_reference");
-        assertThat(response).containsKey("type_sinistre");
+        assertThat(response).containsKey(KEY_TYPE_SINISTRE);
         assertThat(response).containsKey("sentiment");
-        assertThat(response).containsKey("confidence");
+        assertThat(response).containsKey(KEY_CONFIDENCE);
         assertThat(response).containsKey("keywords");
 
         // Verify types
         assertThat(response.get("piece_reference")).isInstanceOf(String.class);
-        assertThat(response.get("confidence")).isInstanceOf(Number.class);
+        assertThat(response.get(KEY_CONFIDENCE)).isInstanceOf(Number.class);
         assertThat(response.get("keywords")).isInstanceOf(List.class);
 
         verify(aiServiceClient).analyzeText(any());
@@ -81,40 +88,40 @@ public class AiServiceContractTest {
     @DisplayName("Contract: POST /analyze/ → request requires ticket_id and text fields")
     void shouldSendCorrectRequestFieldsToAnalyze() {
         Map<String, Object> mockResponse = new HashMap<>();
-        mockResponse.put("ticket_id", "abc-123");
-        mockResponse.put("type_sinistre", "USURE");
+        mockResponse.put(KEY_TICKET_ID, "abc-123");
+        mockResponse.put(KEY_TYPE_SINISTRE, "USURE");
 
         when(aiServiceClient.analyzeText(any())).thenReturn(mockResponse);
 
         // The contract requires these exact keys
         Map<String, String> request = new HashMap<>();
-        request.put("ticket_id", "abc-123");
-        request.put("text", "Description du sinistre");
+        request.put(KEY_TICKET_ID, "abc-123");
+        request.put(KEY_TEXT, "Description du sinistre");
 
-        assertThat(request).containsKey("ticket_id");
-        assertThat(request).containsKey("text");
+        assertThat(request).containsKey(KEY_TICKET_ID);
+        assertThat(request).containsKey(KEY_TEXT);
 
         Map<String, Object> response = aiServiceClient.analyzeText(request);
         assertThat(response).isNotNull();
-        assertThat(response.get("ticket_id")).isEqualTo("abc-123");
+        assertThat(response.get(KEY_TICKET_ID)).isEqualTo("abc-123");
     }
 
     @Test
     @DisplayName("Contract: POST /analyze/ → handles empty/null text gracefully")
     void shouldHandleMissingTextInAnalyze() {
         Map<String, Object> fallbackResponse = new HashMap<>();
-        fallbackResponse.put("ticket_id", "fallback-123");
-        fallbackResponse.put("type_sinistre", "INCONNU");
-        fallbackResponse.put("confidence", 0.0);
+        fallbackResponse.put(KEY_TICKET_ID, "fallback-123");
+        fallbackResponse.put(KEY_TYPE_SINISTRE, "INCONNU");
+        fallbackResponse.put(KEY_CONFIDENCE, 0.0);
 
         when(aiServiceClient.analyzeText(any())).thenReturn(fallbackResponse);
 
         Map<String, String> request = new HashMap<>();
-        request.put("ticket_id", "fallback-123");
-        request.put("text", "");
+        request.put(KEY_TICKET_ID, "fallback-123");
+        request.put(KEY_TEXT, "");
 
         Map<String, Object> response = aiServiceClient.analyzeText(request);
-        assertThat(response).containsKey("ticket_id");
+        assertThat(response).containsKey(KEY_TICKET_ID);
     }
 
     @Test
@@ -122,11 +129,11 @@ public class AiServiceContractTest {
     void shouldTranscribeAudioAndReturnExpectedFields() {
         // Given — mock response structure from ai-service /transcribe/
         Map<String, Object> expectedResponse = new HashMap<>();
-        expectedResponse.put("ticket_id", "transcription-456");
-        expectedResponse.put("transcription", "Mon moteur ne démarre plus depuis hier matin");
+        expectedResponse.put(KEY_TICKET_ID, "transcription-456");
+        expectedResponse.put(KEY_TRANSCRIPTION, "Mon moteur ne démarre plus depuis hier matin");
         expectedResponse.put("language", "fr");
         expectedResponse.put("duration", 12.5);
-        expectedResponse.put("confidence", 0.95);
+        expectedResponse.put(KEY_CONFIDENCE, 0.95);
 
         when(aiServiceClient.transcribeAudio(any(), anyString())).thenReturn(expectedResponse);
 
@@ -135,9 +142,9 @@ public class AiServiceContractTest {
 
         // Then — verify response structure
         assertThat(response).isNotNull();
-        assertThat(response).containsKey("transcription");
-        assertThat(response.get("transcription")).isInstanceOf(String.class);
-        assertThat((String) response.get("transcription")).isNotBlank();
+        assertThat(response).containsKey(KEY_TRANSCRIPTION);
+        assertThat(response.get(KEY_TRANSCRIPTION)).isInstanceOf(String.class);
+        assertThat((String) response.get(KEY_TRANSCRIPTION)).isNotBlank();
 
         verify(aiServiceClient).transcribeAudio(any(), anyString());
     }

@@ -28,6 +28,10 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TwilioWebhookControllerTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String SYSTEM_TWILIO = "SYSTEM-TWILIO";
+    private static final String TICKET_NUMERO = "T-20260311-0042";
+
     @Mock private TicketService ticketService;
     @Mock private TwilioService twilioService;
     @Mock private TwilioConfig twilioConfig;
@@ -53,11 +57,11 @@ class TwilioWebhookControllerTest {
         // Arrange
         TicketResponse mockTicket = new TicketResponse();
         mockTicket.setId(UUID.randomUUID());
-        mockTicket.setNumero("T-20260311-0042");
+        mockTicket.setNumero(TICKET_NUMERO);
 
-        when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-TWILIO")))
+        when(ticketService.createTicket(any(), eq(null), eq(SYSTEM_TWILIO)))
                 .thenReturn(mockTicket);
-        when(twilioService.generateVoiceResponse("T-20260311-0042"))
+        when(twilioService.generateVoiceResponse(TICKET_NUMERO))
                 .thenReturn("<Response><Record/></Response>");
 
         // Act
@@ -68,8 +72,8 @@ class TwilioWebhookControllerTest {
         // Assert
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).contains("<Record/>");
-        verify(ticketService).createTicket(any(), eq(null), eq("SYSTEM-TWILIO"));
-        verify(twilioService).generateVoiceResponse("T-20260311-0042");
+        verify(ticketService).createTicket(any(), eq(null), eq(SYSTEM_TWILIO));
+        verify(twilioService).generateVoiceResponse(TICKET_NUMERO);
     }
 
     @Test
@@ -79,7 +83,7 @@ class TwilioWebhookControllerTest {
         mockTicket.setId(UUID.randomUUID());
         mockTicket.setNumero("T-20260311-0001");
 
-        when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-TWILIO")))
+        when(ticketService.createTicket(any(), eq(null), eq(SYSTEM_TWILIO)))
                 .thenReturn(mockTicket);
         when(twilioService.generateVoiceResponse(any())).thenReturn("<Response/>");
 
@@ -89,7 +93,7 @@ class TwilioWebhookControllerTest {
         // Verify ticket was created (the clientNom should be "Appelant +33700000000")
         verify(ticketService).createTicket(
                 argThat(req -> req.getClientNom().contains("+33700000000")),
-                eq(null), eq("SYSTEM-TWILIO"));
+                eq(null), eq(SYSTEM_TWILIO));
     }
 
     // ═══════════════════════════════════════

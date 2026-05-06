@@ -36,6 +36,10 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 public abstract class ContractBaseTest {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String ROLE_OPERATOR = "OPERATOR";
+        private static final String PASSWORD_HASH = "$2a$10$hashedpassword";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -51,10 +55,10 @@ public abstract class ContractBaseTest {
                 InternalUserResponse existingUser = InternalUserResponse.builder()
                                 .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440001"))
                                 .email("testoperator")
-                                .passwordHash("$2a$10$hashedpassword")
+                                .passwordHash(PASSWORD_HASH)
                                 .nom("Opérateur Test").prenom("")
                                 .telephone("98111222")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .actif(true)
                                 .build();
 
@@ -65,10 +69,10 @@ public abstract class ContractBaseTest {
                 InternalUserResponse createdUser = InternalUserResponse.builder()
                                 .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440002"))
                                 .email("newuser@test.com")
-                                .passwordHash("$2a$10$hashedpassword")
+                                .passwordHash(PASSWORD_HASH)
                                 .nom("Nouveau Utilisateur").prenom("")
                                 .telephone("98222333")
-                                .role("OPERATOR")
+                                .role(ROLE_OPERATOR)
                                 .actif(true)
                                 .build();
 

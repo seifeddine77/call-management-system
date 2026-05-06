@@ -37,6 +37,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfSystemProperty(named = "contract.tests", matches = "true")
 public class UserServiceContractTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String ROLE_OPERATOR = "OPERATOR";
+
     @Autowired
     private UserServiceClient userServiceClient;
 
@@ -54,7 +57,7 @@ public class UserServiceContractTest {
         assertThat(user.getEmail()).isEqualTo("testoperator");
         assertThat(user.getPasswordHash()).isNotBlank();
         assertThat(user.getNom()).isEqualTo("Opérateur Test");
-        assertThat(user.getRole()).isEqualTo("OPERATOR");
+        assertThat(user.getRole()).isEqualTo(ROLE_OPERATOR);
         assertThat(user.isActif()).isTrue();
     }
 
@@ -66,7 +69,7 @@ public class UserServiceContractTest {
         request.setPassword("$2a$10$hashedpassword");
         request.setNom("Nouveau Utilisateur"); /* prenom set below */;
         request.setTelephone("98222333");
-        request.setRole("OPERATOR");
+        request.setRole(ROLE_OPERATOR);
 
         ResponseEntity<UserDto> response = userServiceClient.createUser(request);
 
@@ -77,7 +80,7 @@ public class UserServiceContractTest {
         assertThat(user.getEmail()).isEqualTo("newuser@test.com");
         assertThat(user.getPasswordHash()).isNotBlank();
         assertThat(user.getNom()).isEqualTo("Nouveau Utilisateur");
-        assertThat(user.getRole()).isEqualTo("OPERATOR");
+        assertThat(user.getRole()).isEqualTo(ROLE_OPERATOR);
         assertThat(user.isActif()).isTrue();
     }
 }
