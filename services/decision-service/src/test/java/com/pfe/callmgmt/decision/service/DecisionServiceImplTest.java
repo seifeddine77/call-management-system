@@ -28,6 +28,12 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class DecisionServiceImplTest {
 
+        // --- SonarCloud: extracted string constants ---
+        private static final String FAVORABLE = "FAVORABLE";
+        private static final String DEFAVORABLE = "DEFAVORABLE";
+        private static final String ETUDE = "ETUDE";
+        private static final String SOURCE_RULES = "RULES";
+
         @Mock
         private DecisionRepository decisionRepository;
         @Mock
@@ -69,17 +75,17 @@ class DecisionServiceImplTest {
                 Decision existing = Decision.builder()
                                 .id(UUID.randomUUID())
                                 .ticketId(baseRequest.getTicketId())
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(BigDecimal.valueOf(85.0))
                                 .motif("Test")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .rulesApplied(List.of("Règle 1"))
                                 .build();
                 when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.of(existing));
 
                 DecisionResult result = decisionService.analyze(baseRequest);
 
-                assertThat(result.getDecision()).isEqualTo("FAVORABLE");
+                assertThat(result.getDecision()).isEqualTo(FAVORABLE);
                 assertThat(result.getDecisionId()).isEqualTo(existing.getId());
                 verify(rulesServiceClient, never()).evaluate(any());
         }
@@ -89,10 +95,10 @@ class DecisionServiceImplTest {
         void analyze_cacheHit_returnsCachedResult() throws Exception {
                 // Pre-compute JSON BEFORE mock stubbing to avoid spy interference
                 DecisionResult cached = DecisionResult.builder()
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(90.0)
                                 .motif("Cached response")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .rulesApplied(List.of("R1"))
                                 .build();
                 String cachedJson = new ObjectMapper().writeValueAsString(cached);
@@ -104,10 +110,10 @@ class DecisionServiceImplTest {
                 Decision saved = Decision.builder()
                                 .id(UUID.randomUUID())
                                 .ticketId(baseRequest.getTicketId())
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(BigDecimal.valueOf(90.0))
                                 .motif("Cached response")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .rulesApplied(List.of("R1"))
                                 .build();
                 when(decisionRepository.save(any(Decision.class))).thenReturn(saved);
@@ -115,7 +121,7 @@ class DecisionServiceImplTest {
                 DecisionResult result = decisionService.analyze(baseRequest);
 
                 assertThat(result.isCached()).isTrue();
-                assertThat(result.getDecision()).isEqualTo("FAVORABLE");
+                assertThat(result.getDecision()).isEqualTo(FAVORABLE);
                 verify(rulesServiceClient, never()).evaluate(any());
         }
 
@@ -127,7 +133,7 @@ class DecisionServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
 
         RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                .decision("FAVORABLE")
+                .decision(FAVORABLE)
                 .score(85.0)
                 .motif("Véhicule récent, client premium")
                 .rulesApplied(List.of("Règle garantie standard"))
@@ -139,18 +145,18 @@ class DecisionServiceImplTest {
         Decision saved = Decision.builder()
                 .id(UUID.randomUUID())
                 .ticketId(baseRequest.getTicketId())
-                .decision("FAVORABLE")
+                .decision(FAVORABLE)
                 .score(BigDecimal.valueOf(85.0))
                 .motif("Véhicule récent, client premium")
-                .source("RULES")
+                .source(SOURCE_RULES)
                 .rulesApplied(List.of("Règle garantie standard"))
                 .build();
         when(decisionRepository.save(any(Decision.class))).thenReturn(saved);
 
         DecisionResult result = decisionService.analyze(baseRequest);
 
-        assertThat(result.getDecision()).isEqualTo("FAVORABLE");
-        assertThat(result.getSource()).isEqualTo("RULES");
+        assertThat(result.getDecision()).isEqualTo(FAVORABLE);
+        assertThat(result.getSource()).isEqualTo(SOURCE_RULES);
         assertThat(result.isCached()).isFalse();
         verify(valueOperations).set(anyString(), anyString(), any());
     }
@@ -163,7 +169,7 @@ class DecisionServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
 
         RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                .decision("DEFAVORABLE")
+                .decision(DEFAVORABLE)
                 .score(70.0)
                 .motif("Kilométrage trop élevé")
                 .rulesApplied(List.of("Règle kilométrage"))
@@ -175,16 +181,16 @@ class DecisionServiceImplTest {
         Decision saved = Decision.builder()
                 .id(UUID.randomUUID())
                 .ticketId(baseRequest.getTicketId())
-                .decision("DEFAVORABLE")
+                .decision(DEFAVORABLE)
                 .score(BigDecimal.valueOf(70.0))
                 .motif("Kilométrage trop élevé")
-                .source("RULES")
+                .source(SOURCE_RULES)
                 .build();
         when(decisionRepository.save(any(Decision.class))).thenReturn(saved);
 
         DecisionResult result = decisionService.analyze(baseRequest);
 
-        assertThat(result.getDecision()).isEqualTo("DEFAVORABLE");
+        assertThat(result.getDecision()).isEqualTo(DEFAVORABLE);
     }
 
     @Test
@@ -195,7 +201,7 @@ class DecisionServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
 
         RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
-                .decision("ETUDE")
+                .decision(ETUDE)
                 .score(45.0)
                 .motif("Conflit entre règles")
                 .rulesApplied(List.of("R1", "R2"))
@@ -207,16 +213,16 @@ class DecisionServiceImplTest {
         Decision saved = Decision.builder()
                 .id(UUID.randomUUID())
                 .ticketId(baseRequest.getTicketId())
-                .decision("ETUDE")
+                .decision(ETUDE)
                 .score(BigDecimal.valueOf(45.0))
                 .motif("Conflit entre règles")
-                .source("RULES")
+                .source(SOURCE_RULES)
                 .build();
         when(decisionRepository.save(any(Decision.class))).thenReturn(saved);
 
         DecisionResult result = decisionService.analyze(baseRequest);
 
-        assertThat(result.getDecision()).isEqualTo("ETUDE");
+        assertThat(result.getDecision()).isEqualTo(ETUDE);
         assertThat(result.isAmbiguous()).isTrue();
     }
 
@@ -231,16 +237,16 @@ class DecisionServiceImplTest {
         Decision saved = Decision.builder()
                 .id(UUID.randomUUID())
                 .ticketId(baseRequest.getTicketId())
-                .decision("ETUDE")
+                .decision(ETUDE)
                 .score(BigDecimal.ZERO)
                 .motif("Impossible de joindre le moteur de règles — analyse manuelle requise")
-                .source("RULES")
+                .source(SOURCE_RULES)
                 .build();
         when(decisionRepository.save(any(Decision.class))).thenReturn(saved);
 
         DecisionResult result = decisionService.analyze(baseRequest);
 
-        assertThat(result.getDecision()).isEqualTo("ETUDE");
+        assertThat(result.getDecision()).isEqualTo(ETUDE);
         assertThat(result.isAmbiguous()).isTrue();
     }
 
@@ -251,23 +257,23 @@ class DecisionServiceImplTest {
                 Decision decision = Decision.builder()
                                 .id(decisionId)
                                 .ticketId(UUID.randomUUID())
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(BigDecimal.valueOf(85.0))
                                 .motif("Test")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .build();
                 when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
                 when(decisionRepository.save(any(Decision.class))).thenAnswer(inv -> inv.getArgument(0));
 
                 OverrideRequest req = new OverrideRequest();
-                req.setFinalDecision("FAVORABLE");
+                req.setFinalDecision(FAVORABLE);
                 req.setMotif("Confirmé par l'opérateur");
                 req.setOperateurId(UUID.randomUUID());
                 req.setOperateurName("Jean Dupont");
 
                 DecisionResult result = decisionService.acceptDecision(decisionId, req);
 
-                assertThat(result.getFinalDecision()).isEqualTo("FAVORABLE");
+                assertThat(result.getFinalDecision()).isEqualTo(FAVORABLE);
                 verify(rabbitTemplate).convertAndSend(eq("decision.exchange"), eq("decision.finalized"), any(Object.class));
         }
 
@@ -278,22 +284,22 @@ class DecisionServiceImplTest {
                 Decision decision = Decision.builder()
                                 .id(decisionId)
                                 .ticketId(UUID.randomUUID())
-                                .decision("FAVORABLE")
+                                .decision(FAVORABLE)
                                 .score(BigDecimal.valueOf(85.0))
                                 .motif("Test")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .build();
                 when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
                 when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
                 OverrideRequest req = new OverrideRequest();
-                req.setFinalDecision("DEFAVORABLE");
+                req.setFinalDecision(DEFAVORABLE);
                 req.setMotif("Pièce usure normale, pas de garantie");
                 req.setOperateurId(UUID.randomUUID());
 
                 DecisionResult result = decisionService.rejectDecision(decisionId, req);
 
-                assertThat(result.getFinalDecision()).isEqualTo("DEFAVORABLE");
+                assertThat(result.getFinalDecision()).isEqualTo(DEFAVORABLE);
         }
 
         @Test
@@ -303,13 +309,13 @@ class DecisionServiceImplTest {
                 Decision decision = Decision.builder()
                                 .id(decisionId)
                                 .ticketId(UUID.randomUUID())
-                                .decision("FAVORABLE")
-                                .finalDecision("FAVORABLE")
+                                .decision(FAVORABLE)
+                                .finalDecision(FAVORABLE)
                                 .build();
                 when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
 
                 OverrideRequest req = new OverrideRequest();
-                req.setFinalDecision("DEFAVORABLE");
+                req.setFinalDecision(DEFAVORABLE);
                 req.setMotif("Changement d'avis");
 
                 assertThatThrownBy(() -> decisionService.acceptDecision(decisionId, req))
@@ -324,16 +330,16 @@ class DecisionServiceImplTest {
                 Decision decision = Decision.builder()
                                 .id(UUID.randomUUID())
                                 .ticketId(ticketId)
-                                .decision("DEFAVORABLE")
+                                .decision(DEFAVORABLE)
                                 .score(BigDecimal.valueOf(70.0))
                                 .motif("Test")
-                                .source("RULES")
+                                .source(SOURCE_RULES)
                                 .build();
                 when(decisionRepository.findByTicketId(ticketId)).thenReturn(Optional.of(decision));
 
                 DecisionResult result = decisionService.getByTicketId(ticketId);
 
-                assertThat(result.getDecision()).isEqualTo("DEFAVORABLE");
+                assertThat(result.getDecision()).isEqualTo(DEFAVORABLE);
                 assertThat(result.getTicketId()).isEqualTo(ticketId);
         }
 
