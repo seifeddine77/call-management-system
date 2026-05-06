@@ -349,8 +349,8 @@ export default function PublicFormPage() {
               <form ref={formRef} onSubmit={handleSubmit}>
                 {/* Nom */}
                 <div className={`cf-field ${isFieldActive('nom') ? 'active' : ''}`}>
-                  <label>Nom complet<span className="cf-required">*</span></label>
-                  <input className="cf-input" type="text" value={form.nom}
+                  <label htmlFor="pf-nom">Nom complet<span className="cf-required">*</span></label>
+                  <input id="pf-nom" className="cf-input" type="text" value={form.nom}
                     onChange={e => setForm(f => ({...f, nom: e.target.value}))}
                     onFocus={() => setFocusedField('nom')} onBlur={() => setFocusedField(null)} required />
                 </div>
@@ -358,14 +358,14 @@ export default function PublicFormPage() {
                 {/* Tel + Email row */}
                 <div className="cf-row">
                   <div className={`cf-field ${isFieldActive('telephone') ? 'active' : ''}`}>
-                    <label>Téléphone</label>
-                    <input className="cf-input" type="tel" value={form.telephone}
+                    <label htmlFor="pf-tel">Téléphone</label>
+                    <input id="pf-tel" className="cf-input" type="tel" value={form.telephone}
                       onChange={e => setForm(f => ({...f, telephone: e.target.value}))}
                       onFocus={() => setFocusedField('telephone')} onBlur={() => setFocusedField(null)} />
                   </div>
                   <div className={`cf-field ${isFieldActive('email') ? 'active' : ''}`}>
-                    <label>Email</label>
-                    <input className="cf-input" type="email" value={form.email}
+                    <label htmlFor="pf-email">Email</label>
+                    <input id="pf-email" className="cf-input" type="email" value={form.email}
                       onChange={e => setForm(f => ({...f, email: e.target.value}))}
                       onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField(null)} />
                   </div>
@@ -373,8 +373,8 @@ export default function PublicFormPage() {
 
                 {/* Agence */}
                 <div className="cf-field select-field">
-                  <label>Agence<span className="cf-required">*</span></label>
-                  <select className="cf-select" value={form.agenceId}
+                  <label htmlFor="pf-agence">Agence<span className="cf-required">*</span></label>
+                  <select id="pf-agence" className="cf-select" value={form.agenceId}
                     onChange={e => setForm(f => ({...f, agenceId: e.target.value}))} required>
                     <option value="">— Sélectionner —</option>
                     {agences.map(a => <option key={a.id} value={a.id}>{a.nom}{a.ville ? ` — ${a.ville}` : ''}</option>)}
@@ -384,8 +384,8 @@ export default function PublicFormPage() {
 
                 {/* Description */}
                 <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''}`}>
-                  <label>Description du problème<span className="cf-required">*</span></label>
-                  <textarea className="cf-textarea" value={form.description}
+                  <label htmlFor="pf-desc">Description du problème<span className="cf-required">*</span></label>
+                  <textarea id="pf-desc" className="cf-textarea" value={form.description}
                     onChange={e => setForm(f => ({...f, description: e.target.value}))}
                     onFocus={() => setFocusedField('description')} onBlur={() => setFocusedField(null)} required />
                 </div>

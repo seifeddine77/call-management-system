@@ -350,24 +350,24 @@ export default function RulesPage() {
     <div className="space-y-3.5">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="field-label block">Nom *</label>
-          <input className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
+          <label htmlFor="rule-nom" className="field-label block">Nom *</label>
+          <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
           {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
         </div>
-        <div><label className="field-label block">Priorité</label><input className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
+        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
       </div>
       <div>
-        <label className="field-label block">Description *</label>
-        <input className={`aurora-input ${formErrors.description ? 'border-rose-500/60' : ''}`} value={f.description} onChange={e => { setF(p => ({ ...p, description: e.target.value })); setFormErrors(e2 => ({ ...e2, description: undefined })); }} />
+        <label htmlFor="rule-desc" className="field-label block">Description *</label>
+        <input id="rule-desc" className={`aurora-input ${formErrors.description ? 'border-rose-500/60' : ''}`} value={f.description} onChange={e => { setF(p => ({ ...p, description: e.target.value })); setFormErrors(e2 => ({ ...e2, description: undefined })); }} />
         {formErrors.description && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.description}</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="field-label block">Action</label>
-          <select className="aurora-select" value={f.action} onChange={e => setF(p => ({ ...p, action: e.target.value as 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE' }))}>
+        <div><label htmlFor="rule-action" className="field-label block">Action</label>
+          <select id="rule-action" className="aurora-select" value={f.action} onChange={e => setF(p => ({ ...p, action: e.target.value as 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE' }))}>
             <option value="FAVORABLE">Favorable</option><option value="DEFAVORABLE">Défavorable</option><option value="ETUDE">Étude</option>
           </select>
         </div>
-        <div><label className="field-label block">Motif action</label><input className="aurora-input" value={f.actionMotif} onChange={e => setF(p => ({ ...p, actionMotif: e.target.value }))} /></div>
+        <div><label htmlFor="rule-motif" className="field-label block">Motif action</label><input id="rule-motif" className="aurora-input" value={f.actionMotif} onChange={e => setF(p => ({ ...p, actionMotif: e.target.value }))} /></div>
       </div>
       <ConditionsEditor conditions={f.conditions} onChange={c => setF(p => ({ ...p, conditions: c }))} refs={refs} formErrors={formErrors} />
     </div>
