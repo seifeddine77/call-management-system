@@ -21,6 +21,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsControllerTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String PERIOD_7D = "7d";
+
     @Mock
     private AnalyticsService analyticsService;
 
@@ -35,16 +38,16 @@ class AnalyticsControllerTest {
                 .tauxResolution(60.0).tempsMoyenMinutes(15.0)
                 .decisionsAiFavorable(30).decisionsAiDefavorable(10)
                 .ticketsCall(40).ticketsEmail(30).ticketsWeb(30)
-                .period("7d").build();
+                .period(PERIOD_7D).build();
 
-        when(analyticsService.getKpis("7d")).thenReturn(kpi);
+        when(analyticsService.getKpis(PERIOD_7D)).thenReturn(kpi);
 
-        ResponseEntity<KpiResponse> response = controller.getKpis("7d");
+        ResponseEntity<KpiResponse> response = controller.getKpis(PERIOD_7D);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getTotalTickets()).isEqualTo(100);
-        assertThat(response.getBody().getPeriod()).isEqualTo("7d");
+        assertThat(response.getBody().getPeriod()).isEqualTo(PERIOD_7D);
     }
 
     @Test
@@ -65,9 +68,9 @@ class AnalyticsControllerTest {
                 HourlyData.builder().label("2026-03-12").count(50).build(),
                 HourlyData.builder().label("2026-03-11").count(40).build()
         );
-        when(analyticsService.getTicketsPerDay("7d")).thenReturn(data);
+        when(analyticsService.getTicketsPerDay(PERIOD_7D)).thenReturn(data);
 
-        ResponseEntity<List<HourlyData>> response = controller.getTicketsPerDay("7d");
+        ResponseEntity<List<HourlyData>> response = controller.getTicketsPerDay(PERIOD_7D);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).hasSize(2);
@@ -79,9 +82,9 @@ class AnalyticsControllerTest {
         DailyStat stat = DailyStat.builder()
                 .date(LocalDate.now()).totalTickets(55)
                 .ticketsResolus(30).build();
-        when(analyticsService.getDailyStats("7d")).thenReturn(List.of(stat));
+        when(analyticsService.getDailyStats(PERIOD_7D)).thenReturn(List.of(stat));
 
-        ResponseEntity<List<DailyStat>> response = controller.getDailyStats("7d");
+        ResponseEntity<List<DailyStat>> response = controller.getDailyStats(PERIOD_7D);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).hasSize(1);
