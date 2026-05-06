@@ -26,6 +26,8 @@ from chromadb.utils import embedding_functions
 from app.core.config import settings
 from app.rag.knowledge_base import KNOWLEDGE_DOCUMENTS
 
+_CONTENT_TYPE_JSON = "application/json"
+
 # DB imports for persistent feedback
 try:
     from sqlalchemy import text as sa_text
@@ -603,7 +605,7 @@ def record_feedback(question: str, answer: str, rating: str, group_name: str = "
             ), {"q": question, "a": answer[:200], "r": rating, "g": group_name})
             db.commit()
             db.close()
-            logger.info(f"💾 Feedback persisted to DB")
+            logger.info("💾 Feedback persisted to DB")
         except Exception as e:
             logger.warning(f"⚠️ Could not persist feedback to DB: {e}")
 
@@ -707,7 +709,6 @@ def _resolve_followup(question: str, group_name: str) -> str:
         # Get the last topic discussed
         last = history[-1]
         last_question = last['question']
-        last_answer = last['answer'][:150]
 
         # Extract key topic from last exchange
         enriched = f"{question} (contexte: {last_question})"
@@ -749,7 +750,7 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
                         f"{settings.LLM_BASE_URL}/chat/completions",
                         headers={
                             "Authorization": f"Bearer {settings.LLM_API_KEY}",
-                            "Content-Type": "application/json",
+                            "Content-Type": _CONTENT_TYPE_JSON,
                         },
                         json={
                             "model": settings.LLM_MODEL,
@@ -789,7 +790,7 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
                     f"{settings.OPENAI_BASE_URL}/chat/completions",
                     headers={
                         "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-                        "Content-Type": "application/json",
+                        "Content-Type": _CONTENT_TYPE_JSON,
                     },
                     json={
                         "model": settings.OPENAI_MODEL,
@@ -824,7 +825,7 @@ async def warmup_llm():
                 f"{settings.LLM_BASE_URL}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {settings.LLM_API_KEY}",
-                    "Content-Type": "application/json",
+                    "Content-Type": _CONTENT_TYPE_JSON,
                 },
                 json={
                     "model": settings.LLM_MODEL,

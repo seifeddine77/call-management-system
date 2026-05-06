@@ -1,7 +1,6 @@
 package com.pfe.callmgmt.ticket.controller;
 
 import com.pfe.callmgmt.ticket.client.AiServiceClient;
-import com.pfe.callmgmt.ticket.config.TwilioConfig;
 import com.pfe.callmgmt.ticket.dto.TicketResponse;
 import com.pfe.callmgmt.ticket.service.AudioEncryptionService;
 import com.pfe.callmgmt.ticket.service.TicketService;
@@ -34,7 +33,6 @@ class TwilioWebhookControllerTest {
 
     @Mock private TicketService ticketService;
     @Mock private TwilioService twilioService;
-    @Mock private TwilioConfig twilioConfig;
     @Mock private AiServiceClient aiServiceClient;
     @Mock private AudioEncryptionService audioEncryptionService;
     @Mock private ObjectMapper objectMapper;
@@ -44,7 +42,7 @@ class TwilioWebhookControllerTest {
     @BeforeEach
     void setUp() {
         controller = new TwilioWebhookController(
-                ticketService, twilioService, twilioConfig, aiServiceClient, audioEncryptionService, objectMapper);
+                ticketService, twilioService, aiServiceClient, audioEncryptionService, objectMapper);
     }
 
     // ═══════════════════════════════════════

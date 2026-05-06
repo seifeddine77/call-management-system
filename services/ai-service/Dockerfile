@@ -10,7 +10,7 @@ WORKDIR /app
 # System deps — ffmpeg for whisper, gcc for psycopg2, git for pip git installs
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ffmpeg libpq-dev gcc git curl && \
+        curl ffmpeg gcc git libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Pin pip<24 to keep pkg_resources working
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --timeout=300 --retries=5 \
 RUN pip install --no-cache-dir tiktoken==0.6.0
 
 # Whisper's heavy deps FIRST
-RUN pip install --no-cache-dir more-itertools tqdm regex numba "numpy<2" transformers
+RUN pip install --no-cache-dir more-itertools numba "numpy<2" regex tqdm transformers
 
 # openai-whisper from GitHub (PyPI sdist is broken, GitHub uses pyproject.toml)
 RUN pip install --no-cache-dir --no-deps "openai-whisper @ git+https://github.com/openai/whisper.git@main"
@@ -43,7 +43,8 @@ RUN pip install --no-cache-dir chromadb==0.5.23 sentence-transformers==3.0.1
 RUN python -c "import whisper; whisper.load_model('base')" && \
     echo 'Whisper base model cached'
 # SentenceTransformer embeddings (~90MB) — cached in /root/.cache/torch/sentence_transformers/
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')" && \
+RUN python -c \
+    "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')" && \
     echo 'SentenceTransformer model cached'
 
 # Lightweight app deps

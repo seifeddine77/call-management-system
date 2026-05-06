@@ -61,8 +61,8 @@ POSITIVE_EXPRESSIONS = [
 
 # Regex patterns for piece references
 PIECE_REF_PATTERNS = [
-    re.compile(r"[A-Z]{2,4}-[0-9]{4,8}"),       # e.g. ALT-4892, AB-12345
-    re.compile(r"[A-Z]{2,4}\.[0-9]{4,8}"),       # e.g. ALT.4892
+    re.compile(r"[A-Z]{2,4}-\d{4,8}"),       # e.g. ALT-4892, AB-12345
+    re.compile(r"[A-Z]{2,4}\.\d{4,8}"),       # e.g. ALT.4892
 ]
 
 
@@ -133,7 +133,7 @@ def extract_keywords_spacy(text: str, nlp) -> List[str]:
             cleaned = re.sub(r"[^\w]", "", word.lower())
             if len(cleaned) > 3:
                 words.add(cleaned)
-        return sorted(list(words))[:10]
+        return sorted(words)[:10]
 
     doc = nlp(text)
     keywords = set()
@@ -149,7 +149,7 @@ def extract_keywords_spacy(text: str, nlp) -> List[str]:
             keywords.add(token.lemma_.lower())
 
     # Deduplicate and return top 10
-    return sorted(list(keywords))[:10]
+    return sorted(keywords)[:10]
 
 
 # ── Endpoint ────────────────────────────────────────────────────

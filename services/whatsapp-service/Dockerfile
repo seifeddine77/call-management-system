@@ -2,11 +2,11 @@ FROM node:22-alpine
 
 # Installer Chromium pour whatsapp-web.js (puppeteer)
 RUN apk add --no-cache \
+    ca-certificates \
     chromium \
-    nss \
     freetype \
     harfbuzz \
-    ca-certificates \
+    nss \
     ttf-freefont
 
 # Configurer Puppeteer pour utiliser Chromium installé
