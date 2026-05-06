@@ -30,6 +30,8 @@ import java.util.UUID;
 @Tag(name = "Paramétrage Références", description = "CDC 4.B — CRUD des listes de référence")
 public class ReferenceItemController {
 
+    private static final String MSG_ITEM_NOT_FOUND = "Élément non trouvé: ";
+
     private final ReferenceItemRepository repository;
 
     /**
@@ -87,7 +89,7 @@ public class ReferenceItemController {
     public ResponseEntity<ReferenceItem> update(@PathVariable UUID id,
                                                  @Valid @RequestBody ReferenceItemRequest request) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Élément non trouvé: " + id));
+                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
 
         item.setLabel(request.getLabel());
         item.setDescription(request.getDescription());
@@ -106,7 +108,7 @@ public class ReferenceItemController {
     @Operation(summary = "Activer ou désactiver un élément de référence")
     public ResponseEntity<ReferenceItem> toggle(@PathVariable UUID id) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Élément non trouvé: " + id));
+                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
 
         item.setActif(!item.getActif());
         item = repository.save(item);
@@ -122,7 +124,7 @@ public class ReferenceItemController {
     @Operation(summary = "Supprimer un élément de référence")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Élément non trouvé: " + id));
+                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
         repository.delete(item);
         log.info("🗑️ Référence supprimée: {} / {}", item.getCategory(), item.getCode());
         return ResponseEntity.noContent().build();

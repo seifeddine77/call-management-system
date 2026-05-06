@@ -30,6 +30,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RuleService {
 
+    private static final String DECISION_ETUDE = "ETUDE";
+    private static final String DECISION_FAVORABLE = "FAVORABLE";
+    private static final String DECISION_DEFAVORABLE = "DEFAVORABLE";
+    private static final String MSG_RULE_NOT_FOUND = "Règle non trouvée: ";
+
     private final RuleRepository ruleRepository;
     private final RuleVersionRepository ruleVersionRepository;
     private final RuleEvaluator ruleEvaluator;
@@ -70,7 +75,7 @@ public class RuleService {
     @Transactional
     public RuleResponse updateRule(UUID ruleId, UpdateRuleRequest request, UUID userId, String userName) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException("Règle non trouvée: " + ruleId));
+                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
 
         // Sauvegarder l'ancienne version avant modification
         RuleVersion version = RuleVersion.builder()
@@ -110,7 +115,7 @@ public class RuleService {
     @Transactional
     public void deleteRule(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException("Règle non trouvée: " + ruleId));
+                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
         ruleRepository.delete(rule);
         log.info("🗑️ Règle '{}' supprimée (id={})", rule.getNom(), ruleId);
     }
@@ -120,7 +125,7 @@ public class RuleService {
      */
     public RuleResponse findById(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException("Règle non trouvée: " + ruleId));
+                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
         return toResponse(rule);
     }
 
@@ -140,7 +145,7 @@ public class RuleService {
     @Transactional
     public RuleResponse toggleRule(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException("Règle non trouvée: " + ruleId));
+                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
 
         rule.setActif(!rule.getActif());
         rule.setUpdatedAt(LocalDateTime.now());
@@ -156,7 +161,7 @@ public class RuleService {
     public List<RuleVersion> getHistory(UUID ruleId) {
         // Vérifier que la règle existe
         ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException("Règle non trouvée: " + ruleId));
+                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
         return ruleVersionRepository.findByRuleIdOrderByVersionDesc(ruleId);
     }
 
@@ -183,7 +188,7 @@ public class RuleService {
         if (activeRules.isEmpty()) {
             log.warn("⚠️ Aucune règle active — évaluation impossible");
             return EvaluateResponse.builder()
-                    .decision("ETUDE")
+                    .decision(DECISION_ETUDE)
                     .score(0.0)
                     .motif("Aucune règle active configurée. Évaluation manuelle requise.")
                     .rulesApplied(List.of())
@@ -208,7 +213,7 @@ public class RuleService {
         if (matchedRules.isEmpty()) {
             log.info("📊 Évaluation: 0/{} règles matchées → ETUDE", activeRules.size());
             return EvaluateResponse.builder()
-                    .decision("ETUDE")
+                    .decision(DECISION_ETUDE)
                     .score(30.0)
                     .motif("Aucune règle d'assurance ne correspond à cette demande. Analyse IA complémentaire recommandée.")
                     .rulesApplied(List.of())
@@ -226,8 +231,8 @@ public class RuleService {
         Map<String, Long> actionCounts = matchedRules.stream()
                 .collect(Collectors.groupingBy(Rule::getAction, Collectors.counting()));
 
-        boolean hasFavorable = actionCounts.containsKey("FAVORABLE");
-        boolean hasDefavorable = actionCounts.containsKey("DEFAVORABLE");
+        boolean hasFavorable = actionCounts.containsKey(DECISION_FAVORABLE);
+        boolean hasDefavorable = actionCounts.containsKey(DECISION_DEFAVORABLE);
         // Note: le cas ETUDE est géré par le else final (toutes les règles sont ETUDE)
 
         // Déterminer la décision finale
@@ -245,13 +250,13 @@ public class RuleService {
             score = Math.min(70.0, Math.max(35.0, conflictBase + transcriptionBonus));
             motif = String.format(
                     "Conflit entre règles (%d FAVORABLE, %d DÉFAVORABLE). Décision basée sur la règle la plus prioritaire '%s'. Vérification IA recommandée.",
-                    actionCounts.getOrDefault("FAVORABLE", 0L),
-                    actionCounts.getOrDefault("DEFAVORABLE", 0L),
+                    actionCounts.getOrDefault(DECISION_FAVORABLE, 0L),
+                    actionCounts.getOrDefault(DECISION_DEFAVORABLE, 0L),
                     highestPriority.getNom());
             ambiguous = true;
 
         } else if (hasFavorable && !hasDefavorable) {
-            finalDecision = "FAVORABLE";
+            finalDecision = DECISION_FAVORABLE;
             // Formule enrichie : base + bonus règles + bonus age/km
             double baseScore = 55.0;
             double rulesBonus = Math.min(20.0, matchedRules.size() * 8.0);
@@ -278,7 +283,7 @@ public class RuleService {
             ambiguous = false;
 
         } else if (hasDefavorable && !hasFavorable) {
-            finalDecision = "DEFAVORABLE";
+            finalDecision = DECISION_DEFAVORABLE;
             // Formule enrichie pour DEFAVORABLE
             double baseScore = 55.0;
             double rulesBonus = Math.min(20.0, matchedRules.size() * 8.0);
@@ -295,7 +300,7 @@ public class RuleService {
 
         } else {
             // Toutes les règles sont ETUDE
-            finalDecision = "ETUDE";
+            finalDecision = DECISION_ETUDE;
             score = 45.0;
             motif = matchedRules.get(0).getActionMotif();
             ambiguous = true;

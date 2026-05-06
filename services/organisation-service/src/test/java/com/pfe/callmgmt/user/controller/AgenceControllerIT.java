@@ -25,6 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AgenceControllerIT {
 
+        private static final String API_AGENCES = "/api/agences";
+        private static final String JSON_NOM = "$.nom";
+        private static final String PHONE_DEFAULT = "70000000";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -56,11 +60,11 @@ class AgenceControllerIT {
                 request.setTelephone("71000111");
                 request.setEmail("tunis@callmgmt.com");
 
-                MvcResult result = mockMvc.perform(post("/api/agences")
+                MvcResult result = mockMvc.perform(post(API_AGENCES)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.nom").value("Agence Tunis"))
+                                .andExpect(jsonPath(JSON_NOM).value("Agence Tunis"))
                                 .andExpect(jsonPath("$.actif").value(true))
                                 .andExpect(jsonPath("$.id").isNotEmpty())
                                 .andReturn();
@@ -75,7 +79,7 @@ class AgenceControllerIT {
                 AgenceRequest request = new AgenceRequest();
                 // nom is @NotBlank, so empty should fail
 
-                mockMvc.perform(post("/api/agences")
+                mockMvc.perform(post(API_AGENCES)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest());
@@ -99,7 +103,7 @@ class AgenceControllerIT {
                                 .build();
                 agenceRepository.save(agence);
 
-                mockMvc.perform(get("/api/agences"))
+                mockMvc.perform(get(API_AGENCES))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.content").isArray())
                                 .andExpect(jsonPath("$.content[0].nom").value("Agence Sfax"));
@@ -115,7 +119,7 @@ class AgenceControllerIT {
 
                 mockMvc.perform(get("/api/agences/{id}", agence.getId()))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.nom").value("Agence Sousse"));
+                                .andExpect(jsonPath(JSON_NOM).value("Agence Sousse"));
         }
 
         @Test
@@ -135,7 +139,7 @@ class AgenceControllerIT {
         @Order(6)
         void updateAgence_returns200() throws Exception {
                 Agence agence = agenceRepository.save(Agence.builder()
-                                .nom("Old Name").adresse("Old Address").telephone("70000000")
+                                .nom("Old Name").adresse("Old Address").telephone(PHONE_DEFAULT)
                                 .email("old@callmgmt.com").actif(true).build());
 
                 AgenceRequest update = new AgenceRequest();
@@ -148,7 +152,7 @@ class AgenceControllerIT {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(update)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.nom").value("New Name"));
+                                .andExpect(jsonPath(JSON_NOM).value("New Name"));
         }
 
         // ─────────────────────────────────────────────────────
@@ -160,7 +164,7 @@ class AgenceControllerIT {
         @Order(7)
         void deactivateAgence_returns204() throws Exception {
                 Agence agence = agenceRepository.save(Agence.builder()
-                                .nom("To Deactivate").adresse("Address").telephone("70000000")
+                                .nom("To Deactivate").adresse("Address").telephone(PHONE_DEFAULT)
                                 .email("deactivate@callmgmt.com").actif(true).build());
 
                 mockMvc.perform(delete("/api/agences/{id}", agence.getId()))
@@ -185,7 +189,7 @@ class AgenceControllerIT {
                 request.setEmail("stock@callmgmt.com");
                 request.setStockDescription("Pièces mécaniques: 450 unités, Électriques: 120");
 
-                mockMvc.perform(post("/api/agences")
+                mockMvc.perform(post(API_AGENCES)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
@@ -198,7 +202,7 @@ class AgenceControllerIT {
         @Order(9)
         void updateAgence_stock_returns200() throws Exception {
                 Agence agence = agenceRepository.save(Agence.builder()
-                                .nom("Agence MàJ Stock").adresse("Old Addr").telephone("70000000")
+                                .nom("Agence MàJ Stock").adresse("Old Addr").telephone(PHONE_DEFAULT)
                                 .email("majstock@callmgmt.com").stockDescription("Ancien stock").actif(true).build());
 
                 AgenceRequest update = new AgenceRequest();

@@ -27,6 +27,11 @@ import java.util.UUID;
 @Transactional
 public class UserServiceImpl implements UserService {
 
+    private static final String ROLE_OPERATOR = "OPERATOR";
+    private static final String ROLE_SUPERVISOR = "SUPERVISOR";
+    private static final String MSG_AGENCE_NOT_FOUND = "Agence non trouvée: ";
+    private static final String MSG_USER_NOT_FOUND = "Utilisateur non trouvé: ";
+
     private final UserRepository userRepository;
     private final AgenceRepository agenceRepository;
     private final PasswordEncoder passwordEncoder;
@@ -68,7 +73,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         // CDC 1.A — Un OPERATOR ou SUPERVISOR DOIT être rattaché à une agence
-        if (("OPERATOR".equals(request.getRole()) || "SUPERVISOR".equals(request.getRole()))
+        if ((ROLE_OPERATOR.equals(request.getRole()) || ROLE_SUPERVISOR.equals(request.getRole()))
                 && request.getAgenceId() == null) {
             throw new IllegalArgumentException(
                     "Un " + request.getRole() + " doit être rattaché à une agence");
@@ -77,7 +82,7 @@ public class UserServiceImpl implements UserService {
         // Assign agence if provided
         if (request.getAgenceId() != null) {
             Agence agence = agenceRepository.findById(request.getAgenceId())
-                    .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + request.getAgenceId()));
+                    .orElseThrow(() -> new EntityNotFoundException(MSG_AGENCE_NOT_FOUND + request.getAgenceId()));
             user.setAgence(agence);
         }
 
@@ -123,7 +128,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         // CDC 1.A — Un OPERATOR ou SUPERVISOR DOIT être rattaché à une agence
-        if (("OPERATOR".equals(request.getRole()) || "SUPERVISOR".equals(request.getRole()))
+        if ((ROLE_OPERATOR.equals(request.getRole()) || ROLE_SUPERVISOR.equals(request.getRole()))
                 && request.getAgenceId() == null) {
             throw new IllegalArgumentException(
                     "Un " + request.getRole() + " doit être rattaché à une agence");
@@ -131,7 +136,7 @@ public class UserServiceImpl implements UserService {
 
         if (request.getAgenceId() != null) {
             Agence agence = agenceRepository.findById(request.getAgenceId())
-                    .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + request.getAgenceId()));
+                    .orElseThrow(() -> new EntityNotFoundException(MSG_AGENCE_NOT_FOUND + request.getAgenceId()));
             user.setAgence(agence);
         }
 
@@ -160,10 +165,10 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateUser(UUID id, UserRequest request, UUID requesterId, String requesterRole,
             UUID requesterAgenceId) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + id));
 
         // RBAC enforcement
-        if ("OPERATOR".equals(requesterRole)) {
+        if (ROLE_OPERATOR.equals(requesterRole)) {
             // Operator can only update self, no role change
             if (!id.equals(requesterId)) {
                 throw new AccessDeniedException("Un opérateur ne peut modifier que son propre profil");
@@ -172,7 +177,7 @@ public class UserServiceImpl implements UserService {
             if (request.getRole() != null && !request.getRole().equals(user.getRole())) {
                 throw new AccessDeniedException("Un opérateur ne peut pas changer son rôle");
             }
-        } else if ("SUPERVISOR".equals(requesterRole)) {
+        } else if (ROLE_SUPERVISOR.equals(requesterRole)) {
             // Supervisor can update users in their own agence
             UUID userAgenceId = user.getAgence() != null ? user.getAgence().getId() : null;
             if (userAgenceId != null && !userAgenceId.equals(requesterAgenceId)) {
@@ -197,7 +202,7 @@ public class UserServiceImpl implements UserService {
 
         if (request.getAgenceId() != null) {
             Agence agence = agenceRepository.findById(request.getAgenceId())
-                    .orElseThrow(() -> new EntityNotFoundException("Agence non trouvée: " + request.getAgenceId()));
+                    .orElseThrow(() -> new EntityNotFoundException(MSG_AGENCE_NOT_FOUND + request.getAgenceId()));
             user.setAgence(agence);
         }
 
@@ -208,7 +213,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deactivateUser(UUID id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + id));
         user.setActif(false);
         userRepository.save(user);
         log.info("User deactivated: {}", id);
@@ -218,7 +223,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public UserResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + id));
         return userMapper.toResponse(user);
     }
 
