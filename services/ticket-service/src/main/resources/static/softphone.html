@@ -519,7 +519,7 @@
                         const kw = JSON.parse(keywords);
                         // keywords can be array or object
                     }
-                } catch {}
+                } catch { /* JSON parse failure — keywords format varies, safe to ignore */ }
 
                 updateLastStep('🧠', `Pipeline complet ! Transcription sauvegardée (${transcription.length || 0} chars)`);
 
