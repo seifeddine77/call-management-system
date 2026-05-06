@@ -171,6 +171,7 @@ public class AnalyticsService {
             case "CALL" -> stat.setTicketsCall(stat.getTicketsCall() + 1);
             case "EMAIL" -> stat.setTicketsEmail(stat.getTicketsEmail() + 1);
             case "WEB" -> stat.setTicketsWeb(stat.getTicketsWeb() + 1);
+            default -> log.debug("Canal inconnu ignoré: {}", canal);
         }
         dailyStatRepository.save(stat);
         log.debug("📊 DailyStat updated: ticket created (canal={})", canal);
@@ -241,6 +242,7 @@ public class AnalyticsService {
             case "FAVORABLE" -> stat.setDecisionsFavorable(stat.getDecisionsFavorable() + 1);
             case "DEFAVORABLE" -> stat.setDecisionsDefavorable(stat.getDecisionsDefavorable() + 1);
             case "ETUDE" -> stat.setDecisionsEtude(stat.getDecisionsEtude() + 1);
+            default -> log.debug("Décision inconnue ignorée: {}", finalDecision);
         }
         dailyStatRepository.save(stat);
         log.debug("📊 DailyStat updated: decision {}", finalDecision);
@@ -278,8 +280,9 @@ public class AnalyticsService {
         switch (statut.toUpperCase()) {
             case "NOUVEAU" -> stat.setTicketsNouveau(stat.getTicketsNouveau() + 1);
             case "EN_COURS" -> stat.setTicketsEnCours(stat.getTicketsEnCours() + 1);
-            case "RESOLU" -> {} // Géré par incrementTicketResolved
+            case "RESOLU" -> { /* Géré par incrementTicketResolved */ }
             case "FERME" -> stat.setTicketsFerme(stat.getTicketsFerme() + 1);
+            default -> log.debug("Statut inconnu ignoré (increment): {}", statut);
         }
     }
 
@@ -288,8 +291,9 @@ public class AnalyticsService {
         switch (statut.toUpperCase()) {
             case "NOUVEAU" -> stat.setTicketsNouveau(Math.max(0, stat.getTicketsNouveau() - 1));
             case "EN_COURS" -> stat.setTicketsEnCours(Math.max(0, stat.getTicketsEnCours() - 1));
-            case "RESOLU" -> {} // Ne pas décrémenter ticketsResolus ici
+            case "RESOLU" -> { /* Ne pas décrémenter ticketsResolus ici */ }
             case "FERME" -> stat.setTicketsFerme(Math.max(0, stat.getTicketsFerme() - 1));
+            default -> log.debug("Statut inconnu ignoré (decrement): {}", statut);
         }
     }
 }
