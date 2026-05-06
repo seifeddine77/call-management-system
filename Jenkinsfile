@@ -261,11 +261,26 @@ CIEOF
                         cp "$ENV_FILE" .env
                         set -a; . ./.env; set +a
 
+                        # ── Pre-deploy: backup database if postgres is running ──
+                        if docker ps -q --filter "name=callmgmt-postgres" | grep -q .; then
+                            echo "Creating pre-deploy database backup..."
+                            BACKUP_FILE="db_backup_$(date +%Y%m%d_%H%M%S).sql"
+                            docker exec callmgmt-postgres pg_dumpall -U "$POSTGRES_USER" \
+                                > "/tmp/$BACKUP_FILE" 2>/dev/null && \
+                                echo "Backup saved: /tmp/$BACKUP_FILE ($(wc -c < /tmp/$BACKUP_FILE) bytes)" || \
+                                echo "WARNING: Backup failed (non-critical — postgres may be starting)"
+                        fi
+
                         # Force-clean all callmgmt app containers (Jenkins is cicd-jenkins, safe from this filter)
                         docker ps -aq --filter "name=callmgmt-" | xargs -r docker rm -f 2>/dev/null || true
-                        docker network rm autoassist-pipeline_callmgmt-net 2>/dev/null || true
+                        docker network rm call-management-system_callmgmt-net 2>/dev/null || true
 
-                        docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --no-build --remove-orphans
+                        # CRITICAL: -p forces the project name so docker-compose reuses
+                        # the SAME named volumes (call-management-system_postgres_data)
+                        # regardless of which directory Jenkins checks out into.
+                        docker compose -p call-management-system \
+                            -f docker-compose.yml -f docker-compose.staging.yml \
+                            up -d --no-build --remove-orphans
 
                         # Ensure all required databases exist (init script only runs on first volume creation)
                         echo "Ensuring all databases exist..."
@@ -294,7 +309,8 @@ CIEOF
                         echo "Eureka ready — waiting 60s for dependent services to start..."
                         sleep 60
 
-                        docker compose -f docker-compose.yml -f docker-compose.staging.yml ps
+                        docker compose -p call-management-system \
+                            -f docker-compose.yml -f docker-compose.staging.yml ps
                     '''
                 }
             }
