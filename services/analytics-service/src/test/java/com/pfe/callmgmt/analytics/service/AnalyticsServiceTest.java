@@ -27,6 +27,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceTest {
 
+    // --- SonarCloud: extracted string constants ---
+    private static final String STATUT_NOUVEAU = "NOUVEAU";
+    private static final String STATUT_EN_COURS = "EN_COURS";
+    private static final String STATUT_FERME = "FERME";
+
     @Mock
     private DailyStatRepository dailyStatRepository;
 
@@ -222,7 +227,7 @@ class AnalyticsServiceTest {
             when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            analyticsService.onTicketStatusChanged("NOUVEAU", "EN_COURS");
+            analyticsService.onTicketStatusChanged(STATUT_NOUVEAU, STATUT_EN_COURS);
 
             ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
             verify(dailyStatRepository).save(captor.capture());
@@ -238,7 +243,7 @@ class AnalyticsServiceTest {
             when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            analyticsService.onTicketStatusChanged("EN_COURS", "FERME");
+            analyticsService.onTicketStatusChanged(STATUT_EN_COURS, STATUT_FERME);
 
             ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
             verify(dailyStatRepository).save(captor.capture());
@@ -255,7 +260,7 @@ class AnalyticsServiceTest {
             when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            analyticsService.onTicketStatusChanged("NOUVEAU", "EN_COURS");
+            analyticsService.onTicketStatusChanged(STATUT_NOUVEAU, STATUT_EN_COURS);
 
             ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
             verify(dailyStatRepository).save(captor.capture());
