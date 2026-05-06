@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReferenceDataServiceTest {
 
+    private static final String TYPE_NUMBER = "number";
+
     @Mock
     private ReferenceItemRepository referenceItemRepository;
 
@@ -61,11 +63,11 @@ class ReferenceDataServiceTest {
         when(referenceItemRepository.findByCategoryAndActifTrueOrderByDisplayOrderAsc("FIELD_DEFINITION"))
                 .thenReturn(List.of(
                         ReferenceItem.builder().code("typePiece").label("Type de pièce").description("enum:TYPE_PIECE").build(),
-                        ReferenceItem.builder().code("ageVehiculeAns").label("Âge véhicule (ans)").description("number").build(),
-                        ReferenceItem.builder().code("kilometrage").label("Kilométrage").description("number").build(),
+                        ReferenceItem.builder().code("ageVehiculeAns").label("Âge véhicule (ans)").description(TYPE_NUMBER).build(),
+                        ReferenceItem.builder().code("kilometrage").label("Kilométrage").description(TYPE_NUMBER).build(),
                         ReferenceItem.builder().code("categorieClient").label("Catégorie client").description("enum:CATEGORIE_CLIENT").build(),
                         ReferenceItem.builder().code("typeSinistre").label("Type sinistre").description("enum:TYPE_SINISTRE").build(),
-                        ReferenceItem.builder().code("montantEstime").label("Montant estimé (€)").description("number").build()));
+                        ReferenceItem.builder().code("montantEstime").label("Montant estimé (€)").description(TYPE_NUMBER).build()));
     }
 
     @Test
@@ -143,7 +145,7 @@ class ReferenceDataServiceTest {
         var age = data.getChampsDisponibles().stream()
                 .filter(f -> "ageVehiculeAns".equals(f.getField())).findFirst();
         assertTrue(age.isPresent());
-        assertEquals("number", age.get().getType());
+        assertEquals(TYPE_NUMBER, age.get().getType());
     }
 
     @Test

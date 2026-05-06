@@ -6,6 +6,7 @@ import com.pfe.callmgmt.auth.entity.RefreshToken;
 import com.pfe.callmgmt.auth.repository.RefreshTokenRepository;
 import com.pfe.callmgmt.auth.util.JwtUtils;
 import com.pfe.callmgmt.common.exception.ConflictException;
+import com.pfe.callmgmt.common.exception.ServiceUnavailableException;
 import com.pfe.callmgmt.common.exception.UnauthorizedException;
 import feign.FeignException;
 import io.jsonwebtoken.Jws;
@@ -44,7 +45,7 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Email ou mot de passe incorrect");
         } catch (FeignException e) {
             log.error("Error calling organisation-service: {}", e.getMessage());
-            throw new RuntimeException("Service utilisateur indisponible");
+            throw new ServiceUnavailableException("Service utilisateur indisponible");
         }
 
         if (user == null) {
@@ -90,7 +91,7 @@ public class AuthServiceImpl implements AuthService {
             throw e;
         } catch (FeignException e) {
             log.error("Error calling organisation-service: {}", e.getMessage());
-            throw new RuntimeException("Service utilisateur indisponible");
+            throw new ServiceUnavailableException("Service utilisateur indisponible");
         }
 
         // 2. Hasher le mot de passe et envoyer la création au organisation-service
@@ -102,11 +103,11 @@ public class AuthServiceImpl implements AuthService {
             createdUser = response.getBody();
         } catch (FeignException e) {
             log.error("Error creating user: {}", e.getMessage());
-            throw new RuntimeException("Impossible de créer l'utilisateur");
+            throw new ServiceUnavailableException("Impossible de créer l'utilisateur");
         }
 
         if (createdUser == null) {
-            throw new RuntimeException("Impossible de créer l'utilisateur");
+            throw new ServiceUnavailableException("Impossible de créer l'utilisateur");
         }
 
         log.info("User registered successfully: {}", createdUser.getEmail());

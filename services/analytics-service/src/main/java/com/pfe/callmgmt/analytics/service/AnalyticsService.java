@@ -60,8 +60,8 @@ public class AnalyticsService {
                 .deltaResolution(pctChange(previous.getTauxResolution(), current.getTauxResolution()))
                 .deltaTempsMoyen(pctChange(previous.getTempsMoyenMinutes(), current.getTempsMoyenMinutes()))
                 .deltaDecisions(pctChange(
-                        previous.getDecisionsAiFavorable() + previous.getDecisionsAiDefavorable() + previous.getDecisionsAiEtude(),
-                        current.getDecisionsAiFavorable() + current.getDecisionsAiDefavorable() + current.getDecisionsAiEtude()))
+                        (double) previous.getDecisionsAiFavorable() + previous.getDecisionsAiDefavorable() + previous.getDecisionsAiEtude(),
+                        (double) current.getDecisionsAiFavorable() + current.getDecisionsAiDefavorable() + current.getDecisionsAiEtude()))
                 .deltaFavorable(pctChange(previous.getDecisionsAiFavorable(), current.getDecisionsAiFavorable()))
                 .build();
     }

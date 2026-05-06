@@ -30,6 +30,8 @@ import java.util.UUID;
 @Transactional
 public class TicketServiceImpl implements TicketService {
 
+    private static final String ROLE_OPERATOR = "OPERATOR";
+
     private final TicketRepository ticketRepository;
     private final TicketActionRepository actionRepository;
     private final TicketMapper ticketMapper;
@@ -111,7 +113,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = findTicketOrThrow(ticketId);
 
         // RBAC: OPERATOR can only take unassigned tickets (self-assign)
-        if ("OPERATOR".equals(requesterRole)) {
+        if (ROLE_OPERATOR.equals(requesterRole)) {
             if (ticket.getOperateurId() != null) {
                 throw new AccessDeniedException("Un opérateur ne peut prendre qu'un ticket non assigné");
             }
@@ -220,7 +222,7 @@ public class TicketServiceImpl implements TicketService {
         // CDC 1.C — OPERATOR ne voit que les tickets de son agence
         // Security: always force operator's agence regardless of filter value
         UUID effectiveAgenceId = filter.getAgenceId();
-        if ("OPERATOR".equals(userRole)) {
+        if (ROLE_OPERATOR.equals(userRole)) {
             effectiveAgenceId = userAgenceId;
         }
 
@@ -247,7 +249,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = findTicketOrThrow(id);
 
         // CDC 1.C — OPERATOR ne peut consulter que les tickets de son agence
-        if ("OPERATOR".equals(userRole) && userAgenceId != null
+        if (ROLE_OPERATOR.equals(userRole) && userAgenceId != null
                 && !userAgenceId.equals(ticket.getAgenceId())) {
             throw new AccessDeniedException(
                     "Accès refusé — ce ticket appartient à une autre agence");
