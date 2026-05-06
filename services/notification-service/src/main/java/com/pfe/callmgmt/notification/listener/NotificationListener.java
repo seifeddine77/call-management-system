@@ -19,6 +19,7 @@ public class NotificationListener {
     private static final String VAR_NUMERO = "numero";
     private static final String VAR_CLIENT_NOM = "clientNom";
     private static final String DECISION_FAVORABLE = "FAVORABLE";
+    private static final String VAR_TICKET_ID = "ticketId";
 
     private final NotificationService notificationService;
 
@@ -99,7 +100,7 @@ public class NotificationListener {
             vars.put(VAR_CLIENT_NOM, event.getClientNom() != null ? event.getClientNom() : "Client");
             vars.put("finalDecision", event.getFinalDecision());
             vars.put("motif", event.getMotif());
-            vars.put("ticketId", event.getTicketId().toString().substring(0, 8).toUpperCase());
+            vars.put(VAR_TICKET_ID, event.getTicketId().toString().substring(0, 8).toUpperCase());
 
             boolean isFavorable = DECISION_FAVORABLE.equals(event.getFinalDecision());
             String templateName = isFavorable
@@ -107,8 +108,8 @@ public class NotificationListener {
                     : "emails/decision-defavorable";
 
             String subject = isFavorable
-                    ? "✅ Votre demande de garantie est acceptée — Réf. " + vars.get("ticketId")
-                    : "Votre demande de garantie — Réf. " + vars.get("ticketId");
+                    ? "✅ Votre demande de garantie est acceptée — Réf. " + vars.get(VAR_TICKET_ID)
+                    : "Votre demande de garantie — Réf. " + vars.get(VAR_TICKET_ID);
 
             String type = isFavorable
                     ? "DECISION_FAVORABLE"
@@ -122,7 +123,7 @@ public class NotificationListener {
                     java.nio.file.Path pdfPath = java.nio.file.Paths.get(event.getLetterFilePath());
                     if (java.nio.file.Files.exists(pdfPath)) {
                         pdfAttachment = java.nio.file.Files.readAllBytes(pdfPath);
-                        attachmentName = "courrier_decision_" + vars.get("ticketId") + ".pdf";
+                        attachmentName = "courrier_decision_" + vars.get(VAR_TICKET_ID) + ".pdf";
                         log.info("📎 PDF trouvé: {} ({} bytes)", pdfPath, pdfAttachment.length);
                     } else {
                         log.warn("⚠️ PDF introuvable: {}", event.getLetterFilePath());

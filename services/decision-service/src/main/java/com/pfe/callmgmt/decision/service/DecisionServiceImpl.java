@@ -36,6 +36,7 @@ public class DecisionServiceImpl {
     private static final String DECISION_ETUDE = "ETUDE";
     private static final String DECISION_FAVORABLE = "FAVORABLE";
     private static final String DECISION_DEFAVORABLE = "DEFAVORABLE";
+    private static final String KEY_CONTENT = "content";
 
     // SonarCloud C2 fix — Pattern compiled once as static final (S5247)
     private static final java.util.regex.Pattern FENCE_PATTERN = java.util.regex.Pattern.compile(
@@ -346,8 +347,8 @@ public class DecisionServiceImpl {
         body.put("temperature", 0.1);   // Near-deterministic but avoids degenerate repeats at 0
         body.put("response_format", Map.of("type", "json_object")); // Force JSON output
         body.put("messages", List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", userPrompt.toString())));
+                Map.of("role", "system", KEY_CONTENT, systemPrompt),
+                Map.of("role", "user", KEY_CONTENT, userPrompt.toString())));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(openaiApiKey);
@@ -371,7 +372,7 @@ public class DecisionServiceImpl {
             // (especially with response_format=json_object) or embed it
             // within "reasoning_content" if the model runs out of tokens
             // for the content field.
-            String content = messageNode.path("content").asText("");
+            String content = messageNode.path(KEY_CONTENT).asText("");
             String reasoning = messageNode.path("reasoning_content").asText("");
 
             log.debug("🔍 LLM raw content ({} chars): {}", content.length(),

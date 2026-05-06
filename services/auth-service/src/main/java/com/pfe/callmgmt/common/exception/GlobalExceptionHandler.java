@@ -17,6 +17,10 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String KEY_TIMESTAMP = "timestamp";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_ERROR = "error";
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new HashMap<>();
@@ -25,9 +29,9 @@ public class GlobalExceptionHandler {
         }
 
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 400);
-        body.put("error", "Erreur de validation");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 400);
+        body.put(KEY_ERROR, "Erreur de validation");
         body.put("fieldErrors", fieldErrors);
 
         return ResponseEntity.badRequest().body(body);
@@ -36,9 +40,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(EntityNotFoundException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 404);
-        body.put("error", ex.getMessage());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 404);
+        body.put(KEY_ERROR, ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
@@ -46,9 +50,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 409);
-        body.put("error", ex.getMessage());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 409);
+        body.put(KEY_ERROR, ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
@@ -56,9 +60,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 401);
-        body.put("error", ex.getMessage());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 401);
+        body.put(KEY_ERROR, ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
@@ -66,9 +70,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 403);
-        body.put("error", "Accès refusé");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 403);
+        body.put(KEY_ERROR, "Accès refusé");
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
@@ -76,9 +80,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidTransitionException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidTransition(InvalidTransitionException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 400);
-        body.put("error", ex.getMessage());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 400);
+        body.put(KEY_ERROR, ex.getMessage());
 
         return ResponseEntity.badRequest().body(body);
     }
@@ -88,9 +92,9 @@ public class GlobalExceptionHandler {
         log.error("Erreur inattendue: ", ex);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 500);
-        body.put("error", "Erreur interne du serveur");
+        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_STATUS, 500);
+        body.put(KEY_ERROR, "Erreur interne du serveur");
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
