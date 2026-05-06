@@ -167,29 +167,29 @@ export default function AgencesPage() {
       <Modal open={showCreate || !!editingId} onClose={() => { setShowCreate(false); setEditingId(null); setFormErrors({}); }} title={showCreate ? 'Nouvelle agence' : 'Modifier agence'}>
         <div className="space-y-3">
           <div>
-            <label className="field-label block">Nom *</label>
-            <input className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
+            <label htmlFor="agence-nom" className="field-label block">Nom *</label>
+            <input id="agence-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
             {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
           </div>
-          <div><label className="field-label block">Adresse</label><input className="aurora-input" value={form.adresse} onChange={e => setForm(p => ({ ...p, adresse: e.target.value }))} /></div>
+          <div><label htmlFor="agence-adresse" className="field-label block">Adresse</label><input id="agence-adresse" className="aurora-input" value={form.adresse} onChange={e => setForm(p => ({ ...p, adresse: e.target.value }))} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="field-label block">Téléphone</label><input className="aurora-input" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} /></div>
+            <div><label htmlFor="agence-tel" className="field-label block">Téléphone</label><input id="agence-tel" className="aurora-input" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} /></div>
             <div>
-              <label className="field-label block">Email</label>
-              <input className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
+              <label htmlFor="agence-email" className="field-label block">Email</label>
+              <input id="agence-email" className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
               {formErrors.email && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.email}</span>}
             </div>
           </div>
           <div>
-            <label className="field-label block">Responsable (Superviseur uniquement)</label>
-            <select className="aurora-select" value={form.responsableId || ''} onChange={e => setForm(p => ({ ...p, responsableId: e.target.value }))}>
+            <label htmlFor="agence-responsable" className="field-label block">Responsable (Superviseur uniquement)</label>
+            <select id="agence-responsable" className="aurora-select" value={form.responsableId || ''} onChange={e => setForm(p => ({ ...p, responsableId: e.target.value }))}>
               <option value="">-- Aucun responsable --</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.prenom} {u.nom} ({u.role})</option>
               ))}
             </select>
           </div>
-          <div><label className="field-label block">Description du stock</label><input className="aurora-input" placeholder="Ex: Pièces détachées, routeurs, etc." value={form.stockDescription || ''} onChange={e => setForm(p => ({ ...p, stockDescription: e.target.value }))} /></div>
+          <div><label htmlFor="agence-stock" className="field-label block">Description du stock</label><input id="agence-stock" className="aurora-input" placeholder="Ex: Pièces détachées, routeurs, etc." value={form.stockDescription || ''} onChange={e => setForm(p => ({ ...p, stockDescription: e.target.value }))} /></div>
           <div className="flex justify-end gap-2 pt-3 border-t border-border">
             <button onClick={() => { setShowCreate(false); setEditingId(null); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-lg text-xs cursor-pointer">Annuler</button>
             <button onClick={showCreate ? handleCreate : handleUpdate} disabled={saving} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">

@@ -106,14 +106,14 @@ export default function SettingsPage() {
             <div className="card-aurora rounded-2xl p-5">
               <h3 className="text-sm font-bold mb-4 pb-3 border-b border-border">Informations du profil</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div><label className="field-label block">Prénom</label><input className="aurora-input" value={profile.prenom} onChange={e => setProfile(p => ({ ...p, prenom: e.target.value }))} /></div>
-                <div><label className="field-label block">Nom</label><input className="aurora-input" value={profile.nom} onChange={e => setProfile(p => ({ ...p, nom: e.target.value }))} /></div>
-                <div><label className="field-label block">Email</label><input className="aurora-input" type="email" value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} /></div>
-                <div><label className="field-label block">Téléphone</label><input className="aurora-input" value={profile.telephone} onChange={e => setProfile(p => ({ ...p, telephone: e.target.value }))} /></div>
+                <div><label htmlFor="settings-prenom" className="field-label block">Prénom</label><input id="settings-prenom" className="aurora-input" value={profile.prenom} onChange={e => setProfile(p => ({ ...p, prenom: e.target.value }))} /></div>
+                <div><label htmlFor="settings-nom" className="field-label block">Nom</label><input id="settings-nom" className="aurora-input" value={profile.nom} onChange={e => setProfile(p => ({ ...p, nom: e.target.value }))} /></div>
+                <div><label htmlFor="settings-email" className="field-label block">Email</label><input id="settings-email" className="aurora-input" type="email" value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} /></div>
+                <div><label htmlFor="settings-tel" className="field-label block">Téléphone</label><input id="settings-tel" className="aurora-input" value={profile.telephone} onChange={e => setProfile(p => ({ ...p, telephone: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div><label className="field-label block">Rôle</label><input className="aurora-input text-indigo-400" value={user?.role || '—'} readOnly /></div>
-                <div><label className="field-label block">Agence</label><input className="aurora-input" value={myAgenceName} readOnly /></div>
+                <div><label htmlFor="settings-role" className="field-label block">Rôle</label><input id="settings-role" className="aurora-input text-indigo-400" value={user?.role || '—'} readOnly /></div>
+                <div><label htmlFor="settings-agence" className="field-label block">Agence</label><input id="settings-agence" className="aurora-input" value={myAgenceName} readOnly /></div>
               </div>
               <button onClick={handleSaveProfile} disabled={saving} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">
                 {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
@@ -126,9 +126,9 @@ export default function SettingsPage() {
               <div className="card-aurora rounded-2xl p-5">
                 <h3 className="text-sm font-bold mb-4 pb-3 border-b border-border">Changer le mot de passe</h3>
                 <div className="space-y-3 max-w-[400px]">
-                  <div><label className="field-label block">Mot de passe actuel</label><input className="aurora-input" type="password" value={passwords.current} onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} /></div>
-                  <div><label className="field-label block">Nouveau mot de passe</label><input className="aurora-input" type="password" value={passwords.newPassword} onChange={e => setPasswords(p => ({ ...p, newPassword: e.target.value }))} /></div>
-                  <div><label className="field-label block">Confirmer</label><input className="aurora-input" type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} /></div>
+                  <div><label htmlFor="settings-curpwd" className="field-label block">Mot de passe actuel</label><input id="settings-curpwd" className="aurora-input" type="password" value={passwords.current} onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} /></div>
+                  <div><label htmlFor="settings-newpwd" className="field-label block">Nouveau mot de passe</label><input id="settings-newpwd" className="aurora-input" type="password" value={passwords.newPassword} onChange={e => setPasswords(p => ({ ...p, newPassword: e.target.value }))} /></div>
+                  <div><label htmlFor="settings-confirmpwd" className="field-label block">Confirmer</label><input id="settings-confirmpwd" className="aurora-input" type="password" value={passwords.confirm} onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} /></div>
                   <button onClick={handleChangePassword} disabled={saving} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">
                     {saving ? '...' : 'Changer le mot de passe'}
                   </button>

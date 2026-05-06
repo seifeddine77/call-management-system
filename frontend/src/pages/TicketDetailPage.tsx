@@ -678,8 +678,8 @@ export default function TicketDetailPage() {
                       </div>
                     )}
                     <div className="border-t border-border pt-3 mt-1">
-                      <label className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1.5">📋 Notes de l'opérateur</label>
-                      <textarea className="aurora-input text-[11px] w-full h-[60px] resize-none" placeholder="Ajoutez vos observations sur la transcription…" defaultValue="" />
+                      <label htmlFor="ticket-operator-notes" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1.5">📋 Notes de l'opérateur</label>
+                      <textarea id="ticket-operator-notes" className="aurora-input text-[11px] w-full h-[60px] resize-none" placeholder="Ajoutez vos observations sur la transcription…" defaultValue="" />
                     </div>
                   </div>
                 ) : (
@@ -925,8 +925,9 @@ export default function TicketDetailPage() {
                   {!decision.finalDecision && ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
                     <div className="space-y-2 mb-2">
                       <div>
-                        <label className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1">Motif de la décision *</label>
+                        <label htmlFor="ticket-decision-motif" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1">Motif de la décision *</label>
                         <textarea
+                          id="ticket-decision-motif"
                           className="aurora-input text-[11px] w-full h-[50px] resize-none"
                           placeholder="Saisissez le motif de votre décision (obligatoire)…"
                           value={motif}

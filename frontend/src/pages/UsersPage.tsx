@@ -267,19 +267,19 @@ export default function UsersPage() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="field-label block">Prénom *</label>
-              <input className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
+              <label htmlFor="user-prenom" className="field-label block">Prénom *</label>
+              <input id="user-prenom" className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
               {formErrors.prenom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.prenom}</span>}
             </div>
             <div>
-              <label className="field-label block">Nom *</label>
-              <input className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
+              <label htmlFor="user-nom" className="field-label block">Nom *</label>
+              <input id="user-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
               {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
             </div>
           </div>
           <div>
-            <label className="field-label block">Email *</label>
-            <input className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
+            <label htmlFor="user-email" className="field-label block">Email *</label>
+            <input id="user-email" className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
             {formErrors.email && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.email}</span>}
           </div>
           {(showCreate || showEdit) && (
