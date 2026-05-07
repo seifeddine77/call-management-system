@@ -18,7 +18,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -48,6 +48,7 @@ public class DecisionServiceImpl {
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
     private final RestTemplate llmRestTemplate;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     @Value("${openai.api-key:}")
     private String openaiApiKey;
@@ -147,9 +148,12 @@ public class DecisionServiceImpl {
         }
 
         // ── STEP 3: LLM local Gemma 4 via Ollama (cas ambigus) ──
+        // Programmatic CircuitBreaker (annotation-based doesn't work on private methods)
+        final RulesEvaluateResponse finalRulesResult = rulesResult;
         if (openaiApiKey != null && !openaiApiKey.isBlank()) {
+            io.github.resilience4j.circuitbreaker.CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("llm");
             try {
-                DecisionResult aiResult = callOpenAI(request, rulesResult);
+                DecisionResult aiResult = cb.executeSupplier(() -> callOpenAI(request, finalRulesResult));
                 String source = (rulesResult.getMatchedRules() != null && rulesResult.getMatchedRules() > 0) ? "HYBRID"
                         : "AI";
                 List<String> allRules = new ArrayList<>();
@@ -163,8 +167,15 @@ public class DecisionServiceImpl {
                 cacheResult(cacheKey, result);
                 return result;
             } catch (Exception e) {
-                log.warn("⚠️ LLM call failed for ticket {}: {} — falling back to ETUDE", request.getTicketId(),
-                        e.getMessage());
+                log.warn("⚡ Circuit breaker LLM — fallback ETUDE pour ticket {}. Cause: {}",
+                        request.getTicketId(), e.getMessage());
+                // Save with CIRCUIT_BREAKER source when LLM is unavailable
+                Decision decision = saveToDB(request.getTicketId(), DECISION_ETUDE,
+                        BigDecimal.ZERO,
+                        "Service IA temporairement indisponible — analyse manuelle requise",
+                        "CIRCUIT_BREAKER",
+                        rulesResult.getRulesApplied() != null ? rulesResult.getRulesApplied() : Collections.emptyList());
+                return toResult(decision, false);
             }
         } else {
             log.info("ℹ️ No LLM API key configured — skipping AI step");
@@ -312,7 +323,6 @@ public class DecisionServiceImpl {
         }
     }
 
-    @CircuitBreaker(name = "llm", fallbackMethod = "callOpenAIFallback")
     private DecisionResult callOpenAI(DecisionRequest request, RulesEvaluateResponse rulesResult) {
         // ── Prompt engineering for Gemma 4 (thinking model) ──
         // Gemma 4 has an internal "thinking" phase. We must be very explicit
@@ -482,18 +492,6 @@ public class DecisionServiceImpl {
         return bestCandidate;
     }
 
-    /**
-     * Circuit Breaker fallback — retourne ETUDE quand le LLM Gemma 4 (Ollama) est indisponible.
-     * Évite les timeouts bloquants sur le pipeline de décision.
-     */
-    @SuppressWarnings("unused")
-    private DecisionResult callOpenAIFallback(DecisionRequest request, RulesEvaluateResponse rulesResult, Throwable t) {
-        log.warn("⚡ Circuit breaker LLM ouvert — fallback ETUDE. Cause: {}", t.getMessage());
-        return DecisionResult.builder()
-                .decision(DECISION_ETUDE)
-                .score(0.0)
-                .motif("Service IA temporairement indisponible — analyse manuelle requise")
-                .source("CIRCUIT_BREAKER")
-                .build();
-    }
+    // Circuit Breaker fallback is now handled programmatically in analyze() method
+    // using CircuitBreakerRegistry.circuitBreaker("llm").executeSupplier() — see Step 3
 }

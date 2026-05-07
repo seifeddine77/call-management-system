@@ -917,7 +917,7 @@ export default function TicketDetailPage() {
 
                   {/* Bug 8: Better source labels */}
                   <div className="font-mono text-[9px] text-txt-3 mb-3">
-                    Source : {decision.source === 'AI' ? '🤖 IA' : decision.source === 'RULES' ? '📏 Règles' : decision.source === 'HYBRID' ? '🔄 Règles + IA' : decision.source} · {decision.cached ? '📦 Cache' : '🆕 Nouveau'} · {decision.ambiguous ? '⚠ Vérification requise' : '✓ Claire'}
+                    Source : {decision.source === 'AI' ? '🤖 IA' : decision.source === 'RULES' ? '📏 Règles' : decision.source === 'HYBRID' ? '🔄 Règles + IA' : decision.source === 'CIRCUIT_BREAKER' ? '⚡ Fallback' : decision.source} · {decision.cached ? '📦 Cache' : '🆕 Nouveau'} · {decision.ambiguous ? '⚠ Vérification requise' : '✓ Claire'}
                   </div>
 
                   {/* Actions — CDC: Suivi ou forçage (avec motif) */}

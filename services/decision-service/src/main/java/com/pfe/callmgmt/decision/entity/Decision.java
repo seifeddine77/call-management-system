@@ -34,8 +34,8 @@ public class Decision {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String motif;
 
-    @Column(nullable = false, length = 10)
-    private String source; // RULES, AI, HYBRID
+    @Column(nullable = false, length = 20)
+    private String source; // RULES, AI, HYBRID, CIRCUIT_BREAKER
 
     @Type(JsonType.class)
     @Column(name = "rules_applied", columnDefinition = "TEXT")

@@ -19,7 +19,7 @@ public class DecisionResult {
     private String decision; // FAVORABLE, DEFAVORABLE, ETUDE
     private double score; // 0-100
     private String motif;
-    private String source; // RULES, AI, HYBRID
+    private String source; // RULES, AI, HYBRID, CIRCUIT_BREAKER
     private List<String> rulesApplied;
     private boolean ambiguous;
     private boolean cached;

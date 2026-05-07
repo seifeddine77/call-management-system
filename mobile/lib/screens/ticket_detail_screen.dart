@@ -755,7 +755,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                   const SizedBox(width: 8),
                   Text('Score: ${d.score.toStringAsFixed(0)}%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: c.text)),
                   const Spacer(),
-                  _badge(c, d.source == 'AI' ? '🤖 IA' : d.source == 'RULES' ? '📏 Règles' : '🔄 Hybride', c.primary),
+                  _badge(c, d.source == 'AI' ? '🤖 IA' : d.source == 'RULES' ? '📏 Règles' : d.source == 'CIRCUIT_BREAKER' ? '⚡ Fallback' : '🔄 Hybride', c.primary),
                 ]),
                 const SizedBox(height: 8),
                 Text(d.motif, style: GoogleFonts.inter(fontSize: 12, color: c.text2, fontStyle: FontStyle.italic)),
