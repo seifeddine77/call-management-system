@@ -3,35 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification</title>
+    <title>Notification Call Management</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-        .header { background: linear-gradient(135deg, #37474F, #546E7A); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .body { padding: 30px; color: #333; line-height: 1.6; }
-        .info-box { background: #ECEFF1; border-left: 4px solid #546E7A; padding: 15px; border-radius: 0 8px 8px 0; margin: 15px 0; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #555; font-size: 12px; }
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F7F8FA; margin: 0; padding: 40px 20px; color: #111318; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #E2E5EB; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 8px rgba(0, 0, 0, 0.01); }
+        .header { background: linear-gradient(135deg, #2E3A59 0%, #4A587C 100%); color: white; padding: 40px 30px; text-align: center; position: relative; }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+        .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; font-weight: 500; }
+        .body { padding: 40px 35px; line-height: 1.6; }
+        .body h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: #111318; letter-spacing: -0.01em; }
+        .body p { color: #4A5168; font-size: 14px; margin-bottom: 20px; }
+        
+        .info-box { background: #F7F8FA; border-left: 4px solid #4A587C; padding: 18px; border-radius: 0 12px 12px 0; margin: 20px 0; border-top: 1px solid #E2E5EB; border-right: 1px solid #E2E5EB; border-bottom: 1px solid #E2E5EB; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ECEEF2; font-size: 13.5px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-weight: 600; color: #8B92A5; }
+        .info-value { font-weight: 700; color: #111318; }
+        
+        .footer { background: #F7F8FA; padding: 25px; text-align: center; color: #8B92A5; font-size: 12px; border-top: 1px solid #ECEEF2; }
+        .footer p { margin: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>📞 Call Management</h1>
-            <p style="margin: 5px 0 0; opacity: 0.9;">Notification</p>
+            <p>Notification de service</p>
         </div>
         <div class="body">
             <h2>Bonjour <span th:text="${clientNom != null ? clientNom : 'Client'}">Client</span>,</h2>
+            <p>Cette notification automatique vous a été transmise afin de vous communiquer les détails mis à jour de votre dossier d'assistance.</p>
+            
             <div class="info-box">
-                <p th:if="${numero != null}"><strong>Référence :</strong> <span th:text="${numero}">T-XXXXXXXX</span></p>
-                <p th:if="${motif != null}"><strong>Détails :</strong> <span th:text="${motif}">Information</span></p>
+                <div class="info-row" th:if="${numero != null}">
+                    <span class="info-label">Référence du dossier :</span>
+                    <span class="info-value" th:text="${numero}">T-XXXXXXXX</span>
+                </div>
+                <div class="info-row" th:if="${motif != null}">
+                    <span class="info-label">Détails de l'évènement :</span>
+                    <span class="info-value" th:text="${motif}">Information de mise à jour</span>
+                </div>
             </div>
-            <p>Cette notification vous a été envoyée automatiquement par le système Call Management.</p>
-            <p>Pour toute question, n'hésitez pas à contacter notre service client.</p>
-            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+
+            <p>Si vous avez des questions ou si vous souhaitez apporter des pièces complémentaires à votre dossier, n'hésitez pas à contacter notre service support.</p>
+            
+            <p style="margin-top: 30px; font-size: 13px; color: #8B92A5;">Cordialement,<br><strong style="color: #111318;">L'équipe Relation Clients AutoAssist</strong></p>
         </div>
         <div class="footer">
-            <p>© 2026 AutoAssist — Notification automatique</p>
+            <p>© 2026 AutoAssist France. Ne pas répondre à ce courriel automatique.</p>
         </div>
     </div>
 </body>

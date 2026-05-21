@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../models/ticket.dart';
 import 'api_client.dart';
@@ -5,10 +7,32 @@ import 'api_client.dart';
 /// Ticket service — mirrors services/ticketService.ts
 class TicketService {
   final _api = ApiClient();
+  static const _cacheKey = 'tickets_cache';
 
   Future<TicketPage> getTickets(TicketFilter filter) async {
-    final res = await _api.dio.get(ApiConfig.ticketsPath, queryParameters: filter.toQueryParams());
-    return TicketPage.fromJson(res.data);
+    final prefs = await SharedPreferences.getInstance();
+
+    try {
+      final res = await _api.dio.get(ApiConfig.ticketsPath, queryParameters: filter.toQueryParams());
+      final data = res.data;
+      
+      // Save to cache for the first page only to prevent huge cache files
+      if (filter.page == 0 && filter.search == null) {
+        await prefs.setString(_cacheKey, jsonEncode(data));
+      }
+      
+      return TicketPage.fromJson(data);
+    } catch (e) {
+      // If network fails, try to load from cache
+      if (filter.page == 0 && filter.search == null) {
+        final cachedStr = prefs.getString(_cacheKey);
+        if (cachedStr != null) {
+          final data = jsonDecode(cachedStr);
+          return TicketPage.fromJson(data);
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<Ticket> getTicketById(String id) async {

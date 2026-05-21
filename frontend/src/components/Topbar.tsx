@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from './Sidebar';
-import { Menu } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
 
 const titles: Record<string, string> = {
   '/dashboard': 'Tableau de bord',
@@ -30,7 +30,7 @@ export default function Topbar() {
   const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-3 md:px-5 border-b border-[var(--border)] bg-[var(--surface)] relative">
+    <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-3 md:px-5 border-b border-[var(--border)] topbar-glass relative z-10">
       {/* Gradient line (AutoAssist) */}
       <div className="absolute top-0 left-0 right-0 h-[1.5px]" style={{ background: 'var(--gradient-ai)', opacity: 0.5 }} />
 
@@ -71,7 +71,7 @@ export default function Topbar() {
           className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--border)] text-sm cursor-pointer hover:border-[var(--border-subtle)] hover:bg-[var(--overlay)] transition-all"
           title={theme === 'dark' ? 'Mode jour' : 'Mode nuit'}
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
 
         {/* User */}

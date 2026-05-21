@@ -5,46 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Garantie Acceptée</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-        .header { background: linear-gradient(135deg, #1B5E20, #2E7D32); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .body { padding: 30px; color: #333; line-height: 1.6; }
-        .decision-box { background: #E8F5E9; border: 2px solid #43A047; padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }
-        .decision-box .label { font-size: 14px; color: #666; margin-bottom: 5px; }
-        .decision-box .value { font-size: 28px; font-weight: 700; color: #2E7D32; }
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #555; font-size: 12px; }
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F7F8FA; margin: 0; padding: 40px 20px; color: #111318; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #E2E5EB; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 8px rgba(0, 0, 0, 0.01); }
+        .header { background: linear-gradient(135deg, #00D4AA 0%, #00C48C 100%); color: white; padding: 40px 30px; text-align: center; position: relative; }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+        .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; font-weight: 500; }
+        .body { padding: 40px 35px; line-height: 1.6; }
+        .body h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: #111318; letter-spacing: -0.01em; }
+        .body p { color: #4A5168; font-size: 14px; margin-bottom: 20px; }
+        
+        .decision-box { background: rgba(0, 212, 170, 0.06); border: 1.5px solid rgba(0, 212, 170, 0.2); padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+        .decision-box .label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8B92A5; letter-spacing: 0.05em; margin-bottom: 5px; }
+        .decision-box .value { font-size: 28px; font-weight: 800; color: #00C48C; letter-spacing: 0.02em; }
+        
+        .motif-box { background: #F7F8FA; border-radius: 10px; padding: 15px; border: 1px solid #E2E5EB; margin-bottom: 25px; }
+        .motif-title { font-weight: 700; font-size: 13px; color: #8B92A5; text-transform: uppercase; margin-bottom: 5px; }
+        .motif-content { font-style: italic; color: #111318; font-size: 14px; }
+        
+        .steps { padding-left: 0; list-style: none; margin: 25px 0; }
+        .step-item { position: relative; padding-left: 35px; margin-bottom: 15px; font-size: 14px; color: #4A5168; }
+        .step-num { position: absolute; left: 0; top: 2px; width: 22px; height: 22px; background: rgba(0, 212, 170, 0.1); color: #00C48C; border-radius: 50%; text-align: center; line-height: 22px; font-weight: 700; font-size: 12px; }
+        
+        .footer { background: #F7F8FA; padding: 25px; text-align: center; color: #8B92A5; font-size: 12px; border-top: 1px solid #ECEEF2; }
+        .footer p { margin: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>✅ Garantie Acceptée</h1>
-            <p style="margin: 5px 0 0; opacity: 0.9;" th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
+            <h1>✅ Prise en Charge Acceptée</h1>
+            <p th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
         </div>
         <div class="body">
             <h2>Bonjour <span th:text="${clientNom}">Client</span>,</h2>
-            <p>Nous avons le plaisir de vous informer que votre demande de garantie a été <strong>acceptée</strong>.</p>
+            <p>Nous avons le plaisir de vous informer que l'étude de votre demande de garantie s'est conclue de manière positive.</p>
 
             <div class="decision-box">
-                <div class="label">Décision</div>
+                <div class="label">Statut de la demande</div>
                 <div class="value">FAVORABLE</div>
             </div>
 
-            <p><strong>Motif :</strong> <span th:text="${motif}">La pièce est éligible à la garantie.</span></p>
+            <div class="motif-box">
+                <div class="motif-title">Motif retenu</div>
+                <div class="motif-content" th:text="${motif}">La pièce est couverte par le contrat de garantie.</div>
+            </div>
 
-            <h3>Prochaines étapes :</h3>
-            <ol>
-                <li>Un courrier officiel sera joint à cet email (si disponible).</li>
-                <li>Présentez-vous en agence avec votre numéro de référence.</li>
-                <li>Le remplacement/remboursement sera effectué selon les conditions du contrat.</li>
-            </ol>
+            <h3 style="font-size: 16px; font-weight: 700; margin-top: 25px; color: #111318;">Prochaines étapes :</h3>
+            <ul class="steps">
+                <li class="step-item">
+                    <span class="step-num">1</span>
+                    Un courrier de décision officiel au format PDF est annexé à cet e-mail.
+                </li>
+                <li class="step-item">
+                    <span class="step-num">2</span>
+                    Présentez-vous auprès de votre garage de référence avec ce document officiel.
+                </li>
+                <li class="step-item">
+                    <span class="step-num">3</span>
+                    La prise en charge ou le remplacement sera réalisé sans avance de frais.
+                </li>
+            </ul>
 
-            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+            <p style="margin-top: 30px; font-size: 13px; color: #8B92A5;">Cordialement,<br><strong style="color: #111318;">Le Service Clientèle Assurance AutoAssist</strong></p>
         </div>
         <div class="footer">
-            <p>© 2026 AutoAssist — Notification automatique</p>
+            <p>© 2026 AutoAssist France. Ne pas répondre à ce courriel automatique.</p>
         </div>
     </div>
 </body>

@@ -12,6 +12,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import UsersPage from './pages/UsersPage';
 import AgencesPage from './pages/AgencesPage';
 import NotificationsPage from './pages/NotificationsPage';
+import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
 import PublicFormPage from './pages/PublicFormPage';
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         {/* SUPERVISOR + ADMIN only */}
         <Route path="/rules" element={<RoleGuard minRole="SUPERVISOR"><RulesPage /></RoleGuard>} />
         <Route path="/analytics" element={<RoleGuard minRole="SUPERVISOR"><AnalyticsPage /></RoleGuard>} />
+        <Route path="/audit/:id" element={<RoleGuard minRole="SUPERVISOR"><AuditPage /></RoleGuard>} />
 
         {/* SUPERVISOR + ADMIN */}
         <Route path="/users" element={<RoleGuard minRole="SUPERVISOR"><UsersPage /></RoleGuard>} />

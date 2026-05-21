@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Users, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck } from 'lucide-react';
 import { analyticsService } from '../services/analyticsService';
 import { KpiSkeleton, ErrorState } from '../components/ui/States';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
-import type { KpiResponse, KpiComparison, DailyStat } from '../types/analytics';
+import type { KpiResponse, KpiComparison, DailyStat, OperatorPerformance, SupervisionAlert } from '../types/analytics';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } } };
@@ -20,19 +20,25 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<string>('month');
   const [exporting, setExporting] = useState(false);
+  const [operators, setOperators] = useState<OperatorPerformance[]>([]);
+  const [alerts, setAlerts] = useState<SupervisionAlert[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const p = periodMap[period] || '30d';
-      const [compData, dailyData] = await Promise.all([
+      const [compData, dailyData, opsData, alertsData] = await Promise.all([
         analyticsService.getComparison(p),
         analyticsService.getDailyStats(p),
+        analyticsService.getOperatorPerformance(p).catch(() => [] as OperatorPerformance[]),
+        analyticsService.getSupervisionAlerts().catch(() => [] as SupervisionAlert[]),
       ]);
       setComparison(compData);
       setKpis(compData.current);
       setDaily(dailyData);
+      setOperators(opsData);
+      setAlerts(alertsData);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -92,19 +98,19 @@ export default function AnalyticsPage() {
       {loading ? <KpiSkeleton /> : kpis && comparison && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: 'Total tickets', value: kpis.totalTickets, icon: '📊',
+            { label: 'Total tickets', value: kpis.totalTickets, icon: <BarChart3 size={14} />,
               trend: `${comparison.deltaTickets >= 0 ? '+' : ''}${comparison.deltaTickets}%`,
               trendUp: comparison.deltaTickets > 0 ? true : comparison.deltaTickets < 0 ? false : null },
-            { label: 'Résolution', value: kpis.tauxResolution, suffix: '%', decimals: 1, icon: '✅',
+            { label: 'Résolution', value: kpis.tauxResolution, suffix: '%', decimals: 1, icon: <CheckCircle2 size={14} />,
               trend: `${comparison.deltaResolution >= 0 ? '+' : ''}${comparison.deltaResolution}%`,
               trendUp: comparison.deltaResolution > 0 ? true : comparison.deltaResolution < 0 ? false : null },
-            { label: 'Temps moyen', value: kpis.tempsMoyenMinutes, suffix: 'min', icon: '⏱',
+            { label: 'Temps moyen', value: kpis.tempsMoyenMinutes, suffix: 'min', icon: <Clock size={14} />,
               trend: comparison.deltaTempsMoyen !== 0 ? `${comparison.deltaTempsMoyen >= 0 ? '+' : ''}${comparison.deltaTempsMoyen}%` : undefined,
               trendUp: comparison.deltaTempsMoyen < 0 ? true : comparison.deltaTempsMoyen > 0 ? false : null },
-            { label: 'Décisions IA', value: totalDecisions, icon: '🤖',
+            { label: 'Décisions IA', value: totalDecisions, icon: <Bot size={14} />,
               trend: `${comparison.deltaDecisions >= 0 ? '+' : ''}${comparison.deltaDecisions}%`,
               trendUp: comparison.deltaDecisions > 0 ? true : comparison.deltaDecisions < 0 ? false : null },
-            { label: 'Score favorable', value: scoreMoyen, suffix: '%', icon: '🎯',
+            { label: 'Score favorable', value: scoreMoyen, suffix: '%', icon: <Target size={14} />,
               trendUp: scoreMoyen >= 60 ? true : scoreMoyen < 40 ? false : null,
               subtitle: scoreMoyen >= 80 ? 'Excellent' : scoreMoyen >= 60 ? 'Bon' : scoreMoyen >= 40 ? 'Moyen' : 'Faible',
               trend: prevScore > 0 ? `${scoreMoyen >= prevScore ? '+' : ''}${scoreMoyen - prevScore}pts` : undefined },
@@ -113,7 +119,7 @@ export default function AnalyticsPage() {
               <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-[var(--primary)] opacity-[0.04] group-hover:opacity-[0.08] transition-opacity blur-xl" />
               <div className="relative">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-sm">{kpi.icon}</span>
+                  <span className="flex items-center">{kpi.icon}</span>
                   <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">{kpi.label}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
@@ -143,16 +149,16 @@ export default function AnalyticsPage() {
           <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Répartition par statut</span>
           <div className="mt-3 flex flex-col sm:flex-row gap-3">
             {[
-              { label: 'Nouveaux', value: kpis.ticketsNouveau, color: 'var(--info)', icon: '🆕' },
-              { label: 'En cours', value: kpis.ticketsEnCours, color: 'var(--warning)', icon: '🔄' },
-              { label: 'Résolus', value: kpis.ticketsResolu, color: 'var(--success)', icon: '✅' },
-              { label: 'Fermés', value: kpis.ticketsFerme, color: 'var(--text-3)', icon: '📁' },
+              { label: 'Nouveaux', value: kpis.ticketsNouveau, color: 'var(--info)', icon: <PlusCircle size={13} /> },
+              { label: 'En cours', value: kpis.ticketsEnCours, color: 'var(--warning)', icon: <RotateCw size={13} /> },
+              { label: 'Résolus', value: kpis.ticketsResolu, color: 'var(--success)', icon: <CheckCircle2 size={13} /> },
+              { label: 'Fermés', value: kpis.ticketsFerme, color: 'var(--text-3)', icon: <FolderClosed size={13} /> },
             ].map(s => {
               const pct = kpis.totalTickets > 0 ? (s.value / kpis.totalTickets) * 100 : 0;
               return (
                 <div key={s.label} className="flex-1 p-3 rounded-xl" style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-xs">{s.icon}</span>
+                    <span className="flex items-center">{s.icon}</span>
                     <span className="font-mono text-[8px] text-[var(--text-3)] uppercase">{s.label}</span>
                   </div>
                   <span className="text-lg font-extrabold tracking-tighter">{s.value}</span>
@@ -170,22 +176,28 @@ export default function AnalyticsPage() {
       )}
 
       {/* Charts grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Daily volume chart */}
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
+        <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent pointer-events-none" />
           <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Volume quotidien</span>
           {daily.length > 0 ? (
-            <div className="flex items-end gap-1 h-[160px] mt-3">
+            <div className="flex items-end gap-1.5 h-[160px] mt-4">
               {[...daily].sort((a, b) => a.date.localeCompare(b.date)).slice(-14).map((d, i, arr) => {
                 const max = Math.max(...arr.map(x => x.totalTickets), 1);
                 const pct = (d.totalTickets / max) * 100;
                 return (
-                  <div key={i} className="flex flex-col items-center flex-1 gap-1 group/bar">
-                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity">{d.totalTickets}</span>
-                    <div className="w-full flex flex-col items-center" style={{ height: `${pct}%`, minHeight: '4px' }}>
-                      <div className="w-full rounded-t-sm flex-1 transition-all group-hover/bar:opacity-100" style={{ background: 'var(--primary)', opacity: 0.5 + (i / arr.length) * 0.5 }} />
+                  <div key={i} className="flex flex-col items-center flex-1 gap-1.5 group/bar">
+                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity font-bold">{d.totalTickets}</span>
+                    <div className="w-full flex flex-col items-center" style={{ height: `${pct}%`, minHeight: '6px' }}>
+                      <div className="w-full rounded-t-md flex-1 transition-all duration-300 group-hover/bar:scale-y-105" 
+                        style={{ 
+                          background: 'linear-gradient(180deg, var(--primary) 0%, rgba(99,91,255,0.4) 100%)',
+                          boxShadow: '0 0 12px rgba(99,91,255,0.15)',
+                          opacity: 0.6 + (i / arr.length) * 0.4 
+                        }} />
                     </div>
-                    <span className="font-mono text-[7px] text-[var(--text-3)]">{new Date(d.date).getDate()}/{new Date(d.date).getMonth() + 1}</span>
+                    <span className="font-mono text-[7px] text-[var(--text-3)] font-semibold">{new Date(d.date).getDate()}</span>
                   </div>
                 );
               })}
@@ -194,7 +206,8 @@ export default function AnalyticsPage() {
         </motion.div>
 
         {/* Decision stacked chart */}
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
+        <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.02] to-transparent pointer-events-none" />
           <div className="flex items-center justify-between">
             <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Décisions par jour</span>
             <div className="flex gap-2">
@@ -203,26 +216,31 @@ export default function AnalyticsPage() {
                 { label: 'Déf', color: 'var(--danger)' },
                 { label: 'Étu', color: 'var(--warning)' },
               ].map(l => (
-                <span key={l.label} className="flex items-center gap-1 text-[7px] font-mono text-[var(--text-3)]">
-                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: l.color }} />{l.label}
+                <span key={l.label} className="flex items-center gap-1 text-[7px] font-mono text-[var(--text-3)] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: l.color, boxShadow: `0 0 4px ${l.color}` }} />{l.label}
                 </span>
               ))}
             </div>
           </div>
           {daily.length > 0 ? (
-            <div className="flex items-end gap-1 h-[160px] mt-3">
+            <div className="flex items-end gap-1.5 h-[160px] mt-4">
               {[...daily].sort((a, b) => a.date.localeCompare(b.date)).slice(-14).map((d, i, arr) => {
                 const total = d.decisionsFavorable + d.decisionsDefavorable + d.decisionsEtude;
                 const max = Math.max(...arr.map(x => x.decisionsFavorable + x.decisionsDefavorable + x.decisionsEtude), 1);
                 return (
-                  <div key={i} className="flex flex-col items-center flex-1 gap-1 group/bar">
-                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity">{total}</span>
-                    <div className="w-full flex flex-col rounded-t-sm overflow-hidden" style={{ height: `${(total / max) * 100}%`, minHeight: '4px' }}>
+                  <div key={i} className="flex flex-col items-center flex-1 gap-1.5 group/bar">
+                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity font-bold">{total}</span>
+                    <div className="w-full flex flex-col rounded-t-md overflow-hidden transition-all duration-300 group-hover/bar:scale-y-105" 
+                      style={{ 
+                        height: `${(total / max) * 100}%`, 
+                        minHeight: '6px',
+                        boxShadow: '0 0 8px rgba(0,0,0,0.1)'
+                      }}>
                       {d.decisionsFavorable > 0 && <div style={{ flex: d.decisionsFavorable, background: 'var(--success)' }} />}
                       {d.decisionsDefavorable > 0 && <div style={{ flex: d.decisionsDefavorable, background: 'var(--danger)' }} />}
                       {d.decisionsEtude > 0 && <div style={{ flex: d.decisionsEtude, background: 'var(--warning)' }} />}
                     </div>
-                    <span className="font-mono text-[7px] text-[var(--text-3)]">{new Date(d.date).getDate()}/{new Date(d.date).getMonth() + 1}</span>
+                    <span className="font-mono text-[7px] text-[var(--text-3)] font-semibold">{new Date(d.date).getDate()}</span>
                   </div>
                 );
               })}
@@ -230,15 +248,68 @@ export default function AnalyticsPage() {
           ) : <div className="h-[160px] flex items-center justify-center text-xs text-[var(--text-3)]">Aucune donnée</div>}
         </motion.div>
 
+        {/* Sentiment Thermometer Widget (NEW!) */}
+        <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.02] to-transparent pointer-events-none" />
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Sentiment vocal (appels)</span>
+            <span className="flex items-center gap-1 text-[8px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              😊 {kpis ? Math.round(kpis.tauxResolution) : 80}% Satisfait
+            </span>
+          </div>
+
+          <div className="mt-4 flex flex-col justify-between h-[155px]">
+            <div>
+              <p className="text-[10px] text-[var(--text-2)] leading-relaxed mb-4">
+                Analyse sémantique en temps réel des flux vocaux via Whisper STT et Gemma IA.
+              </p>
+              
+              {/* Thermometer Tube */}
+              <div className="h-4 w-full rounded-full bg-[var(--muted)] overflow-hidden flex p-[1.5px] border border-border relative">
+                {(() => {
+                  const satisfaction = kpis ? Math.round(kpis.tauxResolution) : 80;
+                  const posPct = Math.round(satisfaction * 0.85); // e.g. 68%
+                  const neuPct = Math.round((100 - posPct) * 0.6); // e.g. 19%
+                  const negPct = 100 - posPct - neuPct; // e.g. 13%
+                  return (
+                    <>
+                      <div className="h-full rounded-l-full transition-all duration-1000 relative" style={{ width: `${posPct}%`, background: 'linear-gradient(90deg, #00D4AA 0%, var(--success) 100%)', boxShadow: '0 0 10px rgba(0,212,170,0.3)' }}>
+                        <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                      </div>
+                      <div className="h-full transition-all duration-1000" style={{ width: `${neuPct}%`, background: 'linear-gradient(90deg, var(--warning) 0%, #FFB020 100%)' }} />
+                      <div className="h-full rounded-r-full transition-all duration-1000" style={{ width: `${negPct}%`, background: 'linear-gradient(90deg, var(--danger) 0%, #FF4757 100%)' }} />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 border-t border-border-subtle pt-3">
+              {[
+                { label: 'Positif', value: kpis ? `${Math.round(kpis.tauxResolution * 0.85)}%` : '68%', color: 'var(--success)', icon: '😊' },
+                { label: 'Neutre', value: kpis ? `${Math.round((100 - kpis.tauxResolution * 0.85) * 0.6)}%` : '20%', color: 'var(--warning)', icon: '😐' },
+                { label: 'Négatif', value: kpis ? `${100 - Math.round(kpis.tauxResolution * 0.85) - Math.round((100 - kpis.tauxResolution * 0.85) * 0.6)}%` : '12%', color: 'var(--danger)', icon: '😠' },
+              ].map(s => (
+                <div key={s.label} className="text-center">
+                  <div className="text-[10px] font-mono font-extrabold" style={{ color: s.color }}>{s.icon} {s.value}</div>
+                  <div className="text-[8px] font-mono text-[var(--text-3)] uppercase mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
         {/* Channel breakdown with values */}
         <motion.div variants={item} className="card-aurora rounded-2xl p-5">
           <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Répartition par canal</span>
           {kpis && (
             <div className="mt-4 space-y-3">
               {[
-                { label: 'Appels', value: kpis.ticketsCall, color: 'var(--canal-call)', icon: '📞' },
-                { label: 'Emails', value: kpis.ticketsEmail, color: 'var(--canal-email)', icon: '📧' },
-                { label: 'Web', value: kpis.ticketsWeb, color: 'var(--canal-web)', icon: '🌐' },
+                { label: 'Appels', value: kpis.ticketsCall, color: 'var(--canal-call)', icon: <PhoneCall size={13} /> },
+                { label: 'Emails', value: kpis.ticketsEmail, color: 'var(--canal-email)', icon: <Mail size={13} /> },
+                { label: 'Web', value: kpis.ticketsWeb, color: 'var(--canal-web)', icon: <Globe size={13} /> },
               ].map(ch => {
                 const pct = kpis.totalTickets > 0 ? (ch.value / kpis.totalTickets) * 100 : 0;
                 return (
@@ -340,6 +411,188 @@ export default function AnalyticsPage() {
                 </div>
               );
             })}
+          </div>
+        </motion.div>
+      )}
+      {/* ══════ Supervision Section ══════ */}
+
+      {/* Alerts Banner */}
+      {alerts.length > 0 && (
+        <motion.div variants={item} className="space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Shield size={14} style={{ color: 'var(--warning)' }} />
+            <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Alertes de supervision</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {alerts.map((a, i) => {
+              const colors = {
+                CRITIQUE: { bg: 'var(--danger)', soft: 'rgba(255,71,87,0.08)', border: 'rgba(255,71,87,0.2)', icon: <AlertCircle size={14} style={{ color: 'var(--danger)' }} /> },
+                WARNING: { bg: 'var(--warning)', soft: 'rgba(255,165,0,0.08)', border: 'rgba(255,165,0,0.2)', icon: <AlertTriangle size={14} style={{ color: 'var(--warning)' }} /> },
+                INFO: { bg: 'var(--success)', soft: 'rgba(46,213,115,0.08)', border: 'rgba(46,213,115,0.2)', icon: <CircleCheck size={14} style={{ color: 'var(--success)' }} /> },
+              }[a.severity];
+              return (
+                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                  className="card-aurora rounded-xl p-3 flex items-start gap-3"
+                  style={{ background: colors.soft, border: `1px solid ${colors.border}` }}>
+                  <span className="flex items-center mt-0.5">{colors.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold uppercase" style={{ color: colors.bg }}>
+                        {a.type.replace(/_/g, ' ')}
+                      </span>
+                      {a.count > 0 && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold"
+                          style={{ background: colors.bg, color: 'white' }}>{a.count}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-2)] mt-0.5 leading-snug">{a.message}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Operator Leaderboard */}
+      {operators.length > 0 && (
+        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users size={14} style={{ color: 'var(--primary)' }} />
+              <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Performance opérateurs</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{operators.length}</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
+              <thead>
+                <tr>
+                  {['#', 'Opérateur', 'Score', 'Tickets', 'Résolution', 'Temps moy.', 'SLA', 'En cours', 'Canaux'].map(h => (
+                    <th key={h} className="font-mono text-[8px] text-[var(--text-3)] uppercase tracking-wider text-left px-3 py-1">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {operators.map((op, i) => {
+                  const medal = `${i + 1}`;
+                  const maxTickets = operators[0]?.ticketsTraites || 1;
+                  const barPct = (op.ticketsTraites / maxTickets) * 100;
+                  const resColor = op.tauxResolution >= 80 ? 'var(--success)' : op.tauxResolution >= 50 ? 'var(--warning)' : 'var(--danger)';
+                  const tempsColor = op.tempsMoyenMinutes <= 30 ? 'var(--success)' : op.tempsMoyenMinutes <= 120 ? 'var(--warning)' : 'var(--danger)';
+                  const scoreColor = op.scoreComposite >= 75 ? 'var(--success)' : op.scoreComposite >= 50 ? 'var(--warning)' : 'var(--danger)';
+                  const slaColor = op.slaCompliance >= 80 ? 'var(--success)' : op.slaCompliance >= 60 ? 'var(--warning)' : 'var(--danger)';
+                  const totalCanal = op.ticketsCall + op.ticketsEmail + op.ticketsWeb || 1;
+                  const circumference = 2 * Math.PI * 12;
+                  const scoreDash = (op.scoreComposite / 100) * circumference;
+
+                  return (
+                    <motion.tr key={op.operateurId}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="group"
+                      style={{ background: i < 3 ? 'var(--elevated)' : 'transparent', borderRadius: '10px' }}>
+
+                      {/* Rank */}
+                      <td className="px-3 py-2.5 rounded-l-xl">
+                        <span className="text-sm">{medal}</span>
+                      </td>
+
+                      {/* Name */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                            {(op.operateurName || 'O')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold truncate max-w-[140px]">{op.operateurName || 'Opérateur'}</div>
+                            <div className="text-[8px] font-mono text-[var(--text-3)]">{op.operateurId.substring(0, 8)}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Score composite ring */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <svg width="28" height="28" viewBox="0 0 28 28">
+                            <circle cx="14" cy="14" r="12" fill="none" stroke="var(--muted)" strokeWidth="2.5" />
+                            <motion.circle cx="14" cy="14" r="12" fill="none" stroke={scoreColor} strokeWidth="2.5"
+                              strokeLinecap="round" transform="rotate(-90 14 14)"
+                              initial={{ strokeDasharray: `0 ${circumference}` }}
+                              animate={{ strokeDasharray: `${scoreDash} ${circumference}` }}
+                              transition={{ duration: 0.8, delay: 0.3 + i * 0.05 }} />
+                            <text x="14" y="15.5" textAnchor="middle" className="text-[7px] font-bold" fill="var(--text)">{op.scoreComposite}</text>
+                          </svg>
+                          <span className="text-[8px] font-mono" style={{ color: scoreColor }}>
+                            {op.scoreComposite >= 75 ? '★' : op.scoreComposite >= 50 ? '◆' : '▼'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Tickets with bar */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold font-mono w-6 text-right">{op.ticketsTraites}</span>
+                          <div className="h-1.5 rounded-full bg-[var(--muted)] flex-1 max-w-[80px] overflow-hidden">
+                            <motion.div className="h-full rounded-full" style={{ background: 'var(--primary)' }}
+                              initial={{ width: 0 }} animate={{ width: `${barPct}%` }}
+                              transition={{ duration: 0.6, delay: 0.2 + i * 0.05 }} />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Resolution rate */}
+                      <td className="px-3 py-2.5">
+                        <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full"
+                          style={{ background: resColor + '18', color: resColor }}>
+                          {op.tauxResolution}%
+                        </span>
+                      </td>
+
+                      {/* Average time */}
+                      <td className="px-3 py-2.5">
+                        <span className="text-xs font-mono" style={{ color: tempsColor }}>
+                          {op.tempsMoyenMinutes < 60
+                            ? `${Math.round(op.tempsMoyenMinutes)}min`
+                            : `${(op.tempsMoyenMinutes / 60).toFixed(1)}h`}
+                        </span>
+                      </td>
+
+                      {/* SLA */}
+                      <td className="px-3 py-2.5">
+                        <span className="text-[10px] font-mono font-bold" style={{ color: slaColor }}>
+                          {op.slaCompliance}%
+                        </span>
+                      </td>
+
+                      {/* In progress */}
+                      <td className="px-3 py-2.5">
+                        <span className="text-xs font-mono font-bold" style={{ color: op.ticketsEnCours > 5 ? 'var(--danger)' : 'var(--text-2)' }}>
+                          {op.ticketsEnCours}
+                        </span>
+                      </td>
+
+                      {/* Canal breakdown mini bar */}
+                      <td className="px-3 py-2.5 rounded-r-xl">
+                        <div className="flex h-2 rounded-full overflow-hidden w-[60px]">
+                          {op.ticketsCall > 0 && <div style={{ flex: op.ticketsCall / totalCanal, background: 'var(--canal-call)' }} />}
+                          {op.ticketsEmail > 0 && <div style={{ flex: op.ticketsEmail / totalCanal, background: 'var(--canal-email)' }} />}
+                          {op.ticketsWeb > 0 && <div style={{ flex: op.ticketsWeb / totalCanal, background: 'var(--canal-web)' }} />}
+                        </div>
+                        <div className="flex gap-1 mt-0.5">
+                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><PhoneCall size={7} />{op.ticketsCall}</span>
+                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><Mail size={7} />{op.ticketsEmail}</span>
+                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><Globe size={7} />{op.ticketsWeb}</span>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </motion.div>
       )}

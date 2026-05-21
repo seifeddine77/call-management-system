@@ -646,14 +646,29 @@ spec:
           env:
             - name: WHISPER_MODEL
               value: base
+            - name: POSTGRES_USER_VAL
+              valueFrom:
+                secretKeyRef:
+                  name: autoassist-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD_VAL
+              valueFrom:
+                secretKeyRef:
+                  name: autoassist-secrets
+                  key: POSTGRES_PASSWORD
             - name: DATABASE_URL
-              value: postgresql://callmgmt:callmgmt_staging@postgres:5432/ai_db
+              value: postgresql://$(POSTGRES_USER_VAL):$(POSTGRES_PASSWORD_VAL)@postgres:5432/ai_db
             - name: POSTGRES_HOST
               value: postgres
             - name: POSTGRES_PORT
               value: "5432"
             - name: POSTGRES_DB
               value: ai_db
+            - name: EUREKA_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: autoassist-config
+                  key: EUREKA_URL
           resources:
             requests: { memory: "512Mi", cpu: "500m" }
             limits: { memory: "1536Mi", cpu: "1000m" }

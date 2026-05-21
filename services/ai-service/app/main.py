@@ -106,6 +106,11 @@ app.include_router(analysis.router)
 app.include_router(streaming.router)
 app.include_router(chat.router)
 
+# Instrument for Prometheus metrics
+from prometheus_fastapi_instrumentator import Instrumentator
+Instrumentator().instrument(app).expose(app)
+
+
 
 # ── Web Softphone ──────────────────────────────────────────────
 @app.get("/softphone", tags=["softphone"])

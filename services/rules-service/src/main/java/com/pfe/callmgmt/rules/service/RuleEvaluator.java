@@ -147,6 +147,14 @@ public class RuleEvaluator {
                 }
                 yield false;
             }
+            case "NOT_IN", "NOT IN" -> {
+                // expected est une liste, actual ne doit PAS être dans cette liste
+                if (expected instanceof List) {
+                    yield ((List<Object>) expected).stream()
+                            .noneMatch(item -> equalsIgnoreType(actual, item));
+                }
+                yield false;
+            }
             default -> {
                 log.warn("Opérateur inconnu: '{}'", op);
                 yield false;
@@ -156,12 +164,22 @@ public class RuleEvaluator {
 
     /**
      * Comparaison indifférente au type (String/Number).
+     * Si les deux valeurs sont numériques, elles sont comparées sous forme de Double
+     * pour éviter que "5" (Integer) et "5.0" (Double) ne soient considérés comme différents.
      */
     private boolean equalsIgnoreType(Object a, Object b) {
         if (a == null || b == null)
             return a == b;
-        // Comparer comme strings en ignorant la casse
-        return a.toString().equalsIgnoreCase(b.toString());
+        
+        try {
+            // Tentative de comparaison numérique robuste
+            double numA = Double.parseDouble(a.toString());
+            double numB = Double.parseDouble(b.toString());
+            return Double.compare(numA, numB) == 0;
+        } catch (NumberFormatException e) {
+            // Repli sur la comparaison textuelle insensible à la casse
+            return a.toString().equalsIgnoreCase(b.toString());
+        }
     }
 
     /**

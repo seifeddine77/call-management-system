@@ -35,7 +35,13 @@ RUN echo 'server { \
     location /api { \
         proxy_pass http://api-gateway:8080; \
     } \
+    location /nginx_status { \
+        stub_status on; \
+        access_log off; \
+        allow all; \
+    } \
 }' > /etc/nginx/conf.d/default.conf
+
 
 EXPOSE 3000
 

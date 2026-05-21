@@ -34,4 +34,15 @@ class AnalyticsService {
     final res = await _api.dio.get(ApiConfig.dailyStatsPath, queryParameters: p != null ? {'period': p} : null);
     return (res.data as List).map((d) => DailyStat.fromJson(d)).toList();
   }
+
+  Future<List<OperatorPerformance>> getOperatorPerformance({String? period}) async {
+    final p = period != null ? apiPeriod(period) : null;
+    final res = await _api.dio.get(ApiConfig.operatorPerformancePath, queryParameters: p != null ? {'period': p} : null);
+    return (res.data as List).map((d) => OperatorPerformance.fromJson(d)).toList();
+  }
+
+  Future<List<SupervisionAlert>> getSupervisionAlerts() async {
+    final res = await _api.dio.get(ApiConfig.supervisionAlertsPath);
+    return (res.data as List).map((d) => SupervisionAlert.fromJson(d)).toList();
+  }
 }

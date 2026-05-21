@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Plus, AlertTriangle } from 'lucide-react';
+import { 
+  RefreshCw, Plus, AlertTriangle, Pencil, Trash2, CalendarDays, 
+  User as UserIcon, Mail, Phone, Shield, Building, Clock
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
 import { agenceService } from '../services/agenceService';
@@ -33,7 +37,7 @@ export default function UsersPage() {
       const data = await userService.getUsers({ role: roleFilter !== 'ALL' ? roleFilter : undefined });
       setUsers(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur');
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
@@ -89,8 +93,8 @@ export default function UsersPage() {
       setShowCreate(false);
       setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' });
       setFormErrors({});
-      toast.success('Utilisateur créé !');
-    } catch { toast.error('Erreur création'); }
+      toast.success('🎉 Utilisateur créé et invité avec succès !');
+    } catch { toast.error('Erreur lors de la création'); }
     finally { setSaving(false); }
   };
 
@@ -104,8 +108,8 @@ export default function UsersPage() {
       setSelectedUser(updated);
       setShowEdit(false);
       setFormErrors({});
-      toast.success('Utilisateur modifié');
-    } catch { toast.error('Erreur modification'); }
+      toast.success('👤 Utilisateur mis à jour !');
+    } catch { toast.error('Erreur lors de la modification'); }
     finally { setSaving(false); }
   };
 
@@ -116,8 +120,8 @@ export default function UsersPage() {
       await userService.deleteUser(deleteTarget.id);
       setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       if (selectedUser?.id === deleteTarget.id) setSelectedUser(null);
-      toast.success('Utilisateur désactivé');
-    } catch { toast.error('Erreur suppression'); }
+      toast.success('🔒 Utilisateur désactivé avec succès');
+    } catch { toast.error('Erreur lors de la suppression'); }
     finally {
       setDeleting(false);
       setDeleteTarget(null);
@@ -125,10 +129,10 @@ export default function UsersPage() {
   };
 
   const roleBadge = (role: string) => ({
-    ADMIN: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-    SUPERVISEUR: { cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
-    OPERATEUR: { cls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-  }[role] || { cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' });
+    ADMIN: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', avatar: 'from-amber-500/20 to-amber-600/30 text-amber-400' },
+    SUPERVISEUR: { cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20', avatar: 'from-violet-500/20 to-violet-600/30 text-violet-400' },
+    OPERATEUR: { cls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', avatar: 'from-indigo-500/20 to-indigo-600/30 text-indigo-400' },
+  }[role] || { cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle', avatar: 'from-zinc-500/10 to-zinc-600/20 text-txt-3' });
 
   const planningPresets = [
     { label: 'Temps plein', value: 'Lundi-Vendredi 08:00-17:00' },
@@ -142,206 +146,377 @@ export default function UsersPage() {
   if (error) return <ErrorState message={error} onRetry={fetchUsers} />;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-5 max-w-[1600px] mx-auto w-full px-1 py-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight">Utilisateurs</h1>
-          <p className="text-xs text-txt-3 font-mono mt-0.5">{users.length} compte{users.length > 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-gradient-title">
+            Console des Collaborateurs
+          </h1>
+          <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+            {users.length} collaborateur{users.length > 1 ? 's' : ''} répertorié{users.length > 1 ? 's' : ''}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={fetchUsers} className="btn-ghost h-9 px-3 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer" disabled={loading}>
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button onClick={() => { setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '' }); setShowCreate(true); }} className="btn-cta h-9 px-4 rounded-lg text-xs text-white flex items-center gap-1.5 cursor-pointer">
-            <Plus size={12} /> Inviter
-          </button>
+        <div className="flex items-center gap-2.5">
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={fetchUsers} 
+            className="btn-ghost h-9 w-9 p-0 rounded-xl text-xs flex items-center justify-center cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm" 
+            disabled={loading}
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => { setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' }); setShowCreate(true); }} 
+            className="btn-cta h-9 px-4 rounded-xl text-xs text-white flex items-center gap-1.5 cursor-pointer font-bold shadow-md bg-gradient-to-r from-indigo-500 to-violet-500"
+          >
+            <Plus size={13} /> Créer un profil
+          </motion.button>
         </div>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-1.5">
-        {['ALL', 'OPERATEUR', 'SUPERVISEUR', 'ADMIN'].map(r => (
-          <button key={r} onClick={() => setRoleFilter(r)} className={`chip cursor-pointer ${roleFilter === r ? 'active' : ''}`}>
-            {r === 'ALL' ? 'Tous' : r === 'OPERATEUR' ? 'Opérateurs' : r === 'SUPERVISEUR' ? 'Superviseurs' : 'Admins'}
+      {/* Role Filters */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: 'ALL', label: 'Tous les profils' },
+          { key: 'OPERATEUR', label: 'Opérateurs' },
+          { key: 'SUPERVISEUR', label: 'Superviseurs' },
+          { key: 'ADMIN', label: 'Administrateurs' }
+        ].map(r => (
+          <button 
+            key={r.key} 
+            onClick={() => setRoleFilter(r.key)} 
+            className={`chip cursor-pointer text-xs font-medium px-4.5 py-1.5 rounded-full border transition-all duration-300
+              ${roleFilter === r.key 
+                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-semibold shadow-sm' 
+                : 'bg-[var(--surface)] text-txt-3 border-border/80 hover:border-border hover:text-txt'
+              }`}
+          >
+            {r.label}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
-        {/* List */}
-        <div className="card-aurora rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="p-5 space-y-3 animate-pulse">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 bg-[var(--muted)] rounded-lg" />)}</div>
-          ) : users.length === 0 ? (
-            <EmptyState icon="👤" title="Aucun utilisateur" subtitle="Aucun utilisateur trouvé" />
-          ) : (
-            users.map((u) => {
-              const rb = roleBadge(u.role);
-              const initials = `${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase();
-              return (
-                <div
-                  key={u.id}
-                  onClick={() => setSelectedUser(u)}
-                  className={`flex items-center gap-3.5 px-5 py-3.5 border-b border-border cursor-pointer transition-all hover:bg-[var(--overlay)] ${selectedUser?.id === u.id ? 'bg-indigo-500/[0.04] border-l-2 border-l-indigo-500' : ''}`}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold bg-indigo-500/10 text-indigo-400 flex-shrink-0">{initials}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold">{u.prenom} {u.nom}</div>
-                    <div className="font-mono text-[10px] text-txt-3">{u.email}</div>
-                  </div>
-                  <span className={`font-mono text-[9px] px-2.5 py-1 rounded-lg border ${rb.cls}`}>{u.role}</span>
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${u.actif ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
-                </div>
-              );
-            })
-          )}
-        </div>
+      {/* Main content split panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+        {/* Left Side: Users list */}
+        <div className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-xl">
+          <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5">
+            <span className="font-mono text-[10px] text-txt-3 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
+              <UserIcon size={12} className="text-indigo-400" />
+              Répertoire actif
+            </span>
+          </div>
 
-        {/* Detail */}
-        <div className="flex flex-col gap-3 sticky top-6 h-max">
-          {selectedUser ? (
-            <>
-              <div className="card-aurora rounded-2xl p-5 text-center">
-                <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center text-xl font-bold bg-gradient-to-br from-indigo-500 to-violet-400 text-white">
-                  {`${(selectedUser.prenom || '')[0] || ''}${(selectedUser.nom || '')[0] || ''}`.toUpperCase()}
-                </div>
-                <div className="text-base font-extrabold">{selectedUser.prenom} {selectedUser.nom}</div>
-                <div className="font-mono text-[10px] text-txt-3 mb-2">{selectedUser.email}</div>
-                <span className={`font-mono text-[9px] px-2.5 py-1 rounded-lg border ${roleBadge(selectedUser.role).cls}`}>{selectedUser.role}</span>
-                <div className="flex items-center justify-center gap-1.5 mt-2 font-mono text-[9px]">
-                  <div className={`w-1.5 h-1.5 rounded-full ${selectedUser.actif ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
-                  <span className={selectedUser.actif ? 'text-emerald-400' : 'text-txt-3'}>{selectedUser.actif ? 'Actif' : 'Inactif'}</span>
-                </div>
-              </div>
-              <div className="card-aurora rounded-2xl p-5">
-                <h3 className="text-sm font-bold mb-3">Détails</h3>
-                <div className="space-y-2">
-                  {[
-                    { label: 'ID', value: selectedUser.id },
-                    { label: 'Téléphone', value: selectedUser.telephone || '—' },
-                    { label: 'Agence', value: selectedUser.agenceId ? (agenceNames[selectedUser.agenceId] || selectedUser.agenceId) : '—' },
-                    { label: 'Créé le', value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR') : '—' },
-                  ].map(info => (
-                    <div key={info.label} className="flex justify-between text-xs border-b border-border pb-2 last:border-0 last:pb-0">
-                      <span className="text-txt-3">{info.label}</span>
-                      <span className="font-mono text-[10px]">{info.value}</span>
-                    </div>
+          <div className="divide-y divide-border/60">
+            <AnimatePresence mode="popLayout">
+              {loading ? (
+                <div className="p-5 space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
-              </div>
-              {/* Planning CDC Module 1 */}
-              <div className="card-aurora rounded-2xl p-5">
-                <h3 className="text-sm font-bold mb-3">📅 Planning</h3>
-                {selectedUser.planning ? (
-                  <div className="space-y-1.5">
-                    {selectedUser.planning.split(',').map((segment, i) => {
-                      const trimmed = segment.trim();
-                      const [days, hours] = trimmed.split(' ');
-                      return (
-                        <div key={i} className="flex items-center gap-2 p-2 bg-[var(--elevated)] border border-border rounded-lg">
-                          <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
-                          <span className="text-xs font-medium">{hours || ''}</span>
+              ) : users.length === 0 ? (
+                <EmptyState icon="user" title="Aucun collaborateur" subtitle="Aucun utilisateur ne correspond à ce filtre." />
+              ) : (
+                users.map((u) => {
+                  const rb = roleBadge(u.role);
+                  const initials = `${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase();
+                  const isSelected = selectedUser?.id === u.id;
+                  
+                  return (
+                    <motion.div
+                      key={u.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      onClick={() => setSelectedUser(u)}
+                      className={`group flex items-center justify-between gap-4 px-5 py-3.5 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden
+                        ${isSelected ? 'bg-indigo-500/[0.04] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-indigo-500' : ''}`}
+                    >
+                      <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                        {/* Avatar */}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[12px] font-extrabold bg-gradient-to-br border border-border-subtle flex-shrink-0 transition-transform group-hover:scale-105 duration-300 ${rb.avatar}`}>
+                          {initials}
                         </div>
-                      );
-                    })}
+
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors">
+                            {u.prenom} {u.nom}
+                          </div>
+                          <div className="font-mono text-[9.5px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-1.5">
+                            <Mail size={10} className="text-txt-3" />
+                            {u.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right metadata badges */}
+                      <div className="flex items-center gap-3.5">
+                        <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${rb.cls}`}>
+                          {u.role}
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5 font-mono text-[9px] bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.actif ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
+                          <span className={u.actif ? 'text-emerald-400' : 'text-txt-3 font-semibold'}>
+                            {u.actif ? 'ACTIF' : 'INACTIF'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Right Side: Detail console */}
+        <div className="flex flex-col gap-4 sticky top-6 h-max">
+          <AnimatePresence mode="wait">
+            {selectedUser ? (
+              <motion.div
+                key={selectedUser.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                {/* Visual Avatar Card */}
+                <div className="card-aurora rounded-2xl p-6 text-center border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] relative overflow-hidden shadow-lg">
+                  <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+                  
+                  <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-xl font-bold bg-gradient-to-br from-indigo-500/30 to-violet-500/10 text-indigo-300 border border-indigo-500/20 shadow-md">
+                    {`${(selectedUser.prenom || '')[0] || ''}${(selectedUser.nom || '')[0] || ''}`.toUpperCase()}
                   </div>
-                ) : (
-                  <div className="text-xs text-txt-3 text-center py-4">Aucun planning défini</div>
-                )}
+                  
+                  <div className="text-base font-extrabold text-txt tracking-wide">{selectedUser.prenom} {selectedUser.nom}</div>
+                  <div className="font-mono text-[10px] text-txt-3 mt-0.5 tracking-wider">{selectedUser.email}</div>
+                  
+                  <div className="flex items-center justify-center gap-2 mt-3.5">
+                    <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${roleBadge(selectedUser.role).cls}`}>
+                      {selectedUser.role}
+                    </span>
+                    <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border flex items-center gap-1
+                      ${selectedUser.actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}
+                    >
+                      <span className={`w-1 h-1 rounded-full ${selectedUser.actif ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
+                      {selectedUser.actif ? 'Actif' : 'Inactif'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Metadata Details Card */}
+                <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md space-y-4">
+                  <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2 border-b border-border/60">
+                    Fiche d'identité
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Identifiant UUID', value: selectedUser.id, icon: <Shield size={12} className="text-indigo-400" /> },
+                      { label: 'Téléphone direct', value: selectedUser.telephone || '—', icon: <Phone size={12} className="text-indigo-400" /> },
+                      { label: 'Agence assignée', value: selectedUser.agenceId ? (agenceNames[selectedUser.agenceId] || selectedUser.agenceId) : '—', icon: <Building size={12} className="text-indigo-400" /> },
+                      { label: 'Date de création', value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: <Clock size={12} className="text-indigo-400" /> },
+                    ].map(info => (
+                      <div key={info.label} className="flex justify-between items-start text-xs border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
+                        <span className="text-txt-3 flex items-center gap-1.5 font-medium">
+                          {info.icon}
+                          {info.label}
+                        </span>
+                        <span className="font-mono text-[10px] text-txt font-semibold text-right max-w-[180px] truncate select-all">{info.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Planning presets / Calendar */}
+                <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md">
+                  <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2.5 border-b border-border/60 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5"><CalendarDays size={13} className="text-indigo-400" /> Planning Hebdomadaire</span>
+                  </div>
+                  
+                  <div className="mt-3">
+                    {selectedUser.planning ? (
+                      <div className="space-y-2">
+                        {selectedUser.planning.split(',').map((segment: string, i: number) => {
+                          const trimmed = segment.trim();
+                          const [days, hours] = trimmed.split(' ');
+                          return (
+                            <div key={i} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
+                              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
+                              <span className="text-xs font-semibold text-txt tracking-wide">{hours || ''}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-txt-3 text-center py-5 font-mono italic">Aucun planning hebdomadaire défini</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Operations Buttons */}
+                <div className="flex gap-2.5">
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { setForm({ nom: selectedUser.nom, prenom: selectedUser.prenom, email: selectedUser.email, password: '', role: selectedUser.role as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN', agenceId: selectedUser.agenceId || '', telephone: selectedUser.telephone || '', planning: selectedUser.planning || '' }); setShowEdit(true); }} 
+                    className="btn-ghost flex-1 h-9.5 rounded-xl text-xs cursor-pointer flex items-center justify-center gap-1.5 border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] hover:text-txt transition-all font-bold"
+                  >
+                    <Pencil size={12} className="text-txt-2" /> Modifier
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setDeleteTarget(selectedUser)} 
+                    className="flex-1 h-9.5 rounded-xl text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={12} /> Désactiver
+                  </motion.button>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="card-aurora rounded-2xl p-6 border border-border text-center">
+                <EmptyState icon="arrow-left" title="Détails du compte" subtitle="Sélectionnez un collaborateur pour explorer ses détails, son agence et son planning d'assistance." />
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => { setForm({ nom: selectedUser.nom, prenom: selectedUser.prenom, email: selectedUser.email, password: '', role: selectedUser.role as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN', agenceId: selectedUser.agenceId || '', telephone: selectedUser.telephone || '', planning: selectedUser.planning || '' }); setShowEdit(true); }} className="btn-ghost flex-1 h-9 rounded-lg text-xs cursor-pointer">✏ Modifier</button>
-                <button onClick={() => setDeleteTarget(selectedUser)} className="flex-1 h-9 rounded-lg text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors">🗑 Supprimer</button>
-              </div>
-            </>
-          ) : (
-            <div className="card-aurora rounded-2xl p-5">
-              <EmptyState icon="👈" title="Sélectionnez un utilisateur" subtitle="Cliquez sur un utilisateur pour voir ses détails" />
-            </div>
-          )}
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} title={showCreate ? 'Nouvel utilisateur' : 'Modifier utilisateur'}>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} title={showCreate ? 'Création de Compte Collaborateur' : 'Modification du Compte Collaborateur'}>
+        <div className="space-y-4 pt-1">
+          <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label htmlFor="user-prenom" className="field-label block">Prénom *</label>
-              <input id="user-prenom" className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
-              {formErrors.prenom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.prenom}</span>}
+              <label htmlFor="user-prenom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Prénom *</label>
+              <input id="user-prenom" className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
+              {formErrors.prenom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.prenom}</span>}
             </div>
             <div>
-              <label htmlFor="user-nom" className="field-label block">Nom *</label>
-              <input id="user-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
-              {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
+              <label htmlFor="user-nom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Nom *</label>
+              <input id="user-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
+              {formErrors.nom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.nom}</span>}
             </div>
           </div>
           <div>
-            <label htmlFor="user-email" className="field-label block">Email *</label>
+            <label htmlFor="user-email" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Email de connexion *</label>
             <input id="user-email" className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
-            {formErrors.email && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.email}</span>}
+            {formErrors.email && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.email}</span>}
           </div>
           {(showCreate || showEdit) && (
             <div>
-              <label className="field-label block">{showCreate ? 'Mot de passe *' : 'Nouveau mot de passe (optionnel)'}</label>
-              <input className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : ''} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
-              {formErrors.password && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.password}</span>}
+              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">{showCreate ? 'Mot de passe initial *' : 'Nouveau mot de passe (optionnel)'}</label>
+              <input className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
+              {formErrors.password && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.password}</span>}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="field-label block">Rôle</label>
+          
+          <div className="grid grid-cols-2 gap-3.5">
+            <div>
+              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Rôle d'accès</label>
               <select className="aurora-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN' }))}>
-                <option value="OPERATEUR">Opérateur</option><option value="SUPERVISEUR">Superviseur</option><option value="ADMIN">Admin</option>
+                <option value="OPERATEUR">Opérateur</option>
+                <option value="SUPERVISEUR">Superviseur d'agence</option>
+                <option value="ADMIN">Administrateur</option>
               </select>
             </div>
-            <div><label className="field-label block">Téléphone</label><input className="aurora-input" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} /></div>
+            <div>
+              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">N° Téléphone</label>
+              <input className="aurora-input" placeholder="Ex: 06 12 34 56 78" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} />
+            </div>
           </div>
+
           {/* CDC 1.A — Agence (obligatoire pour OPERATEUR/SUPERVISEUR) */}
           <div>
-            <label className="field-label block">Agence {(form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && <span className="text-rose-400">*</span>}</label>
+            <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+              Agence de rattachement {(form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && <span className="text-rose-400">*</span>}
+            </label>
             <select className={`aurora-select ${formErrors.agenceId ? 'border-rose-500/60' : ''}`} value={form.agenceId || ''} onChange={e => { setForm(p => ({ ...p, agenceId: e.target.value })); setFormErrors(e2 => ({ ...e2, agenceId: undefined })); }}>
               <option value="">-- Aucune agence --</option>
               {agenceOptions.map(a => (
                 <option key={a.id} value={a.id}>{a.nom}</option>
               ))}
             </select>
-            {formErrors.agenceId && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.agenceId}</span>}
+            {formErrors.agenceId && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.agenceId}</span>}
           </div>
-          {/* Planning */}
+
+          {/* Planning weekly presets */}
           <div>
-            <label className="field-label block">📅 Planning</label>
-            <div className="flex gap-1.5 flex-wrap mb-1.5">
+            <label className="field-label block flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+              <CalendarDays size={12} className="text-indigo-400" /> Définition du planning
+            </label>
+            <div className="flex gap-1.5 flex-wrap mb-2">
               {planningPresets.map(p => (
-                <button key={p.label} type="button" onClick={() => setForm(f => ({ ...f, planning: p.value }))} className={`text-[9px] font-mono px-2 py-0.5 rounded border cursor-pointer transition-colors ${form.planning === p.value ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-txt-3 border-border hover:border-indigo-500/20'}`}>{p.label}</button>
+                <button 
+                  key={p.label} 
+                  type="button" 
+                  onClick={() => setForm(f => ({ ...f, planning: p.value }))} 
+                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border cursor-pointer transition-colors
+                    ${form.planning === p.value 
+                      ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
+                      : 'text-txt-3 border-border hover:border-indigo-500/20 hover:text-txt'
+                    }`}
+                >
+                  {p.label}
+                </button>
               ))}
             </div>
-            <input className="aurora-input" placeholder="Ex: Lundi-Vendredi 08:00-17:00" value={form.planning || ''} onChange={e => setForm(p => ({ ...p, planning: e.target.value }))} />
+            <input className="aurora-input font-mono text-xs" placeholder="Ex: Lundi-Vendredi 08:00-17:00" value={form.planning || ''} onChange={e => setForm(p => ({ ...p, planning: e.target.value }))} />
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t border-border">
-            <button onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-lg text-xs cursor-pointer">Annuler</button>
-            <button onClick={showCreate ? handleCreate : handleUpdate} disabled={saving} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">
-              {saving ? '...' : showCreate ? 'Créer' : 'Sauvegarder'}
+
+          <div className="flex justify-end gap-2.5 pt-4.5 border-t border-border mt-3">
+            <button onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-xl text-xs cursor-pointer font-bold">
+              Annuler
             </button>
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={showCreate ? handleCreate : handleUpdate} 
+              disabled={saving} 
+              className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {saving ? 'Sauvegarde...' : showCreate ? 'Créer le compte' : 'Enregistrer'}
+            </motion.button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirmer la suppression" size="sm">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-rose-500/10 border border-rose-500/20">
+      {/* Delete/Deactivate Confirmation Modal */}
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Désactivation du Compte" size="sm">
+        <div className="text-center space-y-4 py-2">
+          <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center bg-rose-500/10 border border-rose-500/20 shadow-sm animate-bounce">
             <AlertTriangle size={24} className="text-rose-400" />
           </div>
-          <p className="text-sm font-semibold mb-1">Supprimer cet utilisateur ?</p>
-          <p className="text-xs text-txt-3 mb-1">
-            <span className="font-mono text-rose-400">{deleteTarget?.prenom} {deleteTarget?.nom}</span>
+          
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-txt">Confirmer la désactivation ?</p>
+            <p className="text-xs text-txt-3 font-semibold font-mono text-rose-400 bg-rose-500/5 py-1 px-2.5 border border-rose-500/10 rounded-xl max-w-[280px] mx-auto truncate">
+              {deleteTarget?.prenom} {deleteTarget?.nom}
+            </p>
+          </div>
+          
+          <p className="text-[11px] text-txt-3 max-w-[300px] mx-auto leading-relaxed">
+            Cette mesure de sécurité bloquera l'accès à ce compte et l'exclura des plannings de support. Vous pourrez le réactiver dans l'administration de la base.
           </p>
-          <p className="text-[11px] text-txt-3 mb-4">Cette action désactivera le compte. L'utilisateur ne pourra plus se connecter.</p>
-          <div className="flex gap-2">
-            <button onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1 h-10 rounded-xl text-xs cursor-pointer">Annuler</button>
-            <button onClick={handleDeleteConfirm} disabled={deleting} className="flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-colors disabled:opacity-50">
-              {deleting ? 'Suppression...' : '🗑 Supprimer'}
+
+          <div className="flex gap-2.5 pt-2">
+            <button onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1 h-10 rounded-xl text-xs cursor-pointer font-bold border border-border">
+              Annuler
+            </button>
+            <button 
+              onClick={handleDeleteConfirm} 
+              disabled={deleting} 
+              className="flex-1 h-10 rounded-xl text-xs font-bold cursor-pointer bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all disabled:opacity-50"
+            >
+              {deleting ? 'Désactivation...' : 'Désactiver'}
             </button>
           </div>
         </div>

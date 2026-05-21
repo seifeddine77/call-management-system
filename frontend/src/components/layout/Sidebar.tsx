@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../ui/Logo';
 import {
   LayoutDashboard, ListOrdered, Ticket, Brain, BarChart3,
   Users, Building2, Bell, Settings, LogOut, Search,
@@ -54,11 +55,8 @@ export default function Sidebar() {
 
       {/* Brand */}
       <div className="px-4 pt-[18px] pb-[14px] border-b border-border flex items-center gap-3">
-        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center relative flex-shrink-0"
-          style={{ background: 'var(--gradient-cta)' }}
-        >
-          <div className="absolute inset-[2px] rounded-[8px] bg-[var(--surface)]" />
-          <div className="relative z-[1] w-4 h-4 rounded-[4px]" style={{ background: 'var(--gradient-cta)' }} />
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden">
+          <Logo size={28} animated={true} />
         </div>
         <div>
           <div className="text-sm font-extrabold tracking-tight">AutoAssist</div>

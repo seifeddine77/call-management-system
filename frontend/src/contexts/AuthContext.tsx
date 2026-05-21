@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUserSession: (userData: Partial<AuthUser>) => void;
   isAdmin: boolean;
   isSupervisor: boolean;
   isOperator: boolean;
@@ -46,6 +47,15 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     localStorage.removeItem('aurora-auth');
   }, [user]);
 
+  const updateUserSession = useCallback((userData: Partial<AuthUser>) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...userData };
+      localStorage.setItem('aurora-auth', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const role = user?.role;
 
   const value = useMemo(() => ({
@@ -54,10 +64,11 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     isLoading,
     login,
     logout,
+    updateUserSession,
     isAdmin: role === 'ADMIN',
     isSupervisor: role === 'SUPERVISOR' || role === 'ADMIN',
     isOperator: role === 'OPERATOR',
-  }), [user, isLoading, login, logout, role]);
+  }), [user, isLoading, login, logout, updateUserSession, role]);
 
   return (
     <AuthContext.Provider value={value}>

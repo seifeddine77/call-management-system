@@ -18,7 +18,7 @@ public class Letter {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "decision_id", nullable = false)
+    @Column(name = "decision_id", nullable = false, unique = true)
     private UUID decisionId;
 
     @Column(name = "file_path", nullable = false, length = 500)

@@ -80,6 +80,8 @@ public class RuleService {
         // Sauvegarder l'ancienne version avant modification
         RuleVersion version = RuleVersion.builder()
                 .ruleId(rule.getId())
+                .nom(rule.getNom())
+                .description(rule.getDescription())
                 .conditions(rule.getConditions())
                 .action(rule.getAction())
                 .actionMotif(rule.getActionMotif())
@@ -233,7 +235,7 @@ public class RuleService {
 
         boolean hasFavorable = actionCounts.containsKey(DECISION_FAVORABLE);
         boolean hasDefavorable = actionCounts.containsKey(DECISION_DEFAVORABLE);
-        // Note: le cas ETUDE est géré par le else final (toutes les règles sont ETUDE)
+        boolean hasEtude = actionCounts.containsKey(DECISION_ETUDE);
 
         // Déterminer la décision finale
         String finalDecision;
@@ -241,7 +243,20 @@ public class RuleService {
         String motif;
         boolean ambiguous;
 
-        if (hasFavorable && hasDefavorable) {
+        if (hasEtude) {
+            // Si une règle d'étude est déclenchée, elle prévaut pour forcer l'investigation (consigne de sécurité)
+            // La décision finale est ETUDE et ambiguë pour déclencher le flux IA/Opérateur.
+            finalDecision = DECISION_ETUDE;
+            score = 45.0;
+            // Prendre le motif de la règle d'étude la plus prioritaire
+            Rule highestPriorityEtude = matchedRules.stream()
+                    .filter(r -> DECISION_ETUDE.equals(r.getAction()))
+                    .findFirst()
+                    .orElse(matchedRules.get(0));
+            motif = highestPriorityEtude.getActionMotif();
+            ambiguous = true;
+
+        } else if (hasFavorable && hasDefavorable) {
             // Conflit → la règle de plus haute priorité gagne
             Rule highestPriority = matchedRules.get(0); // Déjà triées par priorité DESC
             finalDecision = highestPriority.getAction();
@@ -274,6 +289,8 @@ public class RuleService {
                 clientBonus = 5.0;
             else if ("PREMIUM".equalsIgnoreCase(request.getCategorieClient()))
                 clientBonus = 3.0;
+            else if ("PROFESSIONNEL".equalsIgnoreCase(request.getCategorieClient()))
+                clientBonus = 2.0;
             // Bonus/malus mots-clés transcription audio (CDC: "mots-clés transcription
             // audio")
             double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText());

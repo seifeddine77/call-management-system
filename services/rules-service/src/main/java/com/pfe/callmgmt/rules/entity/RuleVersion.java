@@ -29,6 +29,12 @@ public class RuleVersion {
     @Column(name = "rule_id", nullable = false)
     private UUID ruleId;
 
+    @Column(length = 200)
+    private String nom;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Type(JsonType.class)
     @Column(columnDefinition = "jsonb", nullable = false)
     private Map<String, Object> conditions;

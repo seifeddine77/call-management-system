@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/auth.dart';
 import '../services/auth_service.dart';
+import '../services/api_client.dart';
 
 /// Authentication state provider — mirrors contexts/AuthContext.tsx
 class AuthProvider extends ChangeNotifier {
@@ -40,4 +41,23 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     notifyListeners();
   }
+
+  /// Update current user session details locally and persist them
+  Future<void> updateUserSession({required String prenom, required String nom, required String email}) async {
+    if (_user == null) return;
+    _user = AuthUser(
+      userId: _user!.userId,
+      email: email,
+      nom: nom,
+      prenom: prenom,
+      role: _user!.role,
+      agenceId: _user!.agenceId,
+      accessToken: _user!.accessToken,
+      refreshToken: _user!.refreshToken,
+    );
+    final api = ApiClient();
+    await api.saveTokens(_user!);
+    notifyListeners();
+  }
 }
+

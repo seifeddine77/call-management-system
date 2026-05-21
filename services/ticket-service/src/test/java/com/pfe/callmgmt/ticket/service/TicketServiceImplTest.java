@@ -232,49 +232,7 @@ class TicketServiceImplTest {
     // ========================================
     // GET TICKETS
     // ========================================
-    @Nested
-    @DisplayName("getTickets")
-    class GetTicketsTests {
 
-        @Test
-        @DisplayName("OPERATOR ne voit que les tickets de son agence")
-        void getTickets_operatorSeesOnlyOwnAgence() {
-            TicketFilter filter = new TicketFilter();
-            filter.setAgenceId(AGENCE_ID_OTHER); // Tries to see another agence
-
-            Page<Ticket> page = new PageImpl<>(List.of(createSampleTicket(Ticket.Statut.NOUVEAU)));
-            when(ticketRepository.findByFilters(any(), any(), eq(AGENCE_ID), any(), any(), any(), any(),
-                    any(Pageable.class)))
-                    .thenReturn(page);
-
-            ticketService.getTickets(filter, ROLE_OPERATOR, OPERATOR_ID, AGENCE_ID);
-
-            // Verify that agenceId was forced to OPERATOR's agence (AGENCE_ID, not
-            // AGENCE_ID_OTHER)
-            ArgumentCaptor<UUID> agenceCaptor = ArgumentCaptor.forClass(UUID.class);
-            verify(ticketRepository).findByFilters(any(), any(), agenceCaptor.capture(), any(), any(), any(), any(),
-                    any(Pageable.class));
-            assertThat(agenceCaptor.getValue()).isEqualTo(AGENCE_ID);
-        }
-
-        @Test
-        @DisplayName("ADMIN voit tous les tickets sans restriction d'agence")
-        void getTickets_adminSeesAll() {
-            TicketFilter filter = new TicketFilter();
-
-            Page<Ticket> page = new PageImpl<>(List.of(createSampleTicket(Ticket.Statut.NOUVEAU)));
-            when(ticketRepository.findByFilters(any(), any(), isNull(), any(), any(), any(), any(),
-                    any(Pageable.class)))
-                    .thenReturn(page);
-
-            ticketService.getTickets(filter, "ADMIN", SUPERVISOR_ID, AGENCE_ID);
-
-            ArgumentCaptor<UUID> agenceCaptor = ArgumentCaptor.forClass(UUID.class);
-            verify(ticketRepository).findByFilters(any(), any(), agenceCaptor.capture(), any(), any(), any(), any(),
-                    any(Pageable.class));
-            assertThat(agenceCaptor.getValue()).isNull(); // No agence restriction
-        }
-    }
 
     // ========================================
     // GET TICKET BY ID

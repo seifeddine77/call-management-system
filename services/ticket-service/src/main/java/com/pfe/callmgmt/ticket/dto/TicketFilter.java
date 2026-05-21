@@ -13,6 +13,7 @@ import java.util.UUID;
 public class TicketFilter {
     private String statut;
     private String canal;
+    private Short priorite;
     private UUID agenceId;
     private UUID operateurId;
     private LocalDateTime dateFrom;

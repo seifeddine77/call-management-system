@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import '../config/colors.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -82,20 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // ── Logo ──
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      gradient: c.gradientCta,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: c.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
-                    ),
-                    child: Center(
-                      child: Text('A', style: GoogleFonts.inter(
-                        fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white,
-                      )),
-                    ),
-                  ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+                  const AppLogo(size: 68, animated: true)
+                      .animate()
+                      .scale(duration: 500.ms, curve: Curves.easeOutBack),
                   const SizedBox(height: 16),
 
                   // ── Brand ──

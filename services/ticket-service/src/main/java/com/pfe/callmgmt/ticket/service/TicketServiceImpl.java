@@ -233,11 +233,12 @@ public class TicketServiceImpl implements TicketService {
         String canal = (filter.getCanal() != null && !filter.getCanal().isBlank())
                 ? filter.getCanal().toUpperCase()
                 : null;
+        Short priorite = filter.getPriorite();
 
         PageRequest pageable = PageRequest.of(filter.getPage(), filter.getSize());
 
         return ticketRepository.findByFilters(
-                statut, canal, effectiveAgenceId,
+                statut, canal, priorite, effectiveAgenceId,
                 filter.getOperateurId(),
                 filter.getDateFrom(), filter.getDateTo(),
                 filter.getSearch(), pageable).map(ticketMapper::toResponse);

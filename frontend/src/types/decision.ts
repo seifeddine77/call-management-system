@@ -1,6 +1,6 @@
 /* ── Decision Types ── */
 export type DecisionType = 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
-export type DecisionSource = 'RULES' | 'AI' | 'HYBRID' | 'CIRCUIT_BREAKER';
+export type DecisionSource = 'RULES' | 'AI' | 'HYBRID' | 'CACHE' | 'CIRCUIT_BREAKER';
 
 export interface DecisionRequest {
   ticketId: string;

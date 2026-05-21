@@ -57,6 +57,14 @@ class _QueueScreenState extends State<QueueScreen> {
           SnackBar(content: const Text('✅ Ticket pris en charge !'), backgroundColor: context.colors.success),
         );
         setState(() => _tickets.removeWhere((t) => t.ticketId == entry.ticketId));
+        // Ouvrir automatiquement le détail du ticket après prise en charge avec addPostFrameCallback pour la stabilité de navigation
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: entry.ticketId)),
+            );
+          }
+        });
       }
     } catch (e) {
       if (mounted) {

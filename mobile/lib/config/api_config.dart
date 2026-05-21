@@ -32,6 +32,8 @@ class ApiConfig {
   static const String ticketsPerDayPath = '/api/analytics/tickets-per-day';
   static const String dailyStatsPath = '/api/analytics/daily-stats';
   static const String exportCsvPath = '/api/analytics/export/csv';
+  static const String operatorPerformancePath = '/api/tickets/operators/performance';
+  static const String supervisionAlertsPath = '/api/tickets/supervision/alerts';
 
   /// Decision endpoints
   static const String decisionsPath = '/api/decisions';

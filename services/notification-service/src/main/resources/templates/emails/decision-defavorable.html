@@ -5,49 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demande de Garantie</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-        .header { background: linear-gradient(135deg, #B71C1C, #D32F2F); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .body { padding: 30px; color: #333; line-height: 1.6; }
-        .decision-box { background: #FFEBEE; border: 2px solid #EF5350; padding: 20px; border-radius: 12px; margin: 15px 0; text-align: center; }
-        .decision-box .label { font-size: 14px; color: #666; margin-bottom: 5px; }
-        .decision-box .value { font-size: 28px; font-weight: 700; color: #C62828; }
-        .contact-box { background: #F5F5F5; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #555; font-size: 12px; }
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F7F8FA; margin: 0; padding: 40px 20px; color: #111318; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #E2E5EB; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 8px rgba(0, 0, 0, 0.01); }
+        .header { background: linear-gradient(135deg, #FF4757 0%, #C62828 100%); color: white; padding: 40px 30px; text-align: center; position: relative; }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+        .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; font-weight: 500; }
+        .body { padding: 40px 35px; line-height: 1.6; }
+        .body h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: #111318; letter-spacing: -0.01em; }
+        .body p { color: #4A5168; font-size: 14px; margin-bottom: 20px; }
+        
+        .decision-box { background: rgba(255, 71, 87, 0.06); border: 1.5px solid rgba(255, 71, 87, 0.2); padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+        .decision-box .label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8B92A5; letter-spacing: 0.05em; margin-bottom: 5px; }
+        .decision-box .value { font-size: 28px; font-weight: 800; color: #FF4757; letter-spacing: 0.02em; }
+        
+        .motif-box { background: #F7F8FA; border-radius: 10px; padding: 15px; border: 1px solid #E2E5EB; margin-bottom: 25px; }
+        .motif-title { font-weight: 700; font-size: 13px; color: #8B92A5; text-transform: uppercase; margin-bottom: 5px; }
+        .motif-content { font-style: italic; color: #111318; font-size: 14px; }
+        
+        .contact-box { background: #F7F8FA; border: 1px solid #E2E5EB; padding: 22px; border-radius: 12px; margin-top: 25px; }
+        .contact-box h3 { margin-top: 0; font-size: 15px; font-weight: 700; color: #111318; }
+        .contact-box ul { padding-left: 20px; margin: 10px 0; }
+        .contact-box li { font-size: 13.5px; color: #4A5168; margin-bottom: 6px; }
+        
+        .footer { background: #F7F8FA; padding: 25px; text-align: center; color: #8B92A5; font-size: 12px; border-top: 1px solid #ECEEF2; }
+        .footer p { margin: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Demande de Garantie</h1>
-            <p style="margin: 5px 0 0; opacity: 0.9;" th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
+            <p th:text="'Référence : ' + ${ticketId}">Réf. ABCD1234</p>
         </div>
         <div class="body">
             <h2>Bonjour <span th:text="${clientNom}">Client</span>,</h2>
-            <p>Nous avons étudié votre demande de garantie avec attention. Malheureusement, celle-ci ne peut pas être acceptée.</p>
+            <p>Nous avons étudié votre demande de prise en charge avec le plus grand soin. Malheureusement, celle-ci n'a pas pu recevoir de suite favorable.</p>
 
             <div class="decision-box">
-                <div class="label">Décision</div>
+                <div class="label">Statut de la demande</div>
                 <div class="value">DÉFAVORABLE</div>
             </div>
 
-            <p><strong>Motif :</strong> <span th:text="${motif}">La pièce est hors garantie.</span></p>
-
-            <div class="contact-box">
-                <h3 style="margin-top: 0;">Vous n'êtes pas d'accord ?</h3>
-                <p>Vous avez la possibilité de contester cette décision. Pour cela :</p>
-                <ul>
-                    <li>Contactez notre service client au <strong>+216 XX XXX XXX</strong></li>
-                    <li>Ou envoyez un email à <strong>reclamation@callmgmt.com</strong></li>
-                </ul>
-                <p>Munissez-vous de votre numéro de référence : <strong th:text="${ticketId}">ABCD1234</strong></p>
+            <div class="motif-box">
+                <div class="motif-title">Raison du refus</div>
+                <div class="motif-content" th:text="${motif}">La pièce est hors des conditions de validité de la garantie.</div>
             </div>
 
-            <p style="margin-top: 20px;">Cordialement,<br><strong>L'équipe Call Management</strong></p>
+            <div class="contact-box">
+                <h3>Besoin d'assistance ?</h3>
+                <p style="font-size: 13.5px; color: #4A5168; margin-bottom: 10px;">Si vous souhaitez contester ou obtenir des explications complémentaires :</p>
+                <ul>
+                    <li>Contactez notre ligne d'assistance dédiée au <strong>+216 XX XXX XXX</strong></li>
+                    <li>Ou adressez votre demande par e-mail : <strong>reclamation@callmgmt.com</strong></li>
+                </ul>
+                <p style="font-size: 12.5px; color: #8B92A5; margin-top: 10px; margin-bottom: 0;">Merci de mentionner la référence de dossier suivante : <strong th:text="${ticketId}" style="color: #111318;">ABCD1234</strong></p>
+            </div>
+
+            <p style="margin-top: 30px; font-size: 13px; color: #8B92A5;">Cordialement,<br><strong style="color: #111318;">Le Service Clientèle Assurance AutoAssist</strong></p>
         </div>
         <div class="footer">
-            <p>© 2026 AutoAssist — Notification automatique</p>
+            <p>© 2026 AutoAssist France. Ne pas répondre à ce courriel automatique.</p>
         </div>
     </div>
 </body>
