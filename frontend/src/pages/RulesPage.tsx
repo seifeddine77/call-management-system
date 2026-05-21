@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, GripVertical, Pencil, Plus, Settings } from 'lucide-react';
+import { AlertTriangle, GripVertical, Pencil, Plus, Settings, Wrench, Users, Zap, ClipboardList, Ruler, FlaskConical, ScrollText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ruleService, type RefItem } from '../services/ruleService';
 import { ErrorState, EmptyState } from '../components/ui/States';
@@ -116,11 +116,435 @@ interface FormErrors { nom?: string; description?: string; conditions?: string; 
 
 // ─── Reference categories config ───
 const REF_CATEGORIES = [
-  { key: 'TYPE_PIECE', label: 'Types de pièces (garanties)', icon: '🔧' },
-  { key: 'CATEGORIE_CLIENT', label: 'Catégories client', icon: '👥' },
-  { key: 'TYPE_SINISTRE', label: 'Types de sinistre (exclusions)', icon: '⚡' },
-  { key: 'FIELD_DEFINITION', label: 'Champs disponibles (conditions)', icon: '📋' },
+  { key: 'TYPE_PIECE', label: 'Types de pièces (garanties)', icon: <Wrench size={14} /> },
+  { key: 'CATEGORIE_CLIENT', label: 'Catégories client', icon: <Users size={14} /> },
+  { key: 'TYPE_SINISTRE', label: 'Types de sinistre (exclusions)', icon: <Zap size={14} /> },
+  { key: 'FIELD_DEFINITION', label: 'Champs disponibles (conditions)', icon: <ClipboardList size={14} /> },
 ] as const;
+
+// ─── Interactive Decision Flow SVG Tree ───
+interface DecisionFlowTreeProps {
+  rule: Rule;
+  testForm: Record<string, string>;
+}
+
+function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
+  const operator = rule.conditions.operator;
+  const conditions = rule.conditions.conditions;
+  const numConds = conditions.length;
+
+  const evalCondition = (cond: RuleCondition) => {
+    const fieldVal = testForm[cond.field];
+    if (fieldVal === undefined || fieldVal === '') return null; // not evaluated
+
+    const op = cond.operator;
+    const condVal = cond.value;
+
+    const numField = Number(fieldVal);
+    const numCond = Number(condVal);
+    const isNumeric = !isNaN(numField) && !isNaN(numCond);
+
+    const val1 = isNumeric ? numField : String(fieldVal).trim().toLowerCase();
+    const val2 = isNumeric ? numCond : String(condVal).trim().toLowerCase();
+
+    switch (op) {
+      case '=':
+      case '==':
+        return val1 === val2;
+      case '!=':
+        return val1 !== val2;
+      case '<':
+        return val1 < val2;
+      case '>':
+        return val1 > val2;
+      case '<=':
+        return val1 <= val2;
+      case '>=':
+        return val1 >= val2;
+      default:
+        return false;
+    }
+  };
+
+  // Evaluate all conditions
+  const evaluatedConds = conditions.map(c => evalCondition(c));
+
+  // Determine overall status
+  let ruleStatus: boolean | null = null;
+  if (operator === 'AND') {
+    const hasFalse = evaluatedConds.some(v => v === false);
+    const allTrue = evaluatedConds.every(v => v === true);
+    if (hasFalse) ruleStatus = false;
+    else if (allTrue) ruleStatus = true;
+  } else {
+    // OR
+    const hasTrue = evaluatedConds.some(v => v === true);
+    const allFalse = evaluatedConds.every(v => v === false);
+    if (hasTrue) ruleStatus = true;
+    else if (allFalse) ruleStatus = false;
+  }
+
+  // Layout parameters
+  const canvasWidth = 340;
+  const isOr = operator === 'OR';
+
+  // Dynamic height based on layout
+  const canvasHeight = isOr ? Math.max(160, numConds * 85) : (numConds + 2) * 85;
+
+  const getBezierPath = (x1: number, y1: number, x2: number, y2: number) => {
+    const dx = Math.abs(x2 - x1) * 0.5;
+    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-[10px] text-txt-3 font-mono flex items-center justify-between">
+        <span>Simulateur Interactif</span>
+        <span className="flex items-center gap-1">
+          Statut : {ruleStatus === true ? (
+            <span className="text-emerald-400 font-bold">✓ VALIDÉ</span>
+          ) : ruleStatus === false ? (
+            <span className="text-rose-400 font-bold">✕ ÉCHOUÉ</span>
+          ) : (
+            <span className="text-txt-3">EN ATTENTE</span>
+          )}
+        </span>
+      </div>
+
+      <div className="relative border border-border/40 rounded-xl bg-[var(--overlay)] overflow-hidden flex justify-center py-4">
+        {/* Glow Effects Behind SVG */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.03),transparent)]" />
+
+        <svg width={canvasWidth} height={canvasHeight} className="overflow-visible select-none z-10">
+          <defs>
+            {/* Filters for neon glow effects */}
+            <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <style>{`
+            @keyframes dash {
+              to {
+                stroke-dashoffset: -20;
+              }
+            }
+            .animate-dash {
+              stroke-dasharray: 6, 4;
+              animation: dash 1s linear infinite;
+            }
+          `}</style>
+
+          {isOr ? (
+            // ─── OR (Parallel Vertical Fork) Layout ───
+            <>
+              {/* Connections START -> Conds & Conds -> ACTION */}
+              {conditions.map((_, i) => {
+                const startX = 50;
+                const startY = canvasHeight / 2;
+                const condX = 85;
+                const condY = i * 85 + (canvasHeight - numConds * 60 - (numConds - 1) * 25) / 2 + 30;
+
+                const actionX = 225;
+                const actionY = condY;
+                const endX = 265;
+                const endY = canvasHeight / 2;
+
+                const status = evaluatedConds[i];
+
+                let strokeColor = 'var(--border)';
+                let isAnimated = false;
+                let strokeFilter = '';
+
+                if (status === true) {
+                  strokeColor = 'rgba(16, 185, 129, 0.8)'; // Favorable / green
+                  isAnimated = true;
+                  strokeFilter = 'url(#glow-green)';
+                } else if (status === false) {
+                  strokeColor = 'rgba(239, 68, 68, 0.8)'; // Defavorable / red
+                  strokeFilter = 'url(#glow-red)';
+                }
+
+                return (
+                  <g key={`path-or-${i}`}>
+                    {/* Path Start -> Cond */}
+                    <path
+                      d={getBezierPath(startX, startY, condX, condY)}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={status === true ? 2.5 : 1.5}
+                      filter={strokeFilter}
+                      className={isAnimated ? 'animate-dash' : ''}
+                      strokeDasharray={isAnimated ? '4,4' : undefined}
+                      style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+                    />
+                    {/* Path Cond -> Action */}
+                    <path
+                      d={getBezierPath(actionX, actionY, endX, endY)}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={status === true ? 2.5 : 1.5}
+                      filter={strokeFilter}
+                      className={isAnimated ? 'animate-dash' : ''}
+                      strokeDasharray={isAnimated ? '4,4' : undefined}
+                      style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+                    />
+                  </g>
+                );
+              })}
+
+              {/* Start Node */}
+              <foreignObject
+                x={0}
+                y={canvasHeight / 2 - 18}
+                width={50}
+                height={36}
+              >
+                <div className="w-full h-full rounded-xl border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center font-mono text-[9px] font-bold text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.15)]">
+                  ENTRÉE
+                </div>
+              </foreignObject>
+
+              {/* Condition Nodes */}
+              {conditions.map((cond, i) => {
+                const condY = i * 85 + (canvasHeight - numConds * 60 - (numConds - 1) * 25) / 2;
+                const status = evaluatedConds[i];
+
+                let borderStyle = 'border-border/60 bg-[var(--elevated)] text-txt-2';
+                if (status === true) {
+                  borderStyle = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]';
+                } else if (status === false) {
+                  borderStyle = 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.15)]';
+                }
+
+                return (
+                  <foreignObject
+                    key={`cond-node-${i}`}
+                    x={85}
+                    y={condY}
+                    width={140}
+                    height={60}
+                  >
+                    <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1.5 text-center transition-all duration-300 ${borderStyle}`}>
+                      <div className="font-mono text-[8px] opacity-75 truncate max-w-full font-bold">{cond.field}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="font-bold text-[10px] text-indigo-400">{cond.operator}</span>
+                        <span className="text-[10px] font-semibold truncate max-w-[80px]">"{cond.value}"</span>
+                      </div>
+                      {status !== null && (
+                        <div className="text-[8px] mt-0.5 font-bold uppercase tracking-wider">
+                          {status ? '✓ Satisfait' : '✕ Échoué'}
+                        </div>
+                      )}
+                    </div>
+                  </foreignObject>
+                );
+              })}
+
+              {/* Action/Decision Node */}
+              <foreignObject
+                x={265}
+                y={canvasHeight / 2 - 25}
+                width={75}
+                height={50}
+              >
+                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${
+                  ruleStatus === true
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                    : ruleStatus === false
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                    : 'border-border/60 bg-[var(--elevated)] text-txt-3'
+                }`}>
+                  <div className="text-[8px] uppercase tracking-wider opacity-75 font-semibold font-mono">ACTION</div>
+                  <div className="text-[9px] font-black truncate max-w-full mt-0.5">{rule.action}</div>
+                </div>
+              </foreignObject>
+            </>
+          ) : (
+            // ─── AND (Sequential Vertical Chain) Layout ───
+            <>
+              {/* Connections START -> Cond 0 -> Cond 1 -> ... -> ACTION */}
+              {/* Connection START -> Cond 0 */}
+              <line
+                x1={170}
+                y1={46}
+                x2={170}
+                y2={85}
+                stroke={evaluatedConds[0] !== null ? (evaluatedConds[0] ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)') : 'var(--border)'}
+                strokeWidth={evaluatedConds[0] === true ? 2.5 : 1.5}
+                filter={evaluatedConds[0] !== null ? (evaluatedConds[0] ? 'url(#glow-green)' : 'url(#glow-red)') : undefined}
+                className={evaluatedConds[0] === true ? 'animate-dash' : ''}
+                strokeDasharray={evaluatedConds[0] === true ? '4,4' : undefined}
+                style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+              />
+
+              {/* Connections between Conds */}
+              {conditions.map((_, i) => {
+                if (i === numConds - 1) return null; // last one connects to ACTION
+
+                const statusNext = evaluatedConds[i + 1];
+
+                // In AND, the path to the next condition is active (green) ONLY IF ALL conditions up to here are true!
+                const allPrevTrue = evaluatedConds.slice(0, i + 1).every(v => v === true);
+                const anyPrevFalse = evaluatedConds.slice(0, i + 1).some(v => v === false);
+
+                let strokeColor = 'var(--border)';
+                let isAnimated = false;
+                let strokeFilter = '';
+
+                if (allPrevTrue && statusNext === true) {
+                  strokeColor = 'rgba(16, 185, 129, 0.8)';
+                  isAnimated = true;
+                  strokeFilter = 'url(#glow-green)';
+                } else if (anyPrevFalse || statusNext === false) {
+                  strokeColor = 'rgba(239, 68, 68, 0.8)';
+                  strokeFilter = 'url(#glow-red)';
+                } else if (allPrevTrue && statusNext === null) {
+                  strokeColor = 'rgba(99, 102, 241, 0.5)'; // indigo/blue for active evaluation point
+                }
+
+                return (
+                  <line
+                    key={`path-and-${i}`}
+                    x1={170}
+                    y1={(i + 1) * 85 + 60}
+                    x2={170}
+                    y2={(i + 2) * 85}
+                    stroke={strokeColor}
+                    strokeWidth={isAnimated ? 2.5 : 1.5}
+                    filter={strokeFilter}
+                    className={isAnimated ? 'animate-dash' : ''}
+                    strokeDasharray={isAnimated ? '4,4' : undefined}
+                    style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+                  />
+                );
+              })}
+
+              {/* Connection Last Cond -> ACTION */}
+              {(() => {
+                const allTrue = evaluatedConds.every(v => v === true);
+                const hasFalse = evaluatedConds.some(v => v === false);
+
+                let strokeColor = 'var(--border)';
+                let isAnimated = false;
+                let strokeFilter = '';
+
+                if (allTrue) {
+                  strokeColor = 'rgba(16, 185, 129, 0.8)';
+                  isAnimated = true;
+                  strokeFilter = 'url(#glow-green)';
+                } else if (hasFalse) {
+                  strokeColor = 'rgba(239, 68, 68, 0.8)';
+                  strokeFilter = 'url(#glow-red)';
+                }
+
+                return (
+                  <line
+                    x1={170}
+                    y1={numConds * 85 + 60}
+                    x2={170}
+                    y2={(numConds + 1) * 85}
+                    stroke={strokeColor}
+                    strokeWidth={isAnimated ? 2.5 : 1.5}
+                    filter={strokeFilter}
+                    className={isAnimated ? 'animate-dash' : ''}
+                    strokeDasharray={isAnimated ? '4,4' : undefined}
+                    style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+                  />
+                );
+              })()}
+
+              {/* Start Node */}
+              <foreignObject
+                x={130}
+                y={10}
+                width={80}
+                height={36}
+              >
+                <div className="w-full h-full rounded-xl border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center font-mono text-[9px] font-bold text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.15)]">
+                  ENTRÉE
+                </div>
+              </foreignObject>
+
+              {/* Condition Nodes */}
+              {conditions.map((cond, i) => {
+                const condY = (i + 1) * 85;
+                const status = evaluatedConds[i];
+
+                let borderStyle = 'border-border/60 bg-[var(--elevated)] text-txt-2';
+                if (status === true) {
+                  borderStyle = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]';
+                } else if (status === false) {
+                  borderStyle = 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.15)]';
+                }
+
+                return (
+                  <foreignObject
+                    key={`cond-node-${i}`}
+                    x={80}
+                    y={condY}
+                    width={180}
+                    height={60}
+                  >
+                    <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1.5 text-center transition-all duration-300 ${borderStyle}`}>
+                      <div className="font-mono text-[8px] opacity-75 truncate max-w-full font-bold">{cond.field}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="font-bold text-[10px] text-indigo-400">{cond.operator}</span>
+                        <span className="text-[10px] font-semibold truncate max-w-[120px]">"{cond.value}"</span>
+                      </div>
+                      {status !== null && (
+                        <div className="text-[8px] mt-0.5 font-bold uppercase tracking-wider">
+                          {status ? '✓ Satisfait' : '✕ Échoué'}
+                        </div>
+                      )}
+                    </div>
+                  </foreignObject>
+                );
+              })}
+
+              {/* Action/Decision Node */}
+              <foreignObject
+                x={120}
+                y={(numConds + 1) * 85}
+                width={100}
+                height={40}
+              >
+                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${
+                  ruleStatus === true
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                    : ruleStatus === false
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                    : 'border-border/60 bg-[var(--elevated)] text-txt-3'
+                }`}>
+                  <div className="text-[8px] uppercase tracking-wider opacity-75 font-semibold font-mono">ACTION</div>
+                  <div className="text-[9px] font-black truncate max-w-full mt-0.5">{rule.action}</div>
+                </div>
+              </foreignObject>
+            </>
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main Page ───
 export default function RulesPage() {
@@ -382,7 +806,7 @@ export default function RulesPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-[var(--elevated)] border border-border rounded-lg p-0.5">
-            <button onClick={() => setActiveTab('rules')} className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${activeTab === 'rules' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-txt-3 hover:text-txt-1'}`}>📐 Règles</button>
+            <button onClick={() => setActiveTab('rules')} className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 ${activeTab === 'rules' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-txt-3 hover:text-txt-1'}`}><Ruler size={12} /> Règles</button>
             <button onClick={() => setActiveTab('params')} className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 ${activeTab === 'params' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-txt-3 hover:text-txt-1'}`}><Settings size={12} /> Paramétrage</button>
           </div>
           {activeTab === 'rules' && <button onClick={() => setShowCreate(true)} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer">+ Nouvelle règle</button>}
@@ -396,7 +820,7 @@ export default function RulesPage() {
           {loading ? (
             <div className="space-y-3 animate-pulse">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-2xl" />)}</div>
           ) : rules.length === 0 ? (
-            <EmptyState icon="📐" title="Aucune règle" subtitle="Créez votre première règle métier" action={
+            <EmptyState icon="ruler" title="Aucune règle" subtitle="Créez votre première règle métier" action={
               <button onClick={() => setShowCreate(true)} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">+ Créer</button>
             } />
           ) : (
@@ -427,7 +851,7 @@ export default function RulesPage() {
                       className={`toggle-switch cursor-pointer ${rule.actif ? 'on' : ''} ${toggling === rule.id ? 'opacity-50' : ''}`}
                     />
                     <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(rule); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer">
-                      🗑
+                      <Trash2 size={13} className="text-txt-3 hover:text-rose-400" />
                     </button>
                   </div>
                 </div>
@@ -437,7 +861,7 @@ export default function RulesPage() {
 
           {/* Test panel — Dynamic fields from API */}
           <div className="card-aurora rounded-2xl p-5">
-            <h3 className="text-sm font-bold mb-3">🧪 Tester les règles</h3>
+            <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5"><FlaskConical size={14} /> Tester les règles</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-3">
               {(refs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => (
                 <div key={fd.field}>
@@ -506,7 +930,11 @@ export default function RulesPage() {
                 </div>
               </div>
               <div className="card-aurora rounded-2xl p-5">
-                <h3 className="text-sm font-bold mb-3">📜 Historique</h3>
+                <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5"><Zap size={14} className="text-indigo-400 animate-pulse" /> Flux de Décision Interactif</h3>
+                <DecisionFlowTree rule={selectedRule} testForm={testForm} />
+              </div>
+              <div className="card-aurora rounded-2xl p-5">
+                <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5"><ScrollText size={14} /> Historique</h3>
                 {history.length === 0 ? (
                   <div className="text-xs text-txt-3 text-center py-4">Pas encore de modifications — modifiez cette règle pour créer un historique</div>
                 ) : (
@@ -525,7 +953,7 @@ export default function RulesPage() {
             </>
           ) : (
             <div className="card-aurora rounded-2xl p-5">
-              <EmptyState icon="👈" title="Sélectionner une règle" subtitle="Cliquez sur une règle pour voir ses détails" />
+              <EmptyState icon="arrow-left" title="Sélectionner une règle" subtitle="Cliquez sur une règle pour voir ses détails" />
             </div>
           )}
         </div>
@@ -543,7 +971,7 @@ export default function RulesPage() {
               <div key={cat.key} className="card-aurora rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold flex items-center gap-2">
-                    <span>{cat.icon}</span> {cat.label}
+                    <span className="flex items-center">{cat.icon}</span> {cat.label}
                     <span className="font-mono text-[10px] text-txt-3 bg-[var(--overlay)] px-2 py-0.5 rounded border border-border-subtle">{items.filter(i => i.actif).length} actifs / {items.length} total</span>
                   </h3>
                   <button onClick={() => { setAddingRef(addingRef === cat.key ? null : cat.key); setNewRefCode(''); setNewRefLabel(''); setNewRefDesc(''); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors cursor-pointer">
@@ -576,7 +1004,7 @@ export default function RulesPage() {
                         {item.description && <span className="text-[10px] text-txt-3 flex-1 truncate">{item.description}</span>}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <div onClick={() => handleToggleRef(item.id)} className={`toggle-switch cursor-pointer ${item.actif ? 'on' : ''}`} style={{ transform: 'scale(0.8)' }} />
-                          <button onClick={() => handleDeleteRef(item.id)} className="w-6 h-6 rounded flex items-center justify-center text-[10px] text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer">🗑</button>
+                          <button onClick={() => handleDeleteRef(item.id)} className="w-6 h-6 rounded flex items-center justify-center text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"><Trash2 size={12} /></button>
                         </div>
                       </div>
                     ))
@@ -622,7 +1050,7 @@ export default function RulesPage() {
           <div className="flex gap-2">
             <button onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1 h-10 rounded-xl text-xs cursor-pointer">Annuler</button>
             <button onClick={handleDeleteConfirm} disabled={deleting} className="flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-colors disabled:opacity-50">
-              {deleting ? 'Suppression...' : '🗑 Supprimer'}
+              {deleting ? 'Suppression...' : 'Supprimer'}
             </button>
           </div>
         </div>

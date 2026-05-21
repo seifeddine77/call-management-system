@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { 
+  RefreshCw, ClipboardList, PlusCircle, RotateCw, CheckCircle2, 
+  FolderClosed, PhoneCall, Mail, Globe, Clock, User, ArrowRight, ShieldAlert 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { ticketService } from '../services/ticketService';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,7 +65,6 @@ export default function QueuePage() {
     setLoading(true);
     setError(null);
     try {
-      // Always fetch stats + queue count (for the QUEUE card to stay stable)
       const [queueData, statsData] = await Promise.all([
         ticketService.getQueue(),
         ticketService.getStats(),
@@ -87,7 +90,7 @@ export default function QueuePage() {
   const handleRefresh = () => fetchData(filter);
 
   const handleFilterClick = (key: FilterKey) => {
-    if (key === filter) return; // already selected
+    if (key === filter) return;
     setFilter(key);
   };
 
@@ -96,7 +99,7 @@ export default function QueuePage() {
     setAssigning(ticketId);
     try {
       await ticketService.assignTicket(ticketId, user.userId);
-      toast.success('Ticket pris en charge !');
+      toast.success('🎙 Ticket assignateur pris en charge avec succès !');
       setItems(prev => prev.filter(t => t.ticketId !== ticketId));
       navigate(`/tickets/${ticketId}`);
     } catch {
@@ -107,36 +110,35 @@ export default function QueuePage() {
   };
 
   const canalIcon = (canal: string) => {
-    const map: Record<string, { icon: string; cls: string }> = {
-      CALL: { icon: '☎', cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
-      EMAIL: { icon: '✉', cls: 'bg-blue-400/10 text-blue-400 border-blue-400/20' },
-      WEB: { icon: '⬡', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    const map: Record<string, { icon: React.ReactNode; cls: string }> = {
+      CALL: { icon: <PhoneCall size={15} />, cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+      EMAIL: { icon: <Mail size={15} />, cls: 'bg-blue-400/10 text-blue-400 border-blue-400/20' },
+      WEB: { icon: <Globe size={15} />, cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
     };
-    return map[canal] || { icon: '?', cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' };
+    return map[canal] || { icon: <Globe size={15} />, cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' };
   };
 
   const timeSince = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}min`;
-    return `${Math.floor(mins / 60)}h${mins % 60}m`;
+    if (mins < 60) return `${mins} min`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   };
 
-  /* ── Filter config ── */
-  const filters: { key: FilterKey; label: string; icon: string; color: string; activeColor: string; value: number | null }[] = [
-    { key: 'QUEUE',    label: 'File d\'attente', icon: '📋', color: 'text-indigo-400',  activeColor: 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400', value: queueCount },
-    { key: 'NOUVEAU',  label: 'Nouveaux',        icon: '🆕', color: 'text-blue-400',    activeColor: 'bg-blue-500/15 border-blue-500/30 text-blue-400',      value: stats?.nouveau ?? null },
-    { key: 'EN_COURS', label: 'En cours',         icon: '🔄', color: 'text-amber-400',   activeColor: 'bg-amber-500/15 border-amber-500/30 text-amber-400',   value: stats?.enCours ?? null },
-    { key: 'RESOLU',   label: 'Résolus',          icon: '✅', color: 'text-emerald-400', activeColor: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400', value: stats?.resolu ?? null },
-    { key: 'FERME',    label: 'Fermés',           icon: '📁', color: 'text-txt-3',       activeColor: 'bg-[var(--muted)] border-[var(--border)] text-txt-2',  value: stats?.ferme ?? null },
+  const filters: { key: FilterKey; label: string; icon: React.ReactNode; color: string; activeColor: string; value: number | null }[] = [
+    { key: 'QUEUE',    label: 'File d\'attente', icon: <ClipboardList size={14} />, color: 'text-indigo-400',  activeColor: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400', value: queueCount },
+    { key: 'NOUVEAU',  label: 'Nouveaux',        icon: <PlusCircle size={14} />, color: 'text-blue-400',    activeColor: 'bg-blue-500/10 border-blue-500/30 text-blue-400',      value: stats?.nouveau ?? null },
+    { key: 'EN_COURS', label: 'En cours',         icon: <RotateCw size={14} />, color: 'text-amber-400',   activeColor: 'bg-amber-500/10 border-amber-500/30 text-amber-400',   value: stats?.enCours ?? null },
+    { key: 'RESOLU',   label: 'Résolus',          icon: <CheckCircle2 size={14} />, color: 'text-emerald-400', activeColor: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', value: stats?.resolu ?? null },
+    { key: 'FERME',    label: 'Fermés',           icon: <FolderClosed size={14} />, color: 'text-txt-3',       activeColor: 'bg-[var(--muted)] border-border text-txt-2',  value: stats?.ferme ?? null },
   ];
 
   const subtitleMap: Record<FilterKey, string> = {
-    QUEUE: `${items.length} ticket${items.length > 1 ? 's' : ''} en attente`,
-    NOUVEAU: `${items.length} ticket${items.length > 1 ? 's' : ''} nouveau${items.length > 1 ? 'x' : ''}`,
-    EN_COURS: `${items.length} ticket${items.length > 1 ? 's' : ''} en cours`,
+    QUEUE: `${items.length} ticket${items.length > 1 ? 's' : ''} en attente de traitement`,
+    NOUVEAU: `${items.length} nouveau${items.length > 1 ? 'x' : ''} ticket${items.length > 1 ? 's' : ''} disponible${items.length > 1 ? 's' : ''}`,
+    EN_COURS: `${items.length} ticket${items.length > 1 ? 's' : ''} en cours d'instruction`,
     RESOLU: `${items.length} ticket${items.length > 1 ? 's' : ''} résolu${items.length > 1 ? 's' : ''}`,
-    FERME: `${items.length} ticket${items.length > 1 ? 's' : ''} fermé${items.length > 1 ? 's' : ''}`,
+    FERME: `${items.length} ticket${items.length > 1 ? 's' : ''} clos définitivement`,
   };
 
   const statutBadge = (statut?: string) => {
@@ -144,7 +146,7 @@ export default function QueuePage() {
       NOUVEAU: { label: 'Nouveau', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
       EN_COURS: { label: 'En cours', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
       RESOLU: { label: 'Résolu', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-      FERME: { label: 'Fermé', cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' },
+      FERME: { label: 'Fermé', cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
     };
     return statut ? map[statut] : null;
   };
@@ -152,111 +154,231 @@ export default function QueuePage() {
   if (error) return <ErrorState message={error} onRetry={handleRefresh} />;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full px-1 py-2">
+      {/* Premium Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight">File d'attente</h1>
-          <p className="text-xs text-txt-3 font-mono mt-0.5">{subtitleMap[filter]}</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-gradient-title">
+            Console de Files d'Attente
+          </h1>
+          <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+            {subtitleMap[filter]}
+          </p>
         </div>
-        <button onClick={handleRefresh} className="btn-ghost h-9 px-3 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer" disabled={loading}>
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Actualiser
-        </button>
+        
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleRefresh} 
+          className="btn-ghost h-9 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm font-medium" 
+          disabled={loading}
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} /> 
+          Actualiser le flux
+        </motion.button>
       </div>
 
-      {/* Filter buttons */}
+      {/* Bento Grid Filters */}
       {loading && !stats ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{Array.from({ length: 5 }).map((_, i) => <KpiSkeleton key={i} />)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => <KpiSkeleton key={i} />)}
+        </div>
       ) : stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {filters.map((f) => {
             const isActive = filter === f.key;
             return (
-              <button
+              <motion.button
                 key={f.key}
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => handleFilterClick(f.key)}
-                className={`rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer border
+                className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 cursor-pointer border flex flex-col justify-between h-[110px]
                   ${isActive
-                    ? `${f.activeColor} shadow-lg scale-[1.02]`
-                    : 'card-aurora border-transparent hover:border-[var(--border)] hover:scale-[1.01]'
+                    ? `${f.activeColor} shadow-[0_0_20px_rgba(99,102,241,0.06)] border-[var(--border)]`
+                    : 'card-aurora border-transparent hover:border-border/60'
                   }`}
               >
-                <div className="flex items-center justify-center gap-1.5 mb-2">
-                  <span className="text-sm">{f.icon}</span>
-                  <span className={`font-mono text-[9px] uppercase tracking-wider ${isActive ? '' : 'text-txt-3'}`}>
-                    {f.label}
+                {/* Backdrop ambient glow when active */}
+                {isActive && (
+                  <div className="absolute -right-6 -bottom-6 w-16 h-16 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
+                )}
+                
+                <div className="flex items-center justify-between w-full">
+                  <span className={`p-1.5 rounded-lg border bg-[var(--surface)]/60 ${isActive ? 'border-indigo-500/20 text-indigo-400' : 'border-border/60 text-txt-3'}`}>
+                    {f.icon}
                   </span>
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]" />
+                  )}
                 </div>
-                <div className={`text-2xl font-extrabold ${isActive ? '' : f.color}`}>
-                  {f.value ?? '—'}
+
+                <div className="mt-2">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-txt-3 font-semibold mb-0.5">
+                    {f.label}
+                  </div>
+                  <div className={`text-2xl font-extrabold ${isActive ? 'text-txt' : f.color} tracking-tight`}>
+                    {f.value ?? '—'}
+                  </div>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
       )}
 
-      {/* Ticket list */}
-      <div className="card-aurora rounded-2xl overflow-hidden">
-        {loading && items.length === 0 ? (
-          <div className="p-5 space-y-3 animate-pulse">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 bg-[var(--muted)] rounded-lg" />)}</div>
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={filter === 'QUEUE' ? '✅' : '🔍'}
-            title={filter === 'QUEUE' ? 'File vide' : 'Aucun résultat'}
-            subtitle={filter === 'QUEUE'
-              ? 'Aucun ticket en attente ! Tous les tickets sont pris en charge.'
-              : `Aucun ticket avec le statut "${filters.find(f => f.key === filter)?.label}".`
-            }
-          />
-        ) : (
-          items.map((t) => {
-            const c = canalIcon(t.canal);
-            const wait = timeSince(t.createdAt);
-            const isUrgent = t.priorite === 1;
-            const sBadge = statutBadge(t.statut);
-            return (
-              <div
-                key={t.ticketId}
-                className={`flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4 px-4 md:px-5 py-3.5 border-b border-border cursor-pointer transition-all hover:bg-[var(--overlay)] relative
-                  ${isUrgent ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-rose-500' : ''}`}
-                onClick={() => navigate(`/tickets/${t.ticketId}`)}
-              >
-                <span className="font-mono text-[11px] text-txt-3 w-5 text-center">{t.position}</span>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base flex-shrink-0 border ${c.cls}`}>{c.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold">{t.clientNom}</div>
-                  <div className="font-mono text-[10px] text-txt-3">{t.ticketNumero}</div>
-                </div>
-                <span className={`font-mono text-[10px] px-2.5 py-1 rounded-lg border ${c.cls}`}>{c.icon} {t.canal === 'CALL' ? 'Appel' : t.canal}</span>
-                {/* Show statut badge when not in queue view */}
-                {sBadge && filter !== 'QUEUE' && (
-                  <span className={`font-mono text-[10px] px-2.5 py-1 rounded-lg border ${sBadge.cls}`}>{sBadge.label}</span>
-                )}
-                <span className={`font-mono text-[10px] px-2.5 py-1 rounded-lg border ${isUrgent ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-                  ⏱ {wait}
-                </span>
-                <span className={`badge border ${t.priorite === 1 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : t.priorite === 2 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-[var(--muted)] text-txt-3 border-border-subtle'}`}>
-                  P{t.priorite}
-                </span>
-                {/* Show "Prendre" button only for queue / nouveau tickets */}
-                {(filter === 'QUEUE' || filter === 'NOUVEAU') && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleAssign(t.ticketId); }}
-                    disabled={assigning === t.ticketId}
-                    className="font-mono text-[10px] rounded-lg px-4 h-8 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 cursor-pointer hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
-                  >
-                    {assigning === t.ticketId ? '...' : 'Prendre →'}
-                  </button>
-                )}
-                {/* Show operator name for EN_COURS */}
-                {t.operateurName && filter !== 'QUEUE' && (
-                  <span className="font-mono text-[10px] text-txt-3 truncate max-w-[100px]">👤 {t.operateurName}</span>
-                )}
+      {/* Ticket List command center */}
+      <div className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-xl">
+        <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5">
+          <div className="font-mono text-[10px] text-txt-3 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
+            <ClipboardList size={11} className="text-indigo-400" />
+            Liste des incidents
+          </div>
+          <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2 py-0.5 border border-border rounded-md">
+            {items.length} entrée{items.length > 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="divide-y divide-border/60">
+          <AnimatePresence mode="popLayout">
+            {loading && items.length === 0 ? (
+              <div className="p-5 space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+                ))}
               </div>
-            );
-          })
-        )}
+            ) : items.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="py-12"
+              >
+                <EmptyState
+                  icon={filter === 'QUEUE' ? 'check' : 'search'}
+                  title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
+                  subtitle={filter === 'QUEUE'
+                    ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
+                    : `Aucun ticket correspondant au filtre "${filters.find(f => f.key === filter)?.label}".`
+                  }
+                />
+              </motion.div>
+            ) : (
+              items.map((t, idx) => {
+                const c = canalIcon(t.canal);
+                const wait = timeSince(t.createdAt);
+                const isUrgent = t.priorite === 1;
+                const sBadge = statutBadge(t.statut);
+                
+                return (
+                  <motion.div
+                    key={t.ticketId}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2, delay: idx * 0.02 }}
+                    className={`group flex flex-wrap md:flex-nowrap items-center justify-between gap-4 px-5 py-4 border-b border-border/50 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden`}
+                    onClick={() => navigate(`/tickets/${t.ticketId}`)}
+                  >
+                    {/* Left boundary accent for high priority */}
+                    {isUrgent && (
+                      <div className="absolute left-0 top-0 bottom-0 w-[3.5px] bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]" />
+                    )}
+
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      {/* Position / Index indicator */}
+                      <span className="font-mono text-[10px] text-txt-3 w-6 text-center font-bold">
+                        #{t.position || idx + 1}
+                      </span>
+
+                      {/* Icon for communication channel */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base flex-shrink-0 border transition-transform group-hover:scale-105 duration-300 ${c.cls}`}>
+                        {c.icon}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors flex items-center gap-2">
+                          {t.clientNom}
+                          {isUrgent && (
+                            <span className="flex items-center gap-0.5 text-[8px] font-extrabold font-mono uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded shadow-sm">
+                              <ShieldAlert size={8} /> Urgent
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-mono text-[9px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-2">
+                          <span>{t.ticketNumero}</span>
+                          <span className="text-border/80">•</span>
+                          <span>Créé il y a {wait}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Channel & Badge metadata block */}
+                    <div className="flex items-center gap-3.5 flex-wrap">
+                      <span className={`font-mono text-[9.5px] font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 shadow-sm bg-[var(--surface)] ${c.cls}`}>
+                        {c.icon}
+                        <span className="uppercase text-[8px] tracking-wider font-bold">
+                          {t.canal === 'CALL' ? 'Vocal' : t.canal}
+                        </span>
+                      </span>
+
+                      {/* Show status badge in non-queue view */}
+                      {sBadge && filter !== 'QUEUE' && (
+                        <span className={`font-mono text-[8px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${sBadge.cls}`}>
+                          {sBadge.label}
+                        </span>
+                      )}
+
+                      <span className={`font-mono text-[9.5px] px-2.5 py-1 rounded-xl border flex items-center gap-1 bg-[var(--surface)]/40 border-border/80 text-txt-2
+                        ${isUrgent ? 'text-rose-400 border-rose-500/10' : ''}`}
+                      >
+                        <Clock size={10} className={isUrgent ? 'animate-pulse text-rose-400' : 'text-txt-3'} /> 
+                        {wait}
+                      </span>
+
+                      <span className={`font-mono text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border shadow-sm
+                        ${t.priorite === 1 
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                          : t.priorite === 2 
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
+                            : 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10'
+                        }`}
+                      >
+                        PRIO {t.priorite}
+                      </span>
+
+                      {/* CTA Button "Prendre" */}
+                      {(filter === 'QUEUE' || filter === 'NOUVEAU') ? (
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          onClick={(e) => { e.stopPropagation(); handleAssign(t.ticketId); }}
+                          disabled={assigning === t.ticketId}
+                          className="font-mono text-[9px] font-extrabold uppercase tracking-widest rounded-xl px-4.5 h-8 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-500 dark:hover:text-indigo-300 hover:border-indigo-400/40 transition-all flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          {assigning === t.ticketId ? (
+                            <RefreshCw size={9} className="animate-spin text-indigo-400" />
+                          ) : (
+                            <>
+                              Traiter
+                              <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                            </>
+                          )}
+                        </motion.button>
+                      ) : t.operateurName && (
+                        <span className="font-mono text-[10px] text-txt-3 truncate max-w-[120px] flex items-center gap-1.5 bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
+                          <User size={10} className="text-indigo-400" />
+                          {t.operateurName}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

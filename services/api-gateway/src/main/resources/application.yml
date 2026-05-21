@@ -87,7 +87,7 @@ spring:
           filters:
             - JwtAuthFilter
 
-        # Notification Service — ADMIN only
+        # Notification Service — ADMIN, SUPERVISOR and OPERATOR
         - id: notification-service
           uri: lb://notification-service
           predicates:
@@ -96,7 +96,7 @@ spring:
             - JwtAuthFilter
             - name: RoleFilter
               args:
-                roles: ADMIN
+                roles: OPERATOR,SUPERVISOR,ADMIN
 
         # Analytics Service — SUPERVISOR + ADMIN only
         - id: analytics-service

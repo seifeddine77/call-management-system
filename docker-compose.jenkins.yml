@@ -3,6 +3,7 @@
 # Usage: docker compose -f docker-compose.jenkins.yml up -d
 # Access: http://localhost:8082
 # ============================================================
+name: cicd
 services:
   jenkins:
     build:
@@ -19,6 +20,7 @@ services:
       - jenkins_data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - ./infrastructure/jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt
+      - ./infrastructure/jenkins/init.groovy.d:/var/jenkins_home/init.groovy.d:ro
     environment:
       - JAVA_OPTS=-Xmx1g -Djenkins.install.runSetupWizard=true
       - TZ=Europe/Paris
@@ -40,8 +42,14 @@ services:
 
 networks:
   callmgmt-net:
+    name: call-management-system_callmgmt-net
     external: true
+
 
 volumes:
   jenkins_data:
+    name: call-management-system_jenkins_data
+    external: true
   registry_data:
+    name: call-management-system_registry_data
+    external: true

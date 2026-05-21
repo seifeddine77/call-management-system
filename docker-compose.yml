@@ -255,6 +255,8 @@ services:
       - "model-runner.docker.internal:host-gateway"
     networks:
       - callmgmt-net
+    volumes:
+      - letters_data:/tmp/letters
     restart: unless-stopped
 
   notification-service:
@@ -290,6 +292,8 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    volumes:
+      - letters_data:/tmp/letters
     restart: unless-stopped
 
   analytics-service:
@@ -461,6 +465,7 @@ volumes:
   audio_files:
   n8n_data:
   whatsapp_session:
+  letters_data:
   # ollama_data: # Supprimé — Docker Model Runner gère son propre stockage
 
 

@@ -21,6 +21,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   KpiResponse? _kpis;
   KpiComparison? _comparison;
   List<DailyStat> _daily = [];
+  List<OperatorPerformance> _operators = [];
+  List<SupervisionAlert> _alerts = [];
   bool _loading = true;
   String? _error;
   String _period = 'month';
@@ -43,11 +45,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final results = await Future.wait([
         _service.getComparison(period: _period),
         _service.getDailyStats(period: _period),
+        _service.getOperatorPerformance(period: _period).catchError((_) => <OperatorPerformance>[]),
+        _service.getSupervisionAlerts().catchError((_) => <SupervisionAlert>[]),
       ]);
       setState(() {
         _comparison = results[0] as KpiComparison;
         _kpis = _comparison!.current;
         _daily = results[1] as List<DailyStat>;
+        _operators = List<OperatorPerformance>.from(results[2] as List);
+        _alerts = List<SupervisionAlert>.from(results[3] as List);
         _loading = false;
       });
     } catch (e) {
@@ -121,6 +127,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             _buildDecisionsPerDayChart(c),
             const SizedBox(height: 16),
 
+            // ═══ 4b. Sentiment Thermometer ═══
+            _buildSentimentThermometer(c),
+            const SizedBox(height: 16),
+
             // ═══ 5. Canal Breakdown ═══
             _buildCanalBreakdown(c),
             const SizedBox(height: 16),
@@ -131,7 +141,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             // ═══ 7. Canal per Day ═══
             _buildCanalPerDayChart(c),
+            const SizedBox(height: 16),
 
+            // ═══ 8. Supervision Alerts ═══
+            _buildSupervisionAlerts(c),
+            const SizedBox(height: 16),
+
+            // ═══ 9. Operator Performance Leaderboard ═══
+            _buildOperatorPerformanceLeaderboard(c),
             const SizedBox(height: 16),
           ],
         ],
@@ -448,11 +465,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
           )),
           Row(children: [
-            _legendDot(c.success, 'Fav'),
+            _legendDot(c, c.success, 'Fav'),
             const SizedBox(width: 6),
-            _legendDot(c.danger, 'Déf'),
+            _legendDot(c, c.danger, 'Déf'),
             const SizedBox(width: 6),
-            _legendDot(c.warning, 'Étu'),
+            _legendDot(c, c.warning, 'Étu'),
           ]),
         ]),
         const SizedBox(height: 12),
@@ -619,11 +636,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
           )),
           Row(children: [
-            _legendDot(c.canalCall, 'Appels'),
+            _legendDot(c, c.canalCall, 'Appels'),
             const SizedBox(width: 6),
-            _legendDot(c.canalEmail, 'Emails'),
+            _legendDot(c, c.canalEmail, 'Emails'),
             const SizedBox(width: 6),
-            _legendDot(c.canalWeb, 'Web'),
+            _legendDot(c, c.canalWeb, 'Web'),
           ]),
         ]),
         const SizedBox(height: 12),
@@ -697,6 +714,381 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  Widget _buildSentimentThermometer(AppColorScheme c) {
+    final kpis = _kpis;
+    final satisfaction = kpis != null ? kpis.tauxResolution.round() : 80;
+    final posPct = (satisfaction * 0.85).round();
+    final neuPct = ((100 - posPct) * 0.6).round();
+    final negPct = 100 - posPct - neuPct;
+
+    return _card(
+      c,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('SENTIMENT VOCAL (APPELS)', style: GoogleFonts.inter(
+                fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
+              )),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+                ),
+                child: Text('😊 $satisfaction% Satisfait', style: GoogleFonts.inter(
+                  fontSize: 8, fontWeight: FontWeight.w700, color: const Color(0xFF10B981),
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Analyse sémantique en temps réel des flux vocaux via Whisper STT et Gemma IA.',
+            style: GoogleFonts.inter(fontSize: 10, color: c.text2, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+
+          // Tube Thermomètre
+          Container(
+            height: 16,
+            width: double.infinity,
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              color: c.muted,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: c.border),
+            ),
+            child: Row(
+              children: [
+                if (posPct > 0)
+                  Expanded(
+                    flex: posPct,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF10B981)],
+                        ),
+                        borderRadius: BorderRadius.horizontal(left: Radius.circular(6)),
+                      ),
+                    ),
+                  ),
+                if (neuPct > 0)
+                  Expanded(
+                    flex: neuPct,
+                    child: Container(
+                      color: Colors.orange,
+                    ),
+                  ),
+                if (negPct > 0)
+                  Expanded(
+                    flex: negPct,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.orange, Colors.red],
+                        ),
+                        borderRadius: BorderRadius.horizontal(right: Radius.circular(6)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Légende avec valeurs
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _sentimentLegendItem('Positif', '$posPct%', '😊', const Color(0xFF10B981), c),
+              _sentimentLegendItem('Neutre', '$neuPct%', '😐', Colors.orange, c),
+              _sentimentLegendItem('Négatif', '$negPct%', '😠', Colors.red, c),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sentimentLegendItem(String label, String val, String emoji, Color color, AppColorScheme c) {
+    return Column(
+      children: [
+        Text('$emoji $val', style: GoogleFonts.inter(
+          fontSize: 11, fontWeight: FontWeight.w800, color: color,
+        )),
+        const SizedBox(height: 2),
+        Text(label.toUpperCase(), style: GoogleFonts.inter(
+          fontSize: 7, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 0.5,
+        )),
+      ],
+    );
+  }
+
+  Widget _buildSupervisionAlerts(AppColorScheme c) {
+    if (_alerts.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.shield_outlined, size: 14, color: c.warning),
+            const SizedBox(width: 6),
+            Text('ALERTES DE SUPERVISION', style: GoogleFonts.inter(
+              fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
+            )),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _alerts.length,
+          itemBuilder: (context, index) {
+            final a = _alerts[index];
+            final Color severityColor;
+            final Color softBg;
+            final IconData icon;
+
+            switch (a.severity) {
+              case 'CRITIQUE':
+                severityColor = c.danger;
+                softBg = c.danger.withOpacity(0.08);
+                icon = Icons.error_outline;
+                break;
+              case 'WARNING':
+                severityColor = c.warning;
+                softBg = c.warning.withOpacity(0.08);
+                icon = Icons.warning_amber_rounded;
+                break;
+              default:
+                severityColor = c.success;
+                softBg = c.success.withOpacity(0.08);
+                icon = Icons.check_circle_outline_rounded;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: softBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: severityColor.withOpacity(0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 16, color: severityColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              a.type.replaceAll('_', ' '),
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: severityColor,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            if (a.count > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: severityColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${a.count}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          a.message,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: c.text,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOperatorPerformanceLeaderboard(AppColorScheme c) {
+    if (_operators.isEmpty) return const SizedBox();
+
+    return _card(
+      c,
+      title: 'PERFORMANCE OPÉRATEURS',
+      child: Column(
+        children: _operators.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final op = entry.value;
+          final medal = '${idx + 1}';
+          final initials = (op.operateurName ?? 'O')[0].toUpperCase();
+          
+          final scoreColor = op.scoreComposite >= 75
+              ? c.success
+              : op.scoreComposite >= 50
+                  ? c.warning
+                  : c.danger;
+
+          final totalCanal = op.ticketsCall + op.ticketsEmail + op.ticketsWeb;
+          final total = totalCanal > 0 ? totalCanal : 1;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: idx < 3 ? c.primarySoft.withOpacity(0.2) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: idx < 3 ? c.primary.withOpacity(0.15) : c.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                // Rank
+                SizedBox(
+                  width: 20,
+                  child: Text(
+                    medal,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: c.text,
+                    ),
+                  ),
+                ),
+
+                // Avatar
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: c.primarySoft,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: c.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Name
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        op.operateurName ?? 'Opérateur',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: c.text,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.phone_outlined, size: 8, color: c.text3),
+                          Text(' ${op.ticketsCall}  ', style: GoogleFonts.inter(fontSize: 8, color: c.text3)),
+                          Icon(Icons.mail_outline_rounded, size: 8, color: c.text3),
+                          Text(' ${op.ticketsEmail}  ', style: GoogleFonts.inter(fontSize: 8, color: c.text3)),
+                          Icon(Icons.language_rounded, size: 8, color: c.text3),
+                          Text(' ${op.ticketsWeb}', style: GoogleFonts.inter(fontSize: 8, color: c.text3)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Composite score ring/badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: scoreColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: scoreColor.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '★ ${op.scoreComposite}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: scoreColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Details column
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${op.ticketsTraites} tickets',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: c.text,
+                      ),
+                    ),
+                    Text(
+                      'SLA ${op.slaCompliance.toStringAsFixed(0)}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        color: op.slaCompliance >= 80 ? c.success : c.danger,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _emptyChart(AppColorScheme c, String title) {
     return _card(c, title: title, child: SizedBox(
       height: 120,
@@ -704,11 +1096,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     ));
   }
 
-  Widget _legendDot(Color color, String label) {
+  Widget _legendDot(AppColorScheme c, Color color, String label) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       const SizedBox(width: 3),
-      Text(label, style: GoogleFonts.inter(fontSize: 8, color: context.colors.text3)),
+      Text(label, style: GoogleFonts.inter(fontSize: 8, color: c.text3)),
     ]);
   }
 

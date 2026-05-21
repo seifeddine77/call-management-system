@@ -1,0 +1,409 @@
+﻿\chapter{Conception}
+\label{chap:conception}
+
+\vspace{2cm}
+
+\noindent\textbf{\Large Plan}
+
+\vspace{0.5cm}
+\noindent\rule{\textwidth}{0.4pt}
+\vspace{0.3cm}
+
+\begin{list}{}{\setlength{\leftmargin}{1.5cm}\setlength{\itemsep}{6pt}}
+  \item \textbf{1} \hspace{0.3cm} Architecture du syst\`{e}me \dotfill \pageref{sec:architecture}
+  \item \textbf{2} \hspace{0.3cm} Conception d\'{e}taill\'{e}e \dotfill \pageref{sec:conception_detail}
+  \item \textbf{3} \hspace{0.3cm} Conclusion \dotfill \pageref{sec:conclusion_ch2}
+\end{list}
+
+\vspace{0.3cm}
+\noindent\rule{\textwidth}{0.4pt}
+
+\newpage
+
+\section*{Introduction}
+
+Ce chapitre pr\'{e}sente la conception technique du syst\`{e}me AutoAssist. Nous commencerons par d\'{e}crire l'architecture globale du syst\`{e}me, puis nous d\'{e}taillerons la conception via les vues statique (diagrammes de classes) et dynamique (diagrammes de s\'{e}quence).
+
+%% ═══════════════════════════════════════════════════
+%% 2.1 ARCHITECTURE
+%% (Réf: 2.1 Architecture physique)
+%% ═══════════════════════════════════════════════════
+\section{Architecture du système}
+\label{sec:architecture}
+
+\subsection{Architecture physique}
+
+Le syst\`{e}me AutoAssist est d\'{e}ploy\'{e} sous forme de 17 conteneurs Docker \cite{docker} orchestr\'{e}s via Docker Compose, r\'{e}partis en cinq couches~:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures_uml_finaux/06_diagramme_de_dploiement_architecture_docker_14_conteneurs.png}
+    \caption{Architecture physique du système AutoAssist}
+    \label{fig:archi_physique}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Conteneurs Docker du système AutoAssist}
+\label{tab:conteneurs}
+\begin{tabular}{|p{3.5cm}|p{3cm}|c|p{4cm}|}
+\hline
+\textbf{Service} & \textbf{Technologie} & \textbf{Port} & \textbf{Base de données} \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Infrastructure}} \\
+\hline
+postgres & PostgreSQL 15 & 5432 & 8 bases (multi-tenant) \\
+\hline
+redis & Redis 7 & 6379 & Cache décisions \\
+\hline
+rabbitmq & RabbitMQ 3 & 5672 & Files de messages \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Découverte et Routage}} \\
+\hline
+eureka-server & Spring Cloud & 8761 & -- \\
+\hline
+api-gateway & Spring Cloud Gateway & 8080 & Redis (rate limiting) \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Services Métier (Java / Spring Boot 3)}} \\
+\hline
+auth-service & Java 21 & 8081 & auth\_db \\
+\hline
+organisation-service & Java 21 & 8082 & users\_db \\
+\hline
+ticket-service & Java 21 & 8083 & tickets\_db \\
+\hline
+rules-service & Java 21 & 8084 & rules\_db \\
+\hline
+decision-service & Java 21 & 8085 & decisions\_db \\
+\hline
+notification-service & Java 21 & 8086 & notif\_db \\
+\hline
+analytics-service & Java 21 & 8087 & analytics\_db \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche IA et Intégration}} \\
+\hline
+ai-service & Python FastAPI & 8000 & ai\_db + ChromaDB \\
+\hline
+whatsapp-service & Node.js & -- & ai\_db (RAG feedback) \\
+\hline
+\multicolumn{4}{|c|}{\textit{Couche Présentation}} \\
+\hline
+frontend & React 18 / Vite & 3000 & -- \\
+\hline
+mobile-app & Flutter Web & 5555 & -- \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Architecture logique}
+
+L'architecture logique suit le patron microservices avec les principes suivants~:
+
+\begin{itemize}
+    \item \textbf{Service Discovery}~: chaque service s'enregistre auprès d'Eureka Server au démarrage. Le gateway résout les routes dynamiquement~;
+    \item \textbf{Communication synchrone}~: via REST (OpenFeign pour les appels inter-services Java, HTTP pour les appels vers ai-service Python)~;
+    \item \textbf{Communication asynchrone}~: via RabbitMQ (événements \texttt{ticket.created}, \texttt{decision.finalized}, \texttt{agence.created})~;
+    \item \textbf{S\'{e}curit\'{e}}~: le gateway valide le JWT sur chaque requ\^{e}te entrante. Les services internes communiquent sur le r\'{e}seau Docker isol\'{e}. En perspective, l'ajout de mTLS (mutual TLS) ou d'un service mesh est envisag\'{e} pour renforcer la s\'{e}curit\'{e} inter-services en production~;
+    \item \textbf{Cache}~: Redis stocke les décisions calculées (clé SHA-256, TTL 1h) pour éviter les recalculs coûteux~;
+    \item \textbf{Résilience}~: Circuit Breaker Resilience4j sur l'appel au LLM Gemma~4, avec fallback automatique vers la décision ETUDE (source CIRCUIT\_BREAKER).
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures_uml_finaux/07_diagramme_de_composants_communication_synchrone_vs_asynchrone.png}
+    \caption{Architecture logique du système AutoAssist}
+    \label{fig:archi_logique}
+\end{figure}
+
+\subsection{Architecture du pipeline d'aide à la décision}
+
+Le pipeline de décision est l'innovation principale du système. Il évalue chaque demande en trois étapes successives~:
+
+Le flux d\'{e}taill\'{e} de ce pipeline est illustr\'{e} par le diagramme de s\'{e}quence de la figure~\ref{fig:seq_decision} (section~\ref{sec:conception_detail}).
+
+\begin{enumerate}
+    \item \textbf{Étape 1 — Cache Redis}~: calcul d'un hash SHA-256 à partir des paramètres (typePiece, ageVehicule, kilometrage, categorieClient, typeSinistre). Si un résultat identique existe en cache (TTL = 3600s), il est retourné immédiatement ($<$ 50ms)~;
+    \item \textbf{\'{E}tape 2 --- Moteur de r\`{e}gles}~: appel Feign vers le rules-service. Les r\`{e}gles JSONB actives sont \'{e}valu\'{e}es avec un score. Si le score $\geq$ 60\% et la d\'{e}cision n'est pas ambigu\"e, elle est retourn\'{e}e ($<$ 2s). Si le score est entre 40\% et 60\%, le cas est consid\'{e}r\'{e} ambigu et bascule vers l'\'{e}tape 3. Si le score est inf\'{e}rieur \`{a} 40\%, la d\'{e}cision est REFUS\'{E}E~;
+    \item \textbf{\'{E}tape 3 --- LLM Gemma~4}~: pour les cas ambigus (score entre 40\% et 60\%), le mod\`{e}le local est sollicit\'{e} via Docker Model Runner. Un prompt structur\'{e} demande un JSON \{decision, score, motif\}. Un Circuit Breaker Resilience4j prot\`{e}ge contre les timeouts ($<$ 12s). En cas d'\'{e}chec du LLM, le syst\`{e}me retourne automatiquement une d\'{e}cision \'{E}TUDE avec la source CIRCUIT\_BREAKER.
+\end{enumerate}
+
+\subsection{Architecture du chatbot RAG}
+
+Le chatbot WhatsApp utilise une architecture RAG (Retrieval-Augmented Generation) avec huit améliorations~:
+
+Le flux d\'{e}taill\'{e} est pr\'{e}sent\'{e} dans le diagramme de s\'{e}quence de la figure~\ref{fig:seq_chatbot} (section~\ref{sec:conception_detail}).
+
+\begin{table}[H]
+\centering
+\caption{Les 8 améliorations du pipeline RAG}
+\label{tab:rag_improvements}
+{\small
+\begin{tabular}{|c|p{3.2cm}|p{8cm}|}
+\hline
+\textbf{\#} & \textbf{Amélioration} & \textbf{Description technique} \\
+\hline
+1 & Sync dynamique règles & Récupération des règles actives depuis rules-service via HTTP \\
+\hline
+2 & Embeddings multilingues & Modèle \texttt{paraphrase-multilingual-}\newline\texttt{MiniLM-L12-v2} (FR/AR/EN) \\
+\hline
+3 & Mémoire de conversation & Historique par groupe WhatsApp (deque, maxlen=10) \\
+\hline
+4 & Hybrid Search & Recherche sémantique ChromaDB + recherche par mots-clés \\
+\hline
+5 & Re-ranking & Re-classement combiné (score sémantique + keyword) \\
+\hline
+6 & Chunking & Découpage des longs documents (max 600 caractères) \\
+\hline
+7 & Feedback loop & Réactions 👍/👎 stockées en DB pour amélioration continue \\
+\hline
+8 & Auto-refresh & Endpoint de ré-indexation à chaud sans redémarrage \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+%% ═══════════════════════════════════════════════════
+%% 2.2 CONCEPTION DÉTAILLÉE
+%% (Réf: 2.2 Conception détaillée)
+%% ═══════════════════════════════════════════════════
+\section{Conception détaillée}
+\label{sec:conception_detail}
+
+La conception d\'{e}taill\'{e}e implique la vue statique et la vue dynamique de l'application con\c{c}ue.
+
+\subsection{Vue Statique~: diagrammes de classes}
+
+La vue statique permet de repr\'{e}senter le syst\`{e}me \`{a} travers ses composants et leurs relations, sans prendre en compte l'\'{e}volution dans le temps. Elle est principalement illustr\'{e}e par le diagramme de classes. Dans une architecture microservices avec le patron \textit{Database-per-Service}, chaque service poss\`{e}de son propre mod\`{e}le de donn\'{e}es.
+
+\subsubsection{Diagramme de classes global}
+
+La figure~\ref{fig:class_global} pr\'{e}sente une vue d'ensemble de toutes les entit\'{e}s du syst\`{e}me AutoAssist, regroup\'{e}es par base de donn\'{e}es. Ce diagramme illustre les 15 entit\'{e}s r\'{e}parties sur 8 bases de donn\'{e}es, conform\'{e}ment au patron \textit{Database-per-Service}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures_uml_finaux/03_diagramme_de_classes_toutes_les_entits_15_entits_8_bases.png}
+    \caption{Diagramme de classes global -- 15 entit\'{e}s sur 8 bases de donn\'{e}es}
+    \label{fig:class_global}
+\end{figure}
+
+Nous d\'{e}taillons ci-dessous les diagrammes de classes des quatre services principaux.
+
+\subsubsection{Diagramme de classes du auth-service}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures_uml_finaux/38_diagramme_de_classes_entits_auth_db_auth-service.png}
+    \caption{Diagramme de classes -- auth-service}
+    \label{fig:class_auth}
+\end{figure}
+
+Le service d'authentification gère l'entité \texttt{LocalUser} avec les attributs~: id (UUID), email, passwordHash (BCrypt), nom, prenom, role (ADMIN/SUPERVISOR/OPERATOR), actif, agenceId. Il produit des tokens JWT (access 15min, refresh 7j) via la classe \texttt{JwtUtils}. L'entité \texttt{RefreshToken} stocke les jetons de rafraîchissement avec révocation.
+
+\subsubsection{Diagramme de classes du ticket-service}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures_uml_finaux/40_diagramme_de_classes_entits_tickets_db_ticket-service.png}
+    \caption{Diagramme de classes -- ticket-service}
+    \label{fig:class_ticket}
+\end{figure}
+
+L'entité \texttt{Ticket} comprend~: id (UUID), numero (T-YYYYMMDD-XXXXX), canal (CALL/EMAIL/WEB), statut (NOUVEAU/EN\_COURS/RESOLU/FERME), priorite, clientNom, clientEmail, description, agenceId, operateurId, audioPath, transcription, transcriptionKeywords (JSONB), photosPaths (JSONB), consentementEnregistrement, timestamps. Le service gère également les \texttt{TicketAction} pour l'audit trail.
+
+\subsubsection{Diagramme de classes du rules-service}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures_uml_finaux/41_diagramme_de_classes_entits_rules_db_rules-service.png}
+    \caption{Diagramme de classes -- rules-service}
+    \label{fig:class_rules}
+\end{figure}
+
+L'entité \texttt{Rule} contient~: id, nom, description, conditions (JSONB), action (FAVORABLE/DEFAVORABLE/ETUDE), actionMotif, priorite (1-10), actif, version, createdBy, createdByName, timestamps. Les conditions JSONB suivent le format~: \texttt{\{operator: "AND", conditions: [\{field, op, value\}]\}}. Le \texttt{RuleVersion} assure le versioning et le \texttt{ReferenceItem} gère le référentiel (types pièces, catégories clients, types sinistres).
+
+\subsubsection{Diagramme de classes du decision-service}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures_uml_finaux/42_diagramme_de_classes_entits_decisions_db_decision-service.png}
+    \caption{Diagramme de classes -- decision-service}
+    \label{fig:class_decision}
+\end{figure}
+
+L'entité \texttt{Decision} comprend~: id, ticketId, decision (FAVORABLE/DEFAVORABLE/ETUDE), score (BigDecimal), motif, source (RULES/AI/HYBRID/CIRCUIT\_BREAKER), rulesApplied (JSONB), finalDecision, overrideMotif, overrideBy, overrideByName, overriddenAt. L'entité \texttt{Letter} stocke les courriers PDF générés (relation 1:0..1 avec Decision). Le service utilise \texttt{StringRedisTemplate} pour le cache et \texttt{RabbitTemplate} pour publier les événements.
+
+\subsection{Vue Dynamique~: diagrammes de s\'{e}quence}
+
+La vue dynamique d\'{e}crit le comportement du syst\`{e}me, c'est-\`{a}-dire la fa\c{c}on dont les objets interagissent et \'{e}voluent au fil du temps. Elle est principalement illustr\'{e}e par le diagramme de s\'{e}quence, qui met en \'{e}vidence les \'{e}changes entre les diff\'{e}rents composants du syst\`{e}me. Dans notre architecture microservices, chaque diagramme fait intervenir plusieurs services communiquant via REST ou RabbitMQ.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Authentification~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures_uml_finaux/12_diagramme_de_squence_scurit_jwt_rbac_gateway.png}
+    \caption{Diagramme de séquence -- Authentification JWT}
+    \label{fig:seq_auth}
+\end{figure}
+
+Ce diagramme illustre le flux d'authentification JWT. L'utilisateur envoie ses identifiants au gateway, qui les transmet au auth-service. Apr\`{e}s v\'{e}rification BCrypt, un token d'acc\`{e}s (15 min) et un token de rafra\^{i}chissement (7 jours) sont g\'{e}n\'{e}r\'{e}s. Les requ\^{e}tes suivantes sont valid\'{e}es par le gateway via le filtre RBAC.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Cr\'{e}er un ticket multicanal~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures_uml_finaux/05_diagramme_de_squence_cration_ticket_multicanal_centralis.png}
+    \caption{Diagramme de séquence -- Création de ticket multicanal}
+    \label{fig:seq_ticket}
+\end{figure}
+
+Ce diagramme montre la cr\'{e}ation d'un ticket \`{a} partir des trois canaux (appel Twilio, email IMAP, formulaire web). Le ticket-service centralise les demandes, g\'{e}n\`{e}re un num\'{e}ro unique (T-YYYYMMDD-XXXXX), puis publie l'\'{e}v\'{e}nement \texttt{ticket.created} sur RabbitMQ pour d\'{e}clencher les traitements asynchrones.
+
+\subsubsection{Diagramme d'activit\'{e} \og~Transcription audio et analyse NLP~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures_uml_finaux/20_diagramme_dactivit_pipeline_nlp_complet_whisper_spacy.png}
+    \caption{Diagramme d'activit\'{e} -- Transcription audio et analyse NLP}
+    \label{fig:seq_transcription}
+\end{figure}
+
+Ce diagramme d\'{e}taille le pipeline NLP complet~: l'audio est envoy\'{e} au ai-service qui utilise Whisper pour la transcription, puis spaCy pour l'extraction des mots-cl\'{e}s, la d\'{e}tection du type de sinistre et l'analyse de sentiment. Les r\'{e}sultats sont retourn\'{e}s au ticket-service pour pr\'{e}-remplir le formulaire.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Analyse d\'{e}cisionnelle (pipeline 3 \'{e}tapes)~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures_uml_finaux/04_diagramme_de_squence_pipeline_dcisionnel_3_tapes.png}
+    \caption{Diagramme de séquence -- Pipeline de décision en 3 étapes}
+    \label{fig:seq_decision}
+\end{figure}
+
+Ce diagramme pr\'{e}sente le flux du pipeline d\'{e}cisionnel en trois \'{e}tapes successives (cache Redis, moteur de r\`{e}gles, LLM). Chaque \'{e}tape est tent\'{e}e s\'{e}quentiellement~: si le cache retourne un r\'{e}sultat, les \'{e}tapes suivantes sont ignor\'{e}es. La d\'{e}cision finale est stock\'{e}e en base et publi\'{e}e via RabbitMQ.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Chatbot WhatsApp RAG~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures_uml_finaux/19_diagramme_de_squence_pipeline_rag_chatbot_8_amliorations_ia.png}
+    \caption{Diagramme de séquence -- Interrogation du chatbot WhatsApp}
+    \label{fig:seq_chatbot}
+\end{figure}
+
+Ce diagramme illustre le flux RAG du chatbot~: le message WhatsApp est re\c{c}u par le whatsapp-service, transmis au ai-service qui effectue une recherche hybride (s\'{e}mantique + mots-cl\'{e}s) dans ChromaDB, puis g\'{e}n\`{e}re une r\'{e}ponse contextuelle via le LLM.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Configurer une r\`{e}gle d'assurance~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures_uml_finaux/26_diagramme_de_squence_rule_crud_versioning_automatique.png}
+    \caption{Diagramme de séquence -- Configuration d'une règle d'assurance}
+    \label{fig:seq_rules}
+\end{figure}
+
+Ce diagramme montre le flux CRUD d'une r\`{e}gle d'assurance avec versioning automatique. Lorsqu'un superviseur modifie une r\`{e}gle, l'ancienne version est archiv\'{e}e dans \texttt{rule\_versions} et la nouvelle version est enregistr\'{e}e avec un num\'{e}ro incr\'{e}ment\'{e}.
+
+\subsubsection{Diagramme de s\'{e}quence \og~Notification et envoi de courrier~\fg{}}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures_uml_finaux/30_diagramme_de_squence_gnration_courrier_pdf_letter.png}
+    \caption{Diagramme de séquence -- Notification et envoi de courrier PDF}
+    \label{fig:seq_notification}
+\end{figure}
+
+Ce diagramme d\'{e}taille le flux de notification~: apr\`{e}s la finalisation d'une d\'{e}cision, le notification-service g\'{e}n\`{e}re un courrier PDF via un template Thymeleaf, l'envoie par email avec pi\`{e}ce jointe, et enregistre la notification dans \texttt{notification\_logs}.
+
+\subsection{Conception de la base de donn\'{e}es}
+
+Le syst\`{e}me utilise une approche \textbf{Database-per-Service}, chaque microservice poss\'{e}dant sa propre base PostgreSQL.
+
+\begin{sidewaysfigure}
+    \centering
+    \includegraphics[width=\textheight]{figures_uml_finaux/29_diagramme_er_schma_base_de_donnes_9_dbs.png}
+    \caption{Schéma global de la base de données (Database-per-Service)}
+    \label{fig:bdd}
+\end{sidewaysfigure}
+
+\begin{table}[H]
+\centering
+\caption{Bases de données par microservice}
+\label{tab:bdd}
+\begin{tabular}{|p{3cm}|p{2.5cm}|p{7.5cm}|}
+\hline
+\textbf{Service} & \textbf{Base} & \textbf{Tables principales} \\
+\hline
+auth-service & auth\_db & local\_users, refresh\_tokens \\
+\hline
+organisation-service & users\_db & users, agences \\
+\hline
+ticket-service & tickets\_db & tickets, ticket\_actions \\
+\hline
+rules-service & rules\_db & rules, rule\_versions, reference\_items \\
+\hline
+decision-service & decisions\_db & decisions, letters \\
+\hline
+notification-service & notif\_db & notification\_logs \\
+\hline
+analytics-service & analytics\_db & daily\_stats \\
+\hline
+ai-service & ai\_db & audio\_records, analysis\_results \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Pile technologique}
+
+Le syst\`{e}me AutoAssist repose sur une architecture polyglotte adapt\'{e}e aux besoins de chaque couche. Le tableau~\ref{tab:techstack} pr\'{e}sente les technologies utilis\'{e}es et leur justification.
+
+\begin{table}[H]
+\centering
+\caption{Pile technologique du syst\`{e}me AutoAssist}
+\label{tab:techstack}
+\small
+\begin{tabular}{|p{2.5cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Composant} & \textbf{Technologie} & \textbf{Justification} \\
+\hline
+Services m\'{e}tier (x7) & Java 21 / Spring Boot 3 & Robustesse, \'{e}cosyst\`{e}me Spring Cloud (Eureka, Feign, Gateway), typage statique \\
+\hline
+Service IA & Python FastAPI & Support natif de l'asynchrone, int\'{e}gration Whisper/spaCy/PyTorch, performance HTTP \\
+\hline
+Service WhatsApp & Node.js & Biblioth\`{e}que \texttt{whatsapp-web.js}, traitement \'{e}v\'{e}nementiel asynchrone \\
+\hline
+Frontend Web & React 18 / Vite & Flexibilit\'{e} pour le tableau de bord d'administration, composants r\'{e}utilisables \\
+\hline
+Application Mobile & Flutter & D\'{e}veloppement cross-platform pour les op\'{e}rateurs nomades \\
+\hline
+Base de donn\'{e}es & PostgreSQL 15 & Transactions ACID, support JSONB pour les conditions des r\`{e}gles m\'{e}tier \\
+\hline
+Base vectorielle & ChromaDB & Stockage des embeddings pour la recherche s\'{e}mantique RAG \\
+\hline
+Transcription audio & OpenAI Whisper & Transcription pr\'{e}cise des appels clients en fran\c{c}ais et arabe \\
+\hline
+Analyse NLP & spaCy & Extraction d'entit\'{e}s et analyse de sentiment rapide et efficace \\
+\hline
+LLM & Gemma~4 (local) & Mod\`{e}le open-source ex\'{e}cut\'{e} via Docker Model Runner, confidentialit\'{e} des donn\'{e}es \\
+\hline
+Cache & Redis 7 & Stockage TTL des d\'{e}cisions calcul\'{e}es pour \'{e}viter les recalculs co\^{u}teux \\
+\hline
+Messagerie & RabbitMQ 3 & D\'{e}couplage asynchrone entre services, garantie de livraison des \'{e}v\'{e}nements \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Strat\'{e}gie de tests}
+
+Pour garantir la qualit\'{e} du syst\`{e}me, une strat\'{e}gie de tests multi-niveaux est pr\'{e}vue~:
+
+\begin{itemize}
+    \item \textbf{Tests unitaires}~: chaque service Java est couvert par des tests JUnit~5 avec Mockito pour les mocks. Le service IA Python utilise pytest. L'objectif est une couverture sup\'{e}rieure \`{a} 75\%~;
+    \item \textbf{Tests d'int\'{e}gration}~: v\'{e}rification des appels inter-services (Feign), de la communication RabbitMQ et des acc\`{e}s base de donn\'{e}es~;
+    \item \textbf{Tests de contr\^{o}leurs}~: validation des endpoints REST avec MockMvc (codes HTTP, corps de r\'{e}ponse, gestion des erreurs)~;
+    \item \textbf{Int\'{e}gration continue}~: GitHub Actions ex\'{e}cute automatiquement tous les tests \`{a} chaque push, bloquant le merge en cas d'\'{e}chec.
+\end{itemize}
+
+\section*{Conclusion}
+\label{sec:conclusion_ch2}
+
+Dans ce chapitre, nous avons pr\'{e}sent\'{e} la conception technique du syst\`{e}me AutoAssist. L'architecture microservices, organis\'{e}e en cinq couches avec dix-sept conteneurs Docker, combine une communication synchrone (REST/OpenFeign) et asynchrone (RabbitMQ), renforc\'{e}e par des m\'{e}canismes de r\'{e}silience (cache Redis, Circuit Breaker). Les deux innovations majeures --- le pipeline d\'{e}cisionnel en trois \'{e}tapes et l'architecture RAG du chatbot --- ont \'{e}t\'{e} d\'{e}taill\'{e}es. La conception a \'{e}t\'{e} mod\'{e}lis\'{e}e via des diagrammes de classes et de s\'{e}quence. Le chapitre suivant sera consacr\'{e} \`{a} la r\'{e}alisation et aux r\'{e}sultats obtenus.

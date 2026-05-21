@@ -1,5 +1,5 @@
 import api from './api';
-import type { KpiResponse, KpiComparison, HourlyData, DailyStat } from '../types/analytics';
+import type { KpiResponse, KpiComparison, HourlyData, DailyStat, OperatorPerformance, SupervisionAlert } from '../types/analytics';
 
 export const analyticsService = {
   getKpis: async (period?: string): Promise<KpiResponse> => {
@@ -36,4 +36,17 @@ export const analyticsService = {
     a.remove();
     globalThis.URL.revokeObjectURL(url);
   },
+
+  // ── Supervision des opérateurs ──
+
+  getOperatorPerformance: async (period?: string): Promise<OperatorPerformance[]> => {
+    const res = await api.get<OperatorPerformance[]>('/api/tickets/operators/performance', { params: { period } });
+    return res.data;
+  },
+
+  getSupervisionAlerts: async (): Promise<SupervisionAlert[]> => {
+    const res = await api.get<SupervisionAlert[]>('/api/tickets/supervision/alerts');
+    return res.data;
+  },
 };
+

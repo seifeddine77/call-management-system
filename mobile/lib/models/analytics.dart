@@ -136,3 +136,74 @@ class DailyStat {
     );
   }
 }
+
+class OperatorPerformance {
+  final String operateurId;
+  final String? operateurName;
+  final int ticketsTraites;
+  final int ticketsEnCours;
+  final int ticketsResolu;
+  final double tauxResolution;
+  final double tempsMoyenMinutes;
+  final int ticketsCall;
+  final int ticketsEmail;
+  final int ticketsWeb;
+  final int scoreComposite;
+  final double slaCompliance;
+
+  OperatorPerformance({
+    required this.operateurId,
+    this.operateurName,
+    required this.ticketsTraites,
+    required this.ticketsEnCours,
+    required this.ticketsResolu,
+    required this.tauxResolution,
+    required this.tempsMoyenMinutes,
+    required this.ticketsCall,
+    required this.ticketsEmail,
+    required this.ticketsWeb,
+    required this.scoreComposite,
+    required this.slaCompliance,
+  });
+
+  factory OperatorPerformance.fromJson(Map<String, dynamic> json) {
+    return OperatorPerformance(
+      operateurId: json['operateurId'] ?? '',
+      operateurName: json['operateurName'],
+      ticketsTraites: json['ticketsTraites'] ?? 0,
+      ticketsEnCours: json['ticketsEnCours'] ?? 0,
+      ticketsResolu: json['ticketsResolu'] ?? json['ticketsResolus'] ?? 0,
+      tauxResolution: (json['tauxResolution'] ?? 0).toDouble(),
+      tempsMoyenMinutes: (json['tempsMoyenMinutes'] ?? 0).toDouble(),
+      ticketsCall: json['ticketsCall'] ?? 0,
+      ticketsEmail: json['ticketsEmail'] ?? 0,
+      ticketsWeb: json['ticketsWeb'] ?? 0,
+      scoreComposite: json['scoreComposite'] ?? 0,
+      slaCompliance: (json['slaCompliance'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class SupervisionAlert {
+  final String type;
+  final String severity;
+  final String message;
+  final int count;
+
+  SupervisionAlert({
+    required this.type,
+    required this.severity,
+    required this.message,
+    required this.count,
+  });
+
+  factory SupervisionAlert.fromJson(Map<String, dynamic> json) {
+    return SupervisionAlert(
+      type: json['type'] ?? '',
+      severity: json['severity'] ?? '',
+      message: json['message'] ?? '',
+      count: json['count'] ?? 0,
+    );
+  }
+}
+

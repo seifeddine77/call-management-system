@@ -111,6 +111,20 @@ services:
       - callmgmt-net
     restart: unless-stopped
 
+  # Nginx Exporter
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: callmgmt-nginx-exporter
+    ports:
+      - "9113:9113"
+    command:
+      - -nginx.scrape-uri=http://frontend:3000/nginx_status
+    depends_on:
+      - frontend
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
   # cAdvisor — Container metrics
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1

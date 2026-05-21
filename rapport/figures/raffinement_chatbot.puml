@@ -8,7 +8,7 @@ skinparam usecase {
   BorderColor #A80036
 }
 
-actor "Operateur" as op
+actor "Operateur /\nSuperviseur" as op
 actor "Chatbot" as chatbot
 
 rectangle "AutoAssist" {

@@ -2,8 +2,10 @@ package com.pfe.callmgmt.ticket.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pfe.callmgmt.ticket.client.AiServiceClient;
+import com.pfe.callmgmt.ticket.client.OrganisationServiceClient;
 import com.pfe.callmgmt.ticket.dto.*;
 import com.pfe.callmgmt.ticket.service.QueueService;
+import com.pfe.callmgmt.ticket.service.SupervisionService;
 import com.pfe.callmgmt.ticket.service.TicketService;
 import com.pfe.callmgmt.ticket.service.AudioEncryptionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +44,9 @@ public class TicketController {
 
     private final TicketService ticketService;
     private final QueueService queueService;
+    private final SupervisionService supervisionService;
     private final AiServiceClient aiServiceClient;
+    private final OrganisationServiceClient organisationClient;
     private final ObjectMapper objectMapper;
     private final AudioEncryptionService audioEncryptionService;
 
@@ -354,5 +358,40 @@ public class TicketController {
     @Operation(summary = "Health check endpoint")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK");
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Supervision des opérateurs (Performance + Alertes)
+    // ══════════════════════════════════════════════════════════════
+
+    @GetMapping("/operators/performance")
+    @Operation(summary = "Classement des opérateurs par performance",
+               description = "Retourne les métriques de chaque opérateur : tickets traités, taux de résolution, temps moyen, répartition par canal")
+    public ResponseEntity<List<OperatorPerformanceResponse>> getOperatorPerformance(
+            @RequestParam(defaultValue = "30d") String period) {
+        List<OperatorPerformanceResponse> perfs = supervisionService.getOperatorPerformance(period);
+        // Resolve operator names via organisation-service Feign
+        for (OperatorPerformanceResponse p : perfs) {
+            if (p.getOperateurId() != null && p.getOperateurName() == null) {
+                try {
+                    Map<String, Object> user = organisationClient.getUserById(p.getOperateurId());
+                    if (user != null) {
+                        String name = user.getOrDefault("prenom", "") + " " + user.getOrDefault("nom", "");
+                        p.setOperateurName(name.trim());
+                    }
+                } catch (Exception e) {
+                    p.setOperateurName("Opérateur " + p.getOperateurId().toString().substring(0, 8));
+                    log.debug("Could not resolve operator name for {}: {}", p.getOperateurId(), e.getMessage());
+                }
+            }
+        }
+        return ResponseEntity.ok(perfs);
+    }
+
+    @GetMapping("/supervision/alerts")
+    @Operation(summary = "Alertes de supervision",
+               description = "Détecte les anomalies : tickets bloqués >24h, non assignés >2h, pics de volume")
+    public ResponseEntity<List<SupervisionAlert>> getSupervisionAlerts() {
+        return ResponseEntity.ok(supervisionService.getAlerts());
     }
 }

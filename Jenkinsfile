@@ -558,8 +558,9 @@ CIEOF
                               | xargs -r -I{} docker rmi localhost:5000/${svc}:{} 2>/dev/null || true
                         """
                     }
-                    // Remove dangling images (untagged layers from builds)
+                    // Remove dangling images and build cache (untagged layers from builds)
                     sh 'docker image prune -f 2>/dev/null || true'
+                    sh 'docker builder prune -f 2>/dev/null || true'
                     echo "Image cleanup done — kept last ${KEEP_BUILDS} builds per service."
                 } catch (err) {
                     echo "Image cleanup warning: ${err.message}"

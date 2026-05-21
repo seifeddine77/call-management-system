@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import Logo from '../components/ui/Logo';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Mail, Lock, Eye, EyeOff, Sun, Moon, Shield, Brain, Mic, Car, Headphones, BarChart3, Activity } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Sun, Moon, Shield, Brain, Mic, Headphones, BarChart3, Activity, Car, Check, AlertCircle } from 'lucide-react';
 
 function useTyping(texts: string[], speed = 50, pause = 3000) {
   const [display, setDisplay] = useState('');
@@ -39,9 +40,9 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {[
-        { w:'50vw',h:'50vw',top:'-15%',left:'-10%',c:isDark?'rgba(37,99,235,0.12)':'rgba(37,99,235,0.08)',dur:22,dx:80,dy:60 },
-        { w:'40vw',h:'40vw',bottom:'-10%',right:'-5%',c:isDark?'rgba(6,182,212,0.1)':'rgba(6,182,212,0.06)',dur:26,dx:-60,dy:-50 },
-        { w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.06)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
+        { w:'50vw',h:'50vw',top:'-15%',left:'-10%',c:isDark?'rgba(37,99,235,0.15)':'rgba(37,99,235,0.08)',dur:22,dx:80,dy:60 },
+        { w:'40vw',h:'40vw',bottom:'-10%',right:'-5%',c:isDark?'rgba(6,182,212,0.12)':'rgba(6,182,212,0.06)',dur:26,dx:-60,dy:-50 },
+        { w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.08)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
       ].map((b,i) => (
         <motion.div key={i} className="absolute rounded-full" style={{ width:b.w,height:b.h,top:b.top,bottom:b.bottom,left:b.left,right:b.right,
           background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' } as any}
@@ -64,7 +65,7 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
   );
 }
 
-/* ── Animated SVG Scene — Car + Call Center ── */
+/* ── Animated SVG Scene — Connected Neural Network ── */
 function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; sy: any }>) {
   const carX = useTransform(sx, [-1,1], [-12,12]);
   const carY = useTransform(sy, [-1,1], [-8,8]);
@@ -75,25 +76,39 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; 
   const accent = isDark ? '#3b82f6' : '#2563eb';
   const accent2 = isDark ? '#06b6d4' : '#0891b2';
   const accent3 = isDark ? '#10b981' : '#059669';
+  const claimColor = '#f43f5e'; // Rose/coral highlighting auto claims
   const lineColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.12)';
 
   return (
     <div className="relative w-full max-w-[500px] mx-auto" style={{ height: 360 }}>
-      {/* Central car icon */}
+      {/* Central Interactive Logo Portal */}
       <motion.div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
         style={{ x: carX, y: carY }}
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-        <div className="w-28 h-28 rounded-3xl flex items-center justify-center"
-          style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})`, boxShadow: `0 20px 60px ${isDark ? 'rgba(37,99,235,0.3)' : 'rgba(37,99,235,0.2)'}` }}>
-          <Car size={48} color="white" strokeWidth={1.5} />
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+        <div className="w-32 h-32 rounded-full flex items-center justify-center p-0 m-0 border backdrop-blur-md relative overflow-hidden"
+          style={{ 
+            background: isDark ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255, 255, 255, 0.55)',
+            borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.15)',
+            boxShadow: isDark 
+              ? '0 20px 50px rgba(6, 182, 212, 0.15), inset 0 0 20px rgba(59, 130, 246, 0.1)' 
+              : '0 20px 50px rgba(37, 99, 235, 0.08), inset 0 0 20px rgba(255, 255, 255, 0.5)'
+          }}>
+          {/* Neon radial glow behind logo */}
+          <div className="absolute inset-4 rounded-full blur-xl opacity-30"
+            style={{ background: 'linear-gradient(135deg, #2563eb, #06b6d4)' }}
+          />
+          <Logo size={68} animated={false} className="relative z-10 block w-[68px] h-[68px] flex-shrink-0" />
         </div>
-        {/* Pulse rings around car */}
+        {/* Pulse rings around logo */}
         {[1,2,3].map(r => (
-          <motion.div key={r} className="absolute inset-0 rounded-3xl border"
-            style={{ borderColor: `${accent}20` }}
-            animate={{ scale: [1, 1.3+r*0.2], opacity: [0.4, 0] }}
-            transition={{ duration: 2+r*0.5, repeat: Infinity, delay: r*0.4 }} />
+          <motion.div key={r} className="absolute inset-0 rounded-full border"
+            style={{ 
+              borderColor: isDark ? 'rgba(6, 182, 212, 0.15)' : 'rgba(37, 99, 235, 0.08)',
+              boxShadow: isDark ? '0 0 15px rgba(6, 182, 212, 0.05)' : 'none'
+            }}
+            animate={{ scale: [1, 1.4+r*0.25], opacity: [0.45, 0] }}
+            transition={{ duration: 2.5+r*0.6, repeat: Infinity, delay: r*0.5, ease: 'easeOut' }} />
         ))}
       </motion.div>
 
@@ -105,6 +120,7 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; 
         { icon: BarChart3, label: 'Analytics', x: '8%', y: '72%', pX: el2X, pY: el1Y, delay: 1.5, color: accent },
         { icon: Activity, label: 'Temps réel', x: '45%', y: '5%', pX: el1X, pY: el1Y, delay: 0.8, color: accent2 },
         { icon: Shield, label: 'Sécurité', x: '42%', y: '88%', pX: el2X, pY: el2Y, delay: 1.2, color: accent3 },
+        { icon: Car, label: 'Sinistres Auto', x: '82%', y: '42%', pX: el2X, pY: el1Y, delay: 0.7, color: claimColor },
       ].map((el, i) => (
         <motion.div key={i} className="absolute flex flex-col items-center gap-1 z-20"
           style={{ left: el.x, top: el.y, x: el.pX, y: el.pY }}
@@ -126,6 +142,7 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; 
           'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
           'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
           'M 250 30 Q 250 100 250 180', 'M 240 320 Q 245 250 250 180',
+          'M 410 150 Q 320 160 250 180',
         ].map((d, i) => (
           <motion.path key={i} d={d} fill="none" stroke={lineColor} strokeWidth="1.5" strokeDasharray="6 4"
             initial={{ pathLength: 0, opacity: 0 }}
@@ -136,8 +153,9 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; 
         {[
           'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
           'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
+          'M 410 150 Q 320 160 250 180',
         ].map((d, i) => (
-          <motion.circle key={`dot${i}`} r="3" fill={accent}
+          <motion.circle key={`dot${i}`} r="3" fill={i === 4 ? claimColor : accent}
             initial={{ offsetDistance: '0%' }}
             animate={{ offsetDistance: ['0%', '100%'] }}
             transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
@@ -163,12 +181,112 @@ export default function LoginPage() {
   const { sx, sy } = useParallax();
   const tagline = useTyping(['Gestion intelligente des réclamations auto','IA & Analyse vocale en temps réel','Centre d\'appels nouvelle génération']);
 
+  // Real-time touched tracking & validation
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setFocused(null);
+  };
+
+  const getEmailError = () => {
+    if (!email) return "L'identifiant est requis";
+    return null;
+  };
+
+  const getPasswordError = () => {
+    if (!password) return "Le mot de passe est requis";
+    return null;
+  };
+
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    setAuthError(null);
+  };
+
+  const handlePasswordChange = (val: string) => {
+    setPassword(val);
+    setAuthError(null);
+  };
+
+  const getInputStyle = (field: 'email' | 'password', error: string | null) => {
+    const isTouched = touched[field];
+    const isFocused = focused === field;
+    
+    let borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    if (isFocused) {
+      borderColor = '#2563eb';
+    } else if (authError) {
+      borderColor = '#ef4444';
+    } else if (isTouched) {
+      borderColor = error ? '#ef4444' : '#10b981';
+    }
+    
+    return {
+      background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+      border: `1.5px solid ${borderColor}`,
+      color: isDark ? '#f1f5f9' : '#0f172a'
+    };
+  };
+
+  const getIconColor = (field: 'email' | 'password', error: string | null) => {
+    const isTouched = touched[field];
+    const isFocused = focused === field;
+    if (isFocused) return '#2563eb';
+    if (authError) return '#ef4444';
+    if (isTouched) return error ? '#ef4444' : '#10b981';
+    return '#64748b';
+  };
+
+  // Ref and Motion values for 3D Tilt Card & Spotlight Glow
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+
+  const cardX = useMotionValue(0);
+  const cardY = useMotionValue(0);
+  // Smooth spring animations for rotation
+  const rotateX = useSpring(useTransform(cardY, [-0.5, 0.5], [8, -8]), { stiffness: 120, damping: 22 });
+  const rotateY = useSpring(useTransform(cardX, [-0.5, 0.5], [-8, 8]), { stiffness: 120, damping: 22 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const xVal = (e.clientX - rect.left) / rect.width - 0.5;
+    const yVal = (e.clientY - rect.top) / rect.height - 0.5;
+    cardX.set(xVal);
+    cardY.set(yVal);
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    cardX.set(0);
+    cardY.set(0);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { toast.error('Veuillez remplir tous les champs'); return; }
+    setTouched({ email: true, password: true });
+    setAuthError(null);
+    
+    const emailErr = getEmailError();
+    const pwdErr = getPasswordError();
+    
+    if (emailErr) { toast.error(emailErr); return; }
+    if (pwdErr) { toast.error(pwdErr); return; }
+    
     setLoading(true);
-    try { await login(email, password); toast.success('Connexion réussie !'); }
-    catch { toast.error('Email ou mot de passe incorrect'); }
+    try { 
+      await login(email, password); 
+      toast.success('Connexion réussie !'); 
+    }
+    catch (err) { 
+      setAuthError('Email ou mot de passe incorrect');
+      toast.error('Email ou mot de passe incorrect'); 
+    }
     finally { setLoading(false); }
   };
 
@@ -180,10 +298,11 @@ export default function LoginPage() {
       <div className="hidden lg:flex flex-1 items-center justify-center relative z-10">
         <motion.div className="flex flex-col items-center max-w-[550px] px-6 w-full"
           variants={stagger} initial="hidden" animate="show">
-          <motion.div variants={pop} className="flex items-center gap-3 self-start mb-4">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-black"
-              style={{ background:'linear-gradient(135deg,#2563eb,#3b82f6)',boxShadow:'0 0 20px rgba(37,99,235,0.3)' }}>A</div>
-            <span className="font-bold text-lg tracking-tight" style={{ color:isDark?'#f1f5f9':'#0f172a' }}>AutoAssist</span>
+          <motion.div variants={pop} className="flex items-center gap-3.5 self-start mb-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+              <Logo size={38} animated={true} />
+            </div>
+            <span className="font-black text-2xl tracking-tight" style={{ color:isDark?'#f1f5f9':'#0f172a', letterSpacing: '-0.03em' }}>AutoAssist</span>
             <span className="px-2 py-0.5 rounded text-[8px] font-mono tracking-widest uppercase text-emerald-500 border border-emerald-500/30 bg-emerald-500/5">v2.0</span>
           </motion.div>
 
@@ -205,6 +324,22 @@ export default function LoginPage() {
             <div className="w-2 h-2 rounded-full bg-emerald-400" style={{ animation:'loginPulseRing 2s infinite' }}/>
             <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color:'#64748b' }}>Système opérationnel · 99.9% uptime</span>
           </motion.div>
+
+          {/* Glowing stats cards below the title */}
+          <motion.div variants={pop} className="grid grid-cols-3 gap-3 w-full mt-8 font-mono text-[9px] text-center">
+            <div className="p-3 rounded-2xl bg-[rgba(37,99,235,0.03)] dark:bg-[rgba(37,99,235,0.05)] border border-[rgba(37,99,235,0.1)] backdrop-blur-md">
+              <div className="text-xs font-black text-blue-500">Gemma IA</div>
+              <div className="text-slate-400 mt-0.5">Moteur Décisionnel</div>
+            </div>
+            <div className="p-3 rounded-2xl bg-[rgba(6,182,212,0.03)] dark:bg-[rgba(6,182,212,0.05)] border border-[rgba(6,182,212,0.1)] backdrop-blur-md">
+              <div className="text-xs font-black text-cyan-500">Whisper AI</div>
+              <div className="text-slate-400 mt-0.5">Transcription Vocale</div>
+            </div>
+            <div className="p-3 rounded-2xl bg-[rgba(16,185,129,0.03)] dark:bg-[rgba(16,185,129,0.05)] border border-[rgba(16,185,129,0.1)] backdrop-blur-md">
+              <div className="text-xs font-black text-emerald-500">&lt; 2.5s</div>
+              <div className="text-slate-400 mt-0.5">Traitement Pipeline</div>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
 
@@ -212,14 +347,26 @@ export default function LoginPage() {
       <div className="w-full lg:w-[480px] flex items-center justify-center relative z-10 p-6 sm:p-10">
         <div className="hidden lg:block absolute left-0 top-[10%] bottom-[10%] w-[1px]"
           style={{ background:`linear-gradient(to bottom,transparent,${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'},transparent)` }}/>
+        
         <motion.button onClick={toggleTheme}
           className="absolute top-5 right-5 z-30 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer"
           style={{ background:isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)',border:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}` }}
           whileHover={{ scale:1.1,rotate:15 }} whileTap={{ scale:0.9 }}>
           {isDark?<Sun size={15} color="#94a3b8"/>:<Moon size={15} color="#475569"/>}
         </motion.button>
-        <motion.div className="relative z-10 w-full max-w-[370px]" variants={stagger} initial="hidden" animate="show">
+
+        {/* 3D Perspective Card Wrapper */}
+        <motion.div style={{ perspective: 1000 }} className="relative z-10 w-full max-w-[370px]" variants={stagger} initial="hidden" animate="show">
           <motion.div variants={pop} className="mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-lg" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <Logo size={44} animated={true} />
+              </div>
+              <div>
+                <div className="text-base font-black tracking-tight" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>AutoAssist</div>
+                <div className="font-mono text-[8px] text-[#64748b] tracking-wider uppercase">Système Décisionnel</div>
+              </div>
+            </div>
             <h1 className="text-2xl font-black tracking-tighter" style={{ color:isDark?'#f1f5f9':'#0f172a' }}>Bon retour<span style={{ color:'#2563eb' }}>.</span></h1>
             <div className="h-5 flex items-center mt-1.5">
               <span className="text-sm" style={{ color:'#94a3b8' }}>{tagline}</span>
@@ -227,44 +374,153 @@ export default function LoginPage() {
             </div>
           </motion.div>
           <motion.form onSubmit={handleSubmit} variants={pop}>
-            <motion.div layout className="rounded-2xl overflow-hidden"
-              style={{ background:isDark?'rgba(15,23,42,0.7)':'rgba(255,255,255,0.85)',backdropFilter:'blur(24px)',border:`1px solid ${isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.06)'}`,boxShadow:isDark?'0 30px 80px rgba(0,0,0,0.5)':'0 30px 80px rgba(0,0,0,0.06)' }}>
-              <div className="h-[2px]" style={{ background:'linear-gradient(90deg,#2563eb,#06b6d4,#10b981)' }}/>
-              <div className="px-6 py-6 space-y-4">
-                <div>
-                  <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}><Mail size={11}/> Email</label>
-                  <motion.input type="email" className="w-full h-11 px-4 rounded-xl text-sm outline-none"
-                    style={{ background:isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)',border:`1.5px solid ${focused==='email'?'#2563eb':isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'}`,color:isDark?'#f1f5f9':'#0f172a' }}
-                    animate={{ boxShadow:focused==='email'?'0 0 0 3px rgba(37,99,235,0.15)':'0 0 0 0px transparent' }}
-                    transition={{ type:'spring',stiffness:300,damping:25 }}
-                    placeholder="vous@autoassist.tn" value={email} onChange={e=>setEmail(e.target.value)}
-                    onFocus={()=>setFocused('email')} onBlur={()=>setFocused(null)} autoFocus/>
-                </div>
-                <div>
-                  <label className="flex items-center gap-1.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}><Lock size={11}/> Mot de passe</label>
-                  <div className="relative">
-                    <motion.input type={showPwd?'text':'password'} className="w-full h-11 px-4 pr-11 rounded-xl text-sm outline-none"
-                      style={{ background:isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)',border:`1.5px solid ${focused==='password'?'#2563eb':isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'}`,color:isDark?'#f1f5f9':'#0f172a' }}
-                      animate={{ boxShadow:focused==='password'?'0 0 0 3px rgba(37,99,235,0.15)':'0 0 0 0px transparent' }}
-                      transition={{ type:'spring',stiffness:300,damping:25 }}
-                      placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)}
-                      onFocus={()=>setFocused('password')} onBlur={()=>setFocused(null)}/>
-                    <button type="button" onClick={()=>setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" style={{color:'#64748b'}}>
-                      {showPwd?<EyeOff size={16}/>:<Eye size={16}/>}</button>
+            
+            {/* 3D Tilting Card Container */}
+            <motion.div
+              ref={cardRef}
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              style={{
+                rotateX: rotateX,
+                rotateY: rotateY,
+                transformStyle: 'preserve-3d',
+              }}
+              className="relative p-[1.5px] rounded-2xl overflow-hidden bg-gradient-to-r from-blue-500/40 via-cyan-500/40 to-emerald-500/40 dark:from-blue-500/30 dark:via-cyan-500/30 dark:to-emerald-500/30 shadow-[0_20px_50px_rgba(37,99,235,0.05)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all duration-300"
+            >
+              {/* Dynamic Interactive Cursor Spotlight */}
+              {isHovered && (
+                <div
+                  className="absolute pointer-events-none rounded-full"
+                  style={{
+                    width: '320px',
+                    height: '320px',
+                    background: isDark
+                      ? 'radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(37,99,235,0.1) 0%, transparent 70%)',
+                    left: `${mousePos.x - 160}px`,
+                    top: `${mousePos.y - 160}px`,
+                    filter: 'blur(25px)',
+                    zIndex: 1,
+                  }}
+                />
+              )}
+
+              {/* Inside Glass Card Body */}
+              <div className="relative rounded-[15px] overflow-hidden z-10"
+                style={{
+                  background:isDark?'rgba(10,15,30,0.92)':'rgba(255,255,255,0.97)',
+                  backdropFilter:'blur(30px)'
+                }}>
+                <div className="h-[2px]" style={{ background:'linear-gradient(90deg,#2563eb,#06b6d4,#10b981)' }}/>
+                <div className="px-6 py-6 space-y-4" style={{ transform: 'translateZ(20px)' }}>
+                  
+                  {/* Email Input with Validation */}
+                  <div>
+                    <label className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Identifiant</label>
+                    <div className="relative group">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
+                        style={{ color: getIconColor('email', getEmailError()) }}>
+                        <Mail size={16} />
+                      </div>
+                      <motion.input type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
+                        style={getInputStyle('email', getEmailError())}
+                        animate={{ boxShadow: focused==='email' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.email || authError) ? ((getEmailError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
+                        transition={{ type:'spring',stiffness:300,damping:25 }}
+                        placeholder="vous@autoassist.tn" value={email} onChange={e=>handleEmailChange(e.target.value)}
+                        onFocus={()=>setFocused('email')} onBlur={()=>handleBlur('email')} autoFocus/>
+                      {/* Validation badge */}
+                      {(touched.email && focused !== 'email' || authError) && (
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                          {(getEmailError() || authError) ? (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
+                              <AlertCircle size={16} color="#ef4444" />
+                            </motion.div>
+                          ) : (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                              className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                              <Check size={12} color="#10b981" strokeWidth={3} />
+                            </motion.div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Error message */}
+                    <AnimatePresence>
+                      {touched.email && focused !== 'email' && getEmailError() && (
+                        <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
+                          <AlertCircle size={11} /> {getEmailError()}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Password Input with Validation */}
+                  <div>
+                    <label className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Mot de passe</label>
+                    <div className="relative group">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
+                        style={{ color: getIconColor('password', getPasswordError()) }}>
+                        <Lock size={16} />
+                      </div>
+                      <motion.input type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
+                        style={getInputStyle('password', getPasswordError())}
+                        animate={{ boxShadow: focused==='password' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.password || authError) ? ((getPasswordError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
+                        transition={{ type:'spring',stiffness:300,damping:25 }}
+                        placeholder="••••••••" value={password} onChange={e=>handlePasswordChange(e.target.value)}
+                        onFocus={()=>setFocused('password')} onBlur={()=>handleBlur('password')}/>
+                      {/* Show/hide toggle + validation badge */}
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        {(touched.password && focused !== 'password' || authError) && (
+                          (getPasswordError() || authError) ? (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
+                              <AlertCircle size={16} color="#ef4444" />
+                            </motion.div>
+                          ) : (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                              className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                              <Check size={12} color="#10b981" strokeWidth={3} />
+                            </motion.div>
+                          )
+                        )}
+                        <button type="button" onClick={()=>setShowPwd(!showPwd)} className="cursor-pointer transition-colors" style={{color:'#64748b'}}>
+                          {showPwd?<EyeOff size={16}/>:<Eye size={16}/>}
+                        </button>
+                      </div>
+                    </div>
+                    {/* Error message */}
+                    <AnimatePresence>
+                      {((touched.password && focused !== 'password' && getPasswordError()) || authError) && (
+                        <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
+                          <AlertCircle size={11} /> {getPasswordError() || authError}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Submit Button with Internal Gleam Animation */}
+                  <motion.button type="submit" disabled={loading}
+                    className="w-full h-11 rounded-xl text-white font-semibold text-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 relative overflow-hidden mt-2"
+                    style={{ background:'linear-gradient(135deg,#2563eb,#1d4ed8)',boxShadow:'0 4px 20px rgba(37,99,235,0.3)' }}
+                    whileHover={{ scale:1.02,boxShadow:'0 8px 30px rgba(37,99,235,0.5)' }} whileTap={{ scale:0.98 }}>
+                    <motion.div className="absolute inset-0" style={{ background:'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.12) 50%,transparent 60%)' }}
+                      animate={{ x:['-200%','200%'] }} transition={{ duration:3,repeat:Infinity,repeatDelay:3 }}/>
+                    <AnimatePresence mode="wait">
+                      {loading?<motion.div key="s" initial={{opacity:0,scale:0.5}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.5}} className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                      :<motion.span key="t" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} className="relative flex items-center gap-2">Se connecter →</motion.span>}
+                    </AnimatePresence>
+                  </motion.button>
+                  
+                  <div className="text-center pt-1">
+                    <motion.a href="#" className="text-xs inline-block hover:underline" style={{color:'#64748b'}} whileHover={{color:'#2563eb',x:2}}>
+                      Mot de passe oublié ?
+                    </motion.a>
                   </div>
                 </div>
-                <motion.button type="submit" disabled={loading}
-                  className="w-full h-11 rounded-xl text-white font-semibold text-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 relative overflow-hidden"
-                  style={{ background:'linear-gradient(135deg,#2563eb,#1d4ed8)',boxShadow:'0 4px 20px rgba(37,99,235,0.3)' }}
-                  whileHover={{ scale:1.02,boxShadow:'0 8px 35px rgba(37,99,235,0.5)' }} whileTap={{ scale:0.97 }}>
-                  <motion.div className="absolute inset-0" style={{ background:'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.1) 50%,transparent 60%)' }}
-                    animate={{ x:['-200%','200%'] }} transition={{ duration:3,repeat:Infinity,repeatDelay:3 }}/>
-                  <AnimatePresence mode="wait">
-                    {loading?<motion.div key="s" initial={{opacity:0,scale:0.5}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.5}} className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                    :<motion.span key="t" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} className="relative flex items-center gap-2">Se connecter →</motion.span>}
-                  </AnimatePresence>
-                </motion.button>
-                <div className="text-center"><motion.a href="#" className="text-xs inline-block" style={{color:'#64748b'}} whileHover={{color:'#2563eb',x:2}}>Mot de passe oublié ?</motion.a></div>
               </div>
             </motion.div>
           </motion.form>

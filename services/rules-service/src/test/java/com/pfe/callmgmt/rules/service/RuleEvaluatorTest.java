@@ -86,6 +86,18 @@ class RuleEvaluatorTest {
                             Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "op", "EQ", "value", "mecanique")));
             assertTrue(evaluator.evaluate(conditions, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
         }
+
+        @Test
+        @DisplayName("EQ — comparaison numérique robuste double et entier")
+        void eqDoubleAndInteger() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, FIELD_AGE_VEHICULE, "op", "EQ", "value", 5)));
+            EvaluateRequest req = createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE);
+            req.setData(Map.of("ageVehiculeAns", 5.0));
+            assertTrue(evaluator.evaluate(conditions, req));
+        }
     }
 
     // ===========================
@@ -226,6 +238,36 @@ class RuleEvaluatorTest {
     }
 
     // ===========================
+    // Tests opérateur NOT IN
+    // ===========================
+    @Nested
+    @DisplayName("Opérateur NOT IN")
+    class NotInTests {
+
+        @Test
+        @DisplayName("NOT IN — valeur PAS dans la liste")
+        void notInMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, FIELD_TYPE_SINISTRE, "op", "NOT_IN",
+                                    "value", List.of("USURE", "ACCIDENT"))));
+            assertTrue(evaluator.evaluate(conditions, createRequest(VAL_ELECTRIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+        }
+
+        @Test
+        @DisplayName("NOT IN — valeur dans la liste")
+        void notInNoMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, FIELD_TYPE_SINISTRE, "op", "NOT IN",
+                                    "value", List.of("USURE", "PANNE"))));
+            assertFalse(evaluator.evaluate(conditions, createRequest(VAL_ELECTRIQUE, 3, 50000, "STANDARD", "PANNE")));
+        }
+    }
+
+    // ===========================
     // Tests opérateurs logiques AND / OR
     // ===========================
     @Nested
@@ -342,6 +384,79 @@ class RuleEvaluatorTest {
                             Map.of(KEY_FIELD, FIELD_KILOMETRAGE, "op", "LTE", "value", 100000)));
             // Véhicule 18 ans, 250k km → ne matche PAS cette règle
             assertFalse(evaluator.evaluate(conditions, createRequest(VAL_MECANIQUE, 18, 250000, "STANDARD", "USURE")));
+        }
+    }
+
+    // ===========================
+    // Tests pour les 5 nouvelles règles d'assurance V8
+    // ===========================
+    @Nested
+    @DisplayName("Nouvelles règles d'assurance (V8)")
+    class NewInsuranceRulesTests {
+
+        @Test
+        @DisplayName("Règle 14 — Usure précoce sur kilométrage anormalement élevé (Match)")
+        void rule14UsurePrecoceMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, "typeSinistre", "op", "EQ", "value", "USURE"),
+                            Map.of(KEY_FIELD, "ageVehiculeAns", "op", "LTE", "value", 3),
+                            Map.of(KEY_FIELD, "kilometrage", "op", "GT", "value", 150000)));
+            // 2 ans, 160k km, typeSinistre=USURE → doit matcher l'exclusion (donc true pour l'évaluation de condition)
+            assertTrue(evaluator.evaluate(conditions, createRequest("AUTRE", 2, 160000, "STANDARD", "USURE")));
+        }
+
+        @Test
+        @DisplayName("Règle 15 — Geste commercial bris de glace Premium (Match)")
+        void rule15BrisDeGlacePremiumMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, "typeSinistre", "op", "EQ", "value", "BRIS_GLACE"),
+                            Map.of(KEY_FIELD, "typePiece", "op", "EQ", "value", "VITRAGE"),
+                            Map.of(KEY_FIELD, "categorieClient", "op", "IN", "value", List.of("PREMIUM", "VIP"))));
+            // Client VIP, bris de glace vitrage → doit matcher
+            assertTrue(evaluator.evaluate(conditions, createRequest("VITRAGE", 5, 80000, "VIP", "BRIS_GLACE")));
+        }
+
+        @Test
+        @DisplayName("Règle 16 — Étude incendie véhicule ancien (Match)")
+        void rule16EtudeIncendieAncienMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, "typeSinistre", "op", "EQ", "value", "INCENDIE"),
+                            Map.of(KEY_FIELD, "ageVehiculeAns", "op", "GT", "value", 10)));
+            // Véhicule 12 ans, incendie → doit matcher
+            assertTrue(evaluator.evaluate(conditions, createRequest("AUTRE", 12, 120000, "STANDARD", "INCENDIE")));
+        }
+
+        @Test
+        @DisplayName("Règle 17 — Exclusion panne électronique inondation (Match)")
+        void rule17ExclusionPanneInondationMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, "typePiece", "op", "EQ", "value", "ELECTRONIQUE"),
+                            Map.of(KEY_FIELD, "typeSinistre", "op", "EQ", "value", "CATASTROPHE_NATURELLE")));
+            // Panne électronique consécutive à catastrophe naturelle → doit matcher
+            assertTrue(evaluator.evaluate(conditions, createRequest("ELECTRONIQUE", 4, 60000, "STANDARD", "CATASTROPHE_NATURELLE")));
+        }
+
+        @Test
+        @DisplayName("Règle 18 — Geste commercial Nouveau client Panne mécanique récente (Match)")
+        void rule18GesteNouveauClientMatch() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, "categorieClient", "op", "EQ", "value", "NOUVEAU"),
+                            Map.of(KEY_FIELD, "typeSinistre", "op", "EQ", "value", "PANNE"),
+                            Map.of(KEY_FIELD, "typePiece", "op", "EQ", "value", "MECANIQUE"),
+                            Map.of(KEY_FIELD, "ageVehiculeAns", "op", "LT", "value", 4),
+                            Map.of(KEY_FIELD, "kilometrage", "op", "LTE", "value", 80000)));
+            // Nouveau client, panne mécanique alternateur, véhicule de 2 ans et 50 000 km → doit matcher
+            assertTrue(evaluator.evaluate(conditions, createRequest("MECANIQUE", 2, 50000, "NOUVEAU", "PANNE")));
         }
     }
 }

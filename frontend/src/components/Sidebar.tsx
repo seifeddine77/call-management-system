@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import Logo from './ui/Logo';
 import {
   LayoutDashboard, Phone, Ticket, Settings, Users,
   Building2, Bell, BarChart3, Cpu, Search, ChevronsLeft, ChevronsRight, LogOut, X
@@ -73,8 +74,8 @@ export default function Sidebar() {
       {/* Brand */}
       <div className="px-3.5 py-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ background: 'var(--gradient-cta)' }}>
-            A
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden">
+            <Logo size={28} animated={true} />
           </div>
           {!collapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 min-w-0">
@@ -191,7 +192,7 @@ export default function Sidebar() {
 
       {/* Sidebar — responsive: overlay on mobile, static on desktop */}
       <motion.aside
-        className={`flex-shrink-0 flex flex-col h-full bg-[var(--surface)] border-r border-[var(--border)] relative z-[2]
+        className={`flex-shrink-0 flex flex-col h-full sidebar-glass border-r border-[var(--border)] relative z-[2]
           sidebar-mobile ${mobileOpen ? 'open' : ''}
           md:relative md:translate-x-0 md:transition-none`}
         animate={{ width: collapsed ? 60 : 244 }}

@@ -1,0 +1,377 @@
+\chapter{R\'{e}alisation}
+\label{chap:realisation}
+
+\vspace{2cm}
+
+\noindent\textbf{\Large Plan}
+
+\vspace{0.5cm}
+\noindent\rule{\textwidth}{0.4pt}
+\vspace{0.3cm}
+
+\begin{list}{}{\setlength{\leftmargin}{1.5cm}\setlength{\itemsep}{6pt}}
+  \item \textbf{1} \hspace{0.3cm} Environnement de travail \dotfill \pageref{sec:env}
+  \item \textbf{2} \hspace{0.3cm} R\'{e}alisation des sprints \dotfill \pageref{sec:sprints}
+  \item \textbf{3} \hspace{0.3cm} Tests et qualit\'{e} \dotfill \pageref{sec:tests}
+  \item \textbf{4} \hspace{0.3cm} Conclusion \dotfill \pageref{sec:concl3}
+\end{list}
+
+\vspace{0.3cm}
+\noindent\rule{\textwidth}{0.4pt}
+
+\newpage
+
+\section*{Introduction}
+
+Ce chapitre pr\'{e}sente la mise en \oe uvre concr\`{e}te du syst\`{e}me AutoAssist. Nous d\'{e}crivons d'abord l'environnement de travail utilis\'{e}, puis nous d\'{e}taillons la r\'{e}alisation de chaque sprint en illustrant les r\'{e}sultats par des captures d'\'{e}cran. Enfin, nous pr\'{e}sentons les tests effectu\'{e}s et les outils de qualit\'{e} int\'{e}gr\'{e}s.
+
+\section{Environnement de travail}
+\label{sec:env}
+
+\subsection{Environnement mat\'{e}riel}
+
+Le d\'{e}veloppement a \'{e}t\'{e} r\'{e}alis\'{e} sur la machine suivante~:
+
+\begin{table}[H]
+\centering
+\caption{Configuration mat\'{e}rielle}
+\label{tab:materiel}
+\begin{tabular}{|p{4cm}|p{8cm}|}
+\hline
+\textbf{Composant} & \textbf{Sp\'{e}cification} \\
+\hline
+Ordinateur & HP ZBook \\
+\hline
+Processeur & Intel Core i7 \\
+\hline
+M\'{e}moire vive & 16 Go RAM \\
+\hline
+Stockage & SSD 512 Go \\
+\hline
+Syst\`{e}me d'exploitation & Windows 11 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Environnement logiciel}
+
+Le tableau~\ref{tab:logiciel} pr\'{e}sente les principaux outils et technologies utilis\'{e}s.
+
+\begin{longtable}{|p{3.5cm}|p{2.5cm}|p{7cm}|}
+\caption{Outils et technologies utilis\'{e}s} \label{tab:logiciel} \\
+\hline
+\textbf{Outil} & \textbf{Version} & \textbf{Utilisation} \\
+\hline
+\endfirsthead
+\hline \textbf{Outil} & \textbf{Version} & \textbf{Utilisation} \\ \hline
+\endhead
+Java (JDK) & 21 & Langage backend (microservices Spring Boot) \\
+\hline
+Spring Boot \cite{springboot} & 3.3 & Framework backend principal \\
+\hline
+Spring Cloud & 2024.0 & Eureka, Gateway, OpenFeign \\
+\hline
+Python & 3.11 & Service IA (FastAPI, Whisper, spaCy) \\
+\hline
+Node.js & 20 & Service WhatsApp (chatbot) \\
+\hline
+React & 18 & Frontend web (SPA) \\
+\hline
+Flutter \cite{flutter} & 3.x & Application mobile (Flutter Web) \\
+\hline
+TypeScript & 5.x & Typage frontend React \\
+\hline
+PostgreSQL & 15 & Base de donn\'{e}es relationnelle (8 bases) \\
+\hline
+Redis & 7 & Cache d\'{e}cisions (TTL 1h) \\
+\hline
+RabbitMQ & 3 & Messaging asynchrone (topic exchange) \\
+\hline
+Docker & 27+ & Conteneurisation (17 conteneurs) \\
+\hline
+Docker Compose & 2.x & Orchestration locale \\
+\hline
+Jenkins & 2.x & Pipeline CI/CD (9 \'{e}tapes) \\
+\hline
+SonarCloud & -- & Analyse statique et qualit\'{e} du code \\
+\hline
+Git / GitHub & -- & Gestion de version et collaboration \\
+\hline
+IntelliJ IDEA & 2024 & IDE principal (Java) \\
+\hline
+VS Code & 1.90+ & IDE secondaire (Python, React, Flutter) \\
+\hline
+Postman & 11 & Tests manuels des API REST \\
+\hline
+\end{longtable}
+
+
+\section{R\'{e}alisation des sprints}
+\label{sec:sprints}
+
+Cette section d\'{e}taille la r\'{e}alisation de chaque sprint, en pr\'{e}sentant les fonctionnalit\'{e}s d\'{e}velopp\'{e}es et les r\'{e}sultats obtenus.
+
+% ══════════════════════════════════════
+% SPRINT 0
+% ══════════════════════════════════════
+\subsection{Sprint 0~: Infrastructure, CI/CD et authentification}
+
+\subsubsection{Mise en place de l'infrastructure Docker}
+
+L'infrastructure du syst\`{e}me AutoAssist repose sur 17 conteneurs Docker orchestr\'{e}s via Docker Compose. Chaque microservice dispose de son propre conteneur, de sa propre base de donn\'{e}es et de son propre healthcheck.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/docker_ps.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2cm}\textit{[Capture -- docker ps montrant les 17 conteneurs]}\vspace{2cm}}}
+    \caption{Les 17 conteneurs Docker du syst\`{e}me AutoAssist}
+    \label{fig:docker_ps}
+\end{figure}
+
+\subsubsection{Pipeline CI/CD Jenkins}
+
+Un pipeline Jenkins complet a \'{e}t\'{e} mis en place avec 9 \'{e}tapes~: Checkout, Build \& Test (parall\`{e}le Java + Python + Frontend), SonarCloud Analysis, Docker Build, Registry Push, Deploy Staging, Smoke Tests et Notification. Le pipeline int\`{e}gre \'{e}galement un backup automatique de la base de donn\'{e}es avant chaque d\'{e}ploiement.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/jenkins_pipeline.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Pipeline Jenkins avec les 9 \'{e}tapes]}\vspace{2.5cm}}}
+    \caption{Pipeline CI/CD Jenkins -- vue d'ensemble}
+    \label{fig:jenkins}
+\end{figure}
+
+\subsubsection{Authentification JWT}
+
+Le service d'authentification impl\'{e}mente un syst\`{e}me JWT complet avec access token (15 minutes) et refresh token (7 jours). Le contr\^{o}le d'acc\`{e}s RBAC distingue trois r\^{o}les~: Administrateur, Superviseur et Op\'{e}rateur.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/login_page.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Page de connexion AutoAssist]}\vspace{2.5cm}}}
+    \caption{Interface de connexion avec authentification JWT}
+    \label{fig:login}
+\end{figure}
+
+\subsubsection{Service Discovery et API Gateway}
+
+Eureka Server assure la d\'{e}couverte automatique des services au d\'{e}marrage. L'API Gateway Spring Cloud valide le JWT sur chaque requ\^{e}te entrante, applique le rate limiting via Redis et g\`{e}re la politique CORS.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/eureka_dashboard.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}\textit{[Capture -- Dashboard Eureka avec les services enregistr\'{e}s]}\vspace{2cm}}}
+    \caption{Dashboard Eureka -- services enregistr\'{e}s}
+    \label{fig:eureka}
+\end{figure}
+
+% ══════════════════════════════════════
+% SPRINT 1
+% ══════════════════════════════════════
+\subsection{Sprint 1~: Gestion des organisations et des tickets}
+
+\subsubsection{Gestion des utilisateurs et agences}
+
+Le module d'organisation permet la gestion compl\`{e}te des utilisateurs (CRUD, attribution des r\^{o}les RBAC, activation/d\'{e}sactivation) et des agences (cr\'{e}ation, assignation d'un responsable, g\'{e}n\'{e}ration automatique d'un groupe WhatsApp via \'{e}v\'{e}nement RabbitMQ).
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/users_page.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Page de gestion des utilisateurs]}\vspace{2.5cm}}}
+    \caption{Interface de gestion des utilisateurs (RBAC)}
+    \label{fig:users}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/agences_page.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Page de gestion des agences]}\vspace{2.5cm}}}
+    \caption{Interface de gestion des agences}
+    \label{fig:agences}
+\end{figure}
+
+\subsubsection{Gestion des tickets multicanaux}
+
+Le syst\`{e}me de tickets supporte trois canaux d'acquisition~: appel t\'{e}l\'{e}phonique (Twilio VoIP), email (listener IMAP) et formulaire web public. Chaque ticket re\c{c}oit un num\'{e}ro unique au format \texttt{T-YYYYMMDD-XXXX} et suit un cycle de vie complet (NOUVEAU $\rightarrow$ EN\_COURS $\rightarrow$ RESOLU $\rightarrow$ FERME).
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/ticket_list.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Liste des tickets avec filtres]}\vspace{2.5cm}}}
+    \caption{Liste des tickets avec filtrage par statut et canal}
+    \label{fig:tickets}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.85\textwidth]{figures/public_form.png}
+    \fbox{\parbox{0.8\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Formulaire public de soumission]}\vspace{2.5cm}}}
+    \caption{Formulaire public de soumission de demande (canal WEB)}
+    \label{fig:public_form}
+\end{figure}
+
+% ══════════════════════════════════════
+% SPRINT 2
+% ══════════════════════════════════════
+\subsection{Sprint 2~: Service IA et d\'{e}veloppement frontend}
+
+\subsubsection{Transcription audio avec Whisper}
+
+Le service IA (Python FastAPI) int\`{e}gre le mod\`{e}le OpenAI Whisper pour la transcription automatique des enregistrements audio en fran\c{c}ais. Le processus g\'{e}n\`{e}re le texte transcrit, les segments temporels, un score de confiance et la dur\'{e}e de l'audio.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/transcription.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Transcription audio dans le d\'{e}tail du ticket]}\vspace{2.5cm}}}
+    \caption{R\'{e}sultat de la transcription Whisper dans le d\'{e}tail du ticket}
+    \label{fig:transcription}
+\end{figure}
+
+\subsubsection{Analyse NLP avec spaCy}
+
+L'analyse NLP locale utilise spaCy et des heuristiques linguistiques pour extraire automatiquement~: la r\'{e}f\'{e}rence de la pi\`{e}ce concern\'{e}e, le type de sinistre (PANNE, ACCIDENT, USURE, D\'{E}FAUT\_FABRICATION, VOL), le sentiment du client (POSITIF, N\'{E}GATIF, NEUTRE) et les mots-cl\'{e}s pertinents. Ces donn\'{e}es pr\'{e}-remplissent automatiquement le formulaire de d\'{e}cision.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/nlp_analysis.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- R\'{e}sultat analyse NLP : sinistre, sentiment, mots-cl\'{e}s]}\vspace{2.5cm}}}
+    \caption{R\'{e}sultat de l'analyse NLP (spaCy) -- extraction automatique}
+    \label{fig:nlp}
+\end{figure}
+
+\subsubsection{Tableau de bord principal}
+
+Le dashboard offre une vue synth\'{e}tique de l'activit\'{e}~: nombre total de tickets, taux de r\'{e}solution, temps de traitement moyen, r\'{e}partition par canal et par statut, ainsi que les derniers tickets cr\'{e}\'{e}s.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/dashboard.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Dashboard principal avec KPIs et graphiques]}\vspace{2.5cm}}}
+    \caption{Tableau de bord principal -- KPIs et statistiques}
+    \label{fig:dashboard}
+\end{figure}
+
+% ══════════════════════════════════════
+% SPRINT 3
+% ══════════════════════════════════════
+\subsection{Sprint 3~: Moteur de r\`{e}gles et pipeline d\'{e}cisionnel}
+
+\subsubsection{\'{E}diteur visuel de r\`{e}gles d'assurance}
+
+Le superviseur dispose d'un \'{e}diteur visuel pour configurer les r\`{e}gles d'assurance. Chaque r\`{e}gle d\'{e}finit des conditions au format JSONB (op\'{e}rateurs AND/OR, comparateurs $>$, $<$, $=$, \texttt{contains}), une action (FAVORABLE, D\'{E}FAVORABLE, \'{E}TUDE) et un score. Le syst\`{e}me g\`{e}re le versioning automatique des r\`{e}gles.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/rules_editor.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- \'{E}diteur visuel de r\`{e}gles avec conditions JSONB]}\vspace{2.5cm}}}
+    \caption{\'{E}diteur visuel de r\`{e}gles d'assurance}
+    \label{fig:rules}
+\end{figure}
+
+\subsubsection{Pipeline d\'{e}cisionnel en 3 \'{e}tapes}
+
+Le pipeline d'aide \`{a} la d\'{e}cision constitue l'innovation principale du syst\`{e}me. Il \'{e}value chaque demande en trois \'{e}tapes successives~:
+
+\begin{enumerate}
+    \item \textbf{\'{E}tape 1 -- Cache Redis}~: un hash SHA-256 est calcul\'{e} \`{a} partir des param\`{e}tres de la demande. Si un r\'{e}sultat identique existe en cache (TTL = 3600s), il est retourn\'{e} imm\'{e}diatement en moins de 50 millisecondes.
+    \item \textbf{\'{E}tape 2 -- Moteur de r\`{e}gles}~: appel synchrone via OpenFeign vers le rules-service. Les r\`{e}gles JSONB actives sont \'{e}valu\'{e}es avec un score. Si le score $\geq$ 60\% et la d\'{e}cision n'est pas ambigu\"{e}, elle est retourn\'{e}e en moins de 2 secondes.
+    \item \textbf{\'{E}tape 3 -- LLM Gemma~4}~: pour les cas ambigus, le mod\`{e}le local Gemma~4 est sollicit\'{e} via Docker Model Runner. Un prompt structur\'{e} demande un JSON \{decision, score, motif\}. Un Circuit Breaker Resilience4j prot\`{e}ge contre les timeouts avec un fallback automatique vers la d\'{e}cision \'{E}TUDE.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/decision_result.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- R\'{e}sultat du pipeline d\'{e}cisionnel dans le ticket]}\vspace{2.5cm}}}
+    \caption{R\'{e}sultat du pipeline d\'{e}cisionnel -- d\'{e}cision, score et motif}
+    \label{fig:decision}
+\end{figure}
+
+% ══════════════════════════════════════
+% SPRINT 4
+% ══════════════════════════════════════
+\subsection{Sprint 4~: Chatbot WhatsApp RAG et analytics}
+
+\subsubsection{Chatbot WhatsApp intelligent}
+
+Le chatbot WhatsApp (Node.js + whatsapp-web.js) offre deux modes d'interaction~:
+
+\begin{itemize}
+    \item \textbf{Commandes rapides} (sans IA)~: \texttt{/stats}, \texttt{/ticket T-xxx}, \texttt{/queue}, \texttt{/decision T-xxx}, \texttt{/agence}, \texttt{/aide}.
+    \item \textbf{Langage naturel} (via RAG + Gemma~4)~: le chatbot comprend les questions en fran\c{c}ais, arabe et anglais. Il peut \'{e}galement transcrire les messages vocaux via Whisper avant de les analyser.
+\end{itemize}
+
+Le chatbot cr\'{e}e automatiquement un groupe WhatsApp pour chaque nouvelle agence (via \'{e}v\'{e}nement RabbitMQ \texttt{agence.created}).
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.5\textwidth]{figures/whatsapp_chat.png}
+    \fbox{\parbox{0.45\textwidth}{\centering\vspace{3cm}\textit{[Capture -- Conversation WhatsApp avec le chatbot]}\vspace{3cm}}}
+    \caption{Chatbot WhatsApp -- interaction en langage naturel}
+    \label{fig:whatsapp}
+\end{figure}
+
+\subsubsection{Architecture RAG -- 8 am\'{e}liorations}
+
+Le pipeline RAG (Retrieval-Augmented Generation) int\`{e}gre huit am\'{e}liorations techniques~: synchronisation dynamique des r\`{e}gles, embeddings multilingues, m\'{e}moire de conversation par groupe, recherche hybride (s\'{e}mantique + mots-cl\'{e}s), re-ranking combin\'{e}, chunking intelligent, feedback loop (r\'{e}actions WhatsApp 👍/👎) et auto-refresh lors de modifications de r\`{e}gles.
+
+\subsubsection{Module analytics}
+
+Le service analytics consomme les \'{e}v\'{e}nements RabbitMQ (\texttt{ticket.created}, \texttt{decision.finalized}) pour g\'{e}n\'{e}rer des statistiques quotidiennes et des indicateurs de performance (KPIs).
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/analytics_page.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Page Analytics avec graphiques et KPIs]}\vspace{2.5cm}}}
+    \caption{Module Analytics -- tableaux de bord et KPIs}
+    \label{fig:analytics}
+\end{figure}
+
+
+\section{Tests et qualit\'{e}}
+\label{sec:tests}
+
+\subsection{Tests automatis\'{e}s}
+
+Le projet int\`{e}gre des tests unitaires et d'int\'{e}gration pour chaque microservice Java, ex\'{e}cut\'{e}s automatiquement dans le pipeline Jenkins.
+
+\begin{table}[H]
+\centering
+\caption{Couverture des tests par service}
+\label{tab:tests}
+\begin{tabular}{|p{4cm}|c|p{6cm}|}
+\hline
+\textbf{Service} & \textbf{Tests} & \textbf{Types} \\
+\hline
+auth-service & 5 & Unit + Int\'{e}gration (JWT, login) \\
+\hline
+organisation-service & 8 & Unit + Int\'{e}gration (CRUD, Agences) \\
+\hline
+ticket-service & 4 & Unit + Int\'{e}gration (multicanal) \\
+\hline
+rules-service & 3 & Unit (\'{e}valuation JSONB) \\
+\hline
+decision-service & 3 & Unit (pipeline 3 \'{e}tapes) \\
+\hline
+ai-service (Python) & 3 & Unit (transcription, NLP) \\
+\hline
+frontend (React) & 4 & Composants + Pages \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analyse statique -- SonarCloud}
+
+L'int\'{e}gration de SonarCloud dans le pipeline CI/CD permet de d\'{e}tecter automatiquement les probl\`{e}mes de qualit\'{e}~: bugs, vuln\'{e}rabilit\'{e}s de s\'{e}curit\'{e}, code smells et duplication.
+
+\begin{figure}[H]
+    \centering
+    % \includegraphics[width=0.95\textwidth]{figures/sonarcloud.png}
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{2.5cm}\textit{[Capture -- Dashboard SonarCloud du projet]}\vspace{2.5cm}}}
+    \caption{Dashboard SonarCloud -- analyse de qualit\'{e} du code}
+    \label{fig:sonar}
+\end{figure}
+
+
+\section*{Conclusion}
+\label{sec:concl3}
+
+Ce chapitre a d\'{e}taill\'{e} la r\'{e}alisation des cinq premiers sprints du projet AutoAssist. L'infrastructure Docker (17 conteneurs), le pipeline CI/CD Jenkins, les services m\'{e}tier (authentification, gestion des tickets, moteur de r\`{e}gles, pipeline d\'{e}cisionnel), les modules d'intelligence artificielle (Whisper, spaCy, RAG) ainsi que le chatbot WhatsApp et le module analytics ont \'{e}t\'{e} pr\'{e}sent\'{e}s. Les tests automatis\'{e}s et l'analyse statique SonarCloud garantissent la qualit\'{e} du code produit. Le sprint restant (Sprint 5) sera consacr\'{e} \`{a} l'application mobile Flutter et au renforcement de la couverture de tests.

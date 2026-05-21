@@ -14,7 +14,7 @@ rectangle "AutoAssist" {
   usecase "S'authentifier" as auth
   usecase "Lancer l'analyse\ndecisionnelle" as UC1
   usecase "Soumettre les\nparametres du dossier" as UC2
-  usecase "Verifier le cache\nRedis (MD5)" as UC3
+  usecase "Verifier le cache\nRedis (SHA-256)" as UC3
   usecase "Evaluer les\nregles metier" as UC4
   usecase "Consulter le LLM\nGemma 4" as UC5
   usecase "Retourner la\ndecision" as UC6

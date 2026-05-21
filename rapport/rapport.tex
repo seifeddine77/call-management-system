@@ -20,6 +20,7 @@
 \usepackage{tocloft}
 \usepackage{titlesec}
 \usepackage{rotating}
+\usepackage{placeins}
 
 % Style table des matieres (pointilles comme rapport Mouna)
 \renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
@@ -44,55 +45,129 @@
 
 \begin{document}
 
-% ============ PAGE DE GARDE ============
+% ============ PAGE DE GARDE (Format ITEAM officiel) ============
 \begin{titlepage}
+\thispagestyle{empty}
 \begin{center}
 
-% Logos universit\'{e} + entreprise
-\begin{tabular}{p{4cm}cp{4cm}}
-\centering \includegraphics[height=2.5cm]{figures/logo_iteam.jpg} &
-\hspace{1cm} &
-\centering \includegraphics[height=2.5cm]{figures/logo_insy2s.png}
-\end{tabular}
-
-\vspace{0.8cm}
-
-\textbf{\large R\'{e}publique Tunisienne}\\[2pt]
-\textbf{\large Minist\`{e}re de l'Enseignement Sup\'{e}rieur}\\[2pt]
-\textbf{\large et de la Recherche Scientifique}\\[2pt]
-\textbf{\large Universit\'{e} ITEAM}
-
-\vspace{1cm}
-\rule{\textwidth}{1.5pt}
-\vspace{0.5cm}
-
-{\LARGE \textbf{Rapport de Projet de Fin d'\'{E}tudes}}\\[0.5cm]
-{\large Pr\'{e}par\'{e} pour l'obtention du}\\[0.3cm]
-{\Large \textbf{Dipl\^{o}me d'Ing\'{e}nieur en Informatique}}\\[0.3cm]
-{\large Sp\'{e}cialit\'{e} : \textbf{G\'{e}nie Logiciel}}
-
-\vspace{0.5cm}
-\rule{\textwidth}{1.5pt}
-
-\vspace{1cm}
-
-{\Large \textbf{AutoAssist : Syst\`{e}me intelligent de gestion des appels et d'aide \`{a} la d\'{e}cision}}
+% ── En-tête : Texte République | Armoiries | Logo iTeam ──
+\begin{minipage}[c]{0.32\textwidth}
+\begin{flushleft}
+\small
+\textbf{R\'{E}PUBLIQUE TUNISIENNE}\\[2pt]
+\textbf{****}\\[2pt]
+\textbf{Minist\`{e}re de l'Enseignement}\\
+\textbf{Sup\'{e}rieur et de la Recherche}\\
+\textbf{Scientifique}
+\end{flushleft}
+\end{minipage}%
+\begin{minipage}[c]{0.30\textwidth}
+\centering
+\includegraphics[width=2cm]{figures/Republic.png}
+\end{minipage}%
+\begin{minipage}[c]{0.32\textwidth}
+\begin{flushright}
+\includegraphics[width=3cm]{figures/iteamUniv.png}
+\end{flushright}
+\end{minipage}
 
 \vspace{1.5cm}
 
-\begin{tabular}{ll}
-    \textbf{R\'{e}alis\'{e} par :} & Rezgui Seif Eddine \\[0.4cm]
-    \textbf{Organisme d'accueil :} & Insy2s \\[0.4cm]
-    \textbf{Encadreur acad\'{e}mique :} & Mme Safa Draouil \\[0.4cm]
-    \textbf{Encadreur professionnel :} & Mme Hedia Selmi \\[0.4cm]
-\end{tabular}
+% ── Titre du rapport ──
+{\LARGE \textbf{Rapport de Fin d'\'{E}tudes}}
+
+\vspace{0.8cm}
+
+{\large Pr\'{e}par\'{e} en vue de l'obtention du :}
+
+\vspace{0.5cm}
+
+{\Large \textbf{Dipl\^{o}me National d'Ing\'{e}nieur en Informatique}}\\[0.3cm]
+{\large parcours \textbf{G\'{e}nie Logiciel}}
+
+\vspace{1.2cm}
+
+% ── Intitulé du projet ──
+{\huge \textbf{AutoAssist}}\\[0.4cm]
+{\Large \textit{Plateforme intelligente de gestion des demandes}}\\[0.2cm]
+{\Large \textit{clients et d'aide \`{a} la d\'{e}cision}}
+
+\vspace{1.5cm}
+
+\end{center}
+
+% ── Informations (alignées à gauche) ──
+\hspace{1.5cm}{\large \textbf{R\'{e}alis\'{e} par :} Rezgui Seif Eddine}
+
+\vspace{0.5cm}
+
+\begin{center}
+{\large \textbf{Organisme d'accueil :}}\\[0.4cm]
+\includegraphics[height=2cm]{figures/logo_insy2s.png}
+\end{center}
+
+\vspace{0.8cm}
+
+\hspace{1.5cm}{\large \textbf{Encadrant p\'{e}dagogique :} Mme Safa Draouil}\\[0.4cm]
+\hspace{1.5cm}{\large \textbf{Encadrant(s) professionnel(s) :} Mme Hedia Selmi}
 
 \vfill
 
-{\large \textbf{Ann\'{e}e Universitaire : 2025--2026}}
-
+\begin{center}
+{\large \textbf{Ann\'{e}e universitaire : 2025--2026}}
 \end{center}
+
 \end{titlepage}
+
+% ============ PAGES PRELIMINAIRES (numérotation romaine) ============
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% ============ RESUME / ABSTRACT / ملخص (Format Word ITEAM) ============
+\newpage
+\thispagestyle{empty}
+
+\section*{R\'{e}sum\'{e}}
+
+Ce projet de fin d'\'{e}tudes, r\'{e}alis\'{e} au sein de la soci\'{e}t\'{e} Insy2s, porte sur la conception et le d\'{e}veloppement d'une plateforme intelligente de gestion des demandes clients et d'aide \`{a} la d\'{e}cision pour une entreprise de pi\`{e}ces de rechange automobile. Le syst\`{e}me propos\'{e}, baptis\'{e} AutoAssist, repose sur une architecture microservices int\'{e}grant des technologies d'intelligence artificielle pour la transcription vocale, l'analyse du langage naturel et l'aide \`{a} la d\'{e}cision. La plateforme g\`{e}re les demandes provenant de trois canaux d'acquisition~: appel t\'{e}l\'{e}phonique (Twilio VoIP), email (IMAP) et formulaire web.
+
+\vspace{0.5cm}
+\noindent\textbf{Mots cl\'{e}s :} Microservices, Intelligence Artificielle, RAG, Spring Boot, React, Flutter, Docker.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\vspace{0.8cm}
+
+\section*{Abstract}
+
+\noindent This graduation project, carried out at Insy2s, focuses on the design and development of an intelligent customer request management and decision support platform for an automotive spare parts company. The proposed system, named AutoAssist, is based on a microservices architecture integrating artificial intelligence technologies for voice transcription, natural language processing and decision support. The platform handles requests from three acquisition channels: phone calls (Twilio VoIP), email (IMAP) and web forms.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} Microservices, Artificial Intelligence, RAG, Spring Boot, React, Flutter, Docker.
+
+\noindent\rule{\textwidth}{0.4pt}
+
+% ── Page suivante : Résumé arabe ──
+\newpage
+\thispagestyle{empty}
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\vspace{0.5cm}
+
+\begin{Arabic}
+\begin{center}
+{\Large \textbf{ملخّص}}
+\end{center}
+
+\vspace{0.5cm}
+
+يتمحور هذا المشروع حول تصميم وتطوير منصّة ذكية لإدارة المكالمات والمساعدة في اتخاذ القرارات لشركة قطع غيار السيارات. يعتمد النظام المقترح، المسمّى AutoAssist، على بنية خدمات مصغّرة (Microservices) تدمج تقنيات الذكاء الاصطناعي للتحويل الصوتي ومعالجة اللغة الطبيعية والمساعدة في اتخاذ القرارات.
+
+\vspace{0.5cm}
+
+\textbf{الكلمات المفاتيح :} Microservices، ذكاء اصطناعي، RAG، Spring Boot، React، Flutter، Docker.
+\end{Arabic}
 
 % ============ REMERCIEMENTS (PAS dans le sommaire) ============
 \newpage
@@ -115,44 +190,19 @@ Enfin, je tiens \`{a} exprimer mes sinc\`{e}res remerciements aux membres du jur
 \chapter*{D\'{e}dicaces}
 \vspace*{2cm}
 \begin{center}
-\textit{C'est avec beaucoup d'\'{e}motion que je d\'{e}die ce travail \`{a} :}\\[0.8cm]
-\textit{[\`{A} compl\'{e}ter]}
+\textit{C'est avec beaucoup d'\'{e}motion que je d\'{e}die ce travail \`{a} :}\\[1cm]
+
+\textit{\`{A} mes chers parents, pour leur soutien inconditionnel,}\\[0.4cm]
+\textit{leurs sacrifices et leur amour tout au long de mon parcours.}\\[0.8cm]
+
+\textit{\`{A} mes fr\`{e}res et s\oe urs, pour leur encouragement constant.}\\[0.8cm]
+
+\textit{\`{A} tous mes enseignants, qui m'ont transmis le savoir}\\[0.4cm]
+\textit{et la passion de l'informatique.}\\[0.8cm]
+
+\textit{\`{A} tous ceux qui m'ont aid\'{e}, de pr\`{e}s ou de loin,}\\[0.4cm]
+\textit{\`{a} la r\'{e}alisation de ce projet.}
 \end{center}
-
-% ============ RESUME (PAS dans le sommaire, 1 page) ============
-\newpage
-\thispagestyle{empty}
-\chapter*{R\'{e}sum\'{e}}
-
-Ce projet de fin d'\'{e}tudes, r\'{e}alis\'{e} au sein de la soci\'{e}t\'{e} Insy2s, porte sur la conception et le d\'{e}veloppement d'une plateforme intelligente de gestion des appels et d'aide \`{a} la d\'{e}cision pour une entreprise de pi\`{e}ces de rechange automobile. Le syst\`{e}me propos\'{e}, baptis\'{e} AutoAssist, repose sur une architecture microservices int\'{e}grant des technologies d'intelligence artificielle pour la transcription vocale, l'analyse du langage naturel et l'aide \`{a} la d\'{e}cision.
-
-\textbf{Mots cl\'{e}s :} Microservices, Intelligence Artificielle, RAG, Spring Boot, React, Flutter, Docker.
-
-\vspace{0.6cm}
-\hrule
-\vspace{0.6cm}
-
-\noindent\textbf{Abstract}
-
-\noindent This graduation project, carried out at Insy2s, focuses on the design and development of an intelligent call management and decision support platform for an automotive spare parts company. The proposed system, named AutoAssist, is based on a microservices architecture integrating artificial intelligence technologies for voice transcription, natural language processing and decision support.
-
-\textbf{Keywords:} Microservices, Artificial Intelligence, RAG, Spring Boot, React, Flutter, Docker.
-
-\vspace{0.6cm}
-\hrule
-\vspace{0.6cm}
-
-\begin{Arabic}
-\noindent\textbf{ملخّص}
-\end{Arabic}
-
-\begin{Arabic}
-يتمحور هذا المشروع حول تصميم وتطوير منصّة ذكية لإدارة المكالمات والمساعدة في اتخاذ القرارات لشركة قطع غيار السيارات. يعتمد النظام المقترح، المسمّى AutoAssist، على بنية خدمات مصغّرة (Microservices) تدمج تقنيات الذكاء الاصطناعي للتحويل الصوتي ومعالجة اللغة الطبيعية والمساعدة في اتخاذ القرارات.
-\end{Arabic}
-
-\begin{Arabic}
-\textbf{كلمات مفتاحية :} Microservices، ذكاء اصطناعي، RAG، Spring Boot، React، Flutter، Docker.
-\end{Arabic}
 
 % ============ TABLE DES MATIERES ============
 \newpage
@@ -165,7 +215,6 @@ Ce projet de fin d'\'{e}tudes, r\'{e}alis\'{e} au sein de la soci\'{e}t\'{e} Ins
 
 % ============ ACRONYMES ============
 \chapter*{Acronymes et Abr\'{e}viations}
-\addcontentsline{toc}{chapter}{Acronymes et Abr\'{e}viations}
 
 \noindent\textbf{API} \hspace{1.5cm} \textit{Application Programming Interface}
 
@@ -199,8 +248,10 @@ Ce projet de fin d'\'{e}tudes, r\'{e}alis\'{e} au sein de la soci\'{e}t\'{e} Ins
 \pagenumbering{arabic}
 \include{chapitres/introduction}
 \include{chapitres/Chapitre1}
-%\include{chapitres/Chapitre2}
-%\include{chapitres/Conclusion}
+\include{chapitres/Chapitre2}
+% --- Chapitres suivants masqués (soutenance mi-parcours) ---
+% \include{chapitres/Chapitre3}
+% \include{chapitres/Conclusion}
 
 % ============ BIBLIOGRAPHIE ============
 \begin{thebibliography}{99}
@@ -219,6 +270,18 @@ Ce projet de fin d'\'{e}tudes, r\'{e}alis\'{e} au sein de la soci\'{e}t\'{e} Ins
 \bibitem{gemma} Google DeepMind (2025). \textit{Gemma 4: Open Models Based on Gemini Research}. Google.
 
 \bibitem{flutter} Windmill, E. (2020). \textit{Flutter in Action}. Manning Publications.
+
+\bibitem{zendesk} Zendesk Inc. (2024). \textit{Zendesk Suite -- Customer Service Software}. \url{https://www.zendesk.com}.
+
+\bibitem{freshdesk} Freshworks Inc. (2024). \textit{Freshdesk -- Helpdesk Software}. \url{https://www.freshdesk.com}.
+
+\bibitem{salesforce} Salesforce Inc. (2024). \textit{Service Cloud -- Customer Service Platform}. \url{https://www.salesforce.com/service-cloud}.
+
+\bibitem{scrum} Schwaber, K. et Sutherland, J. (2020). \textit{The Scrum Guide -- The Definitive Guide to Scrum: The Rules of the Game}. \url{https://scrumguides.org}.
+
+\bibitem{observatoire} Observatoire des Services Clients (2023). \textit{Barom\`{e}tre de la Relation Client}. Institut BVA pour l'Acad\'{e}mie du Service.
+
+\bibitem{capgemini} Capgemini Research Institute (2024). \textit{Automobile~: une exp\'{e}rience client repens\'{e}e}. Pr\'{e}sent\'{e} au Mondial de l'Auto 2024.
 
 \end{thebibliography}
 

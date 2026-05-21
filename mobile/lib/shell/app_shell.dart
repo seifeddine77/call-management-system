@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
@@ -13,6 +14,10 @@ import '../screens/users_screen.dart';
 import '../screens/agences_screen.dart';
 import '../screens/rules_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/audit_screen.dart';
+import '../services/ticket_service.dart';
+import '../models/ticket.dart';
+import '../widgets/logo.dart'; // Import du logo
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -39,14 +44,7 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          Container(
-            width: 28, height: 28,
-            decoration: BoxDecoration(
-              gradient: c.gradientCta,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(child: Text('A', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white))),
-          ),
+          const AppLogo(size: 28, animated: true),
           const SizedBox(width: 10),
           Text('AutoAssist', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: c.text)),
         ]),
@@ -62,7 +60,10 @@ class _AppShellState extends State<AppShell> {
               child: Text(user.role, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: c.primary)),
             ),
             GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              },
               child: Container(
                 width: 32, height: 32,
                 margin: const EdgeInsets.only(right: 12),
@@ -93,7 +94,10 @@ class _AppShellState extends State<AppShell> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
+          onTap: (i) {
+            HapticFeedback.lightImpact();
+            setState(() => _currentIndex = i);
+          },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
             BottomNavigationBarItem(icon: Icon(Icons.confirmation_number_outlined), activeIcon: Icon(Icons.confirmation_number), label: 'Tickets'),
@@ -130,6 +134,7 @@ class _MoreScreen extends StatelessWidget {
         _MenuItem('🏢', 'Agences', 'Gestion des agences', () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const AgencesScreen()));
         }),
+
       ],
       if (auth.isAdmin)
         _MenuItem('🔔', 'Notifications', 'Journal des envois', () {

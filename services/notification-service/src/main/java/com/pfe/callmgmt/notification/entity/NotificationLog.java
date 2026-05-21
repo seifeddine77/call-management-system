@@ -22,7 +22,7 @@ public class NotificationLog {
     private UUID id;
 
     @Column(nullable = false, length = 50)
-    private String type; // WELCOME, TICKET_CREATED, TICKET_RESOLVED, DECISION_FINALIZED
+    private String type; // WELCOME, TICKET_CREATED, TICKET_RESOLVED, DECISION_FAVORABLE, DECISION_DEFAVORABLE
 
     @Column(nullable = false, length = 255)
     private String recipient;

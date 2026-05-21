@@ -209,6 +209,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     switch (priority) {
       case 1: return danger;
       case 2: return warning;
+      case 3: return success;
       default: return text3;
     }
   }

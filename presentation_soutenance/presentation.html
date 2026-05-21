@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soutenance PFE - AutoAssist</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
+    <style>
+        :root {
+            --primary-blue: #1e3a5f;
+            --secondary-gray: #555555;
+            --light-gray: #f5f5f5;
+            --success-green: #2ecc71;
+        }
+        
+        .reveal {
+            font-family: 'Arial', sans-serif;
+            font-size: 24px;
+            color: #000;
+        }
+        
+        .reveal h1 {
+            font-size: 40px;
+            color: var(--primary-blue);
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        
+        .reveal h2 {
+            font-size: 36px;
+            color: var(--primary-blue);
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+        
+        .reveal h3 {
+            font-size: 28px;
+            color: var(--secondary-gray);
+            margin-bottom: 20px;
+        }
+        
+        .reveal p, .reveal li {
+            font-size: 24px;
+            line-height: 1.5;
+        }
+        
+        .reveal .slides section {
+            text-align: left;
+        }
+        
+        .reveal .slides section.center {
+            text-align: center;
+        }
+        
+        .title-slide h1 {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .title-slide .subtitle {
+            font-size: 28px;
+            color: var(--secondary-gray);
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .title-slide .info {
+            font-size: 22px;
+            text-align: center;
+            color: var(--secondary-gray);
+            line-height: 2;
+        }
+        
+        .two-column {
+            display: flex;
+            gap: 40px;
+        }
+        
+        .two-column > div {
+            flex: 1;
+        }
+        
+        .highlight-box {
+            background: var(--light-gray);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: var(--primary-blue);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 10px;
+        }
+        
+        .metric-card .number {
+            font-size: 42px;
+            font-weight: bold;
+            color: var(--success-green);
+        }
+        
+        .metric-card .label {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .service-card {
+            background: var(--light-gray);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-blue);
+        }
+        
+        .service-card h4 {
+            color: var(--primary-blue);
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .service-card ul {
+            font-size: 18px;
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        
+        .tech-item {
+            text-align: center;
+            padding: 15px;
+        }
+        
+        .tech-item .icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        
+        .tech-item .name {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-blue);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th {
+            background: var(--primary-blue);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-size: 20px;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            font-size: 20px;
+        }
+        
+        tr:nth-child(even) {
+            background: var(--light-gray);
+        }
+        
+        .problem-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .solution-box {
+            background: #d4edda;
+            border-left: 4px solid var(--success-green);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .quote {
+            font-style: italic;
+            font-size: 26px;
+            color: var(--primary-blue);
+            border-left: 4px solid var(--primary-blue);
+            padding-left: 20px;
+            margin: 30px 0;
+        }
+        
+        .architecture-flow {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .flow-item {
+            display: inline-block;
+            background: var(--primary-blue);
+            color: white;
+            padding: 15px 25px;
+            margin: 5px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .flow-arrow {
+            font-size: 30px;
+            color: var(--primary-blue);
+            margin: 0 10px;
+        }
+        
+        .conclusion-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .conclusion-list li {
+            padding: 15px 0;
+            padding-left: 40px;
+            position: relative;
+            font-size: 24px;
+        }
+        
+        .conclusion-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success-green);
+            font-weight: bold;
+            font-size: 28px;
+        }
+        
+        .perspective-item {
+            background: var(--light-gray);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--success-green);
+        }
+        
+        .slide-number {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            font-size: 16px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            
+            <!-- SLIDE 1: Page de garde -->
+            <section class="center title-slide">
+                <h1>AutoAssist</h1>
+                <div class="subtitle">Plateforme Microservices Intelligente<br>pour la Gestion des Sinistres Automobiles</div>
+                <div class="info">
+                    <strong>Réalisé par :</strong> [Ton Nom]<br>
+                    <strong>Encadrant :</strong> [Nom Encadrant]<br>
+                    <strong>Filière :</strong> [Génie Logiciel / Informatique]<br>
+                    <strong>Année Universitaire :</strong> 2025-2026
+                </div>
+            </section>
+            
+            <!-- SLIDE 2: Contexte -->
+            <section>
+                <h2>🎯 Contexte du Projet</h2>
+                <div class="two-column">
+                    <div>
+                        <h3>Secteur</h3>
+                        <p>Assurance automobile - Gestion des sinistres</p>
+                        
+                        <h3>Volume</h3>
+                        <p>Centaines d'appels/jour à traiter manuellement</p>
+                    </div>
+                    <div>
+                        <h3>Enjeux</h3>
+                        <ul>
+                            <li>Processus manuels chronophages</li>
+                            <li>Décisions subjectives sans scoring</li>
+                            <li>Conformité RGPD obligatoire</li>
+                            <li>Communication fragmentée</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 3: Problématique -->
+            <section>
+                <h2>❓ Problématique</h2>
+                <div class="quote">
+                    "Comment concevoir une plateforme intelligente capable d'automatiser la gestion des réclamations d'assurance tout en garantissant la conformité RGPD et la qualité des décisions ?"
+                </div>
+                
+                <div class="two-column" style="margin-top: 30px;">
+                    <div class="problem-box">
+                        <strong>🔴 Problèmes identifiés :</strong>
+                        <ul>
+                            <li>Traitement manuel lent</li>
+                            <li>Décisions sans aide IA</li>
+                            <li>Pas de traçabilité RGPD</li>
+                            <li>Canaux non intégrés</li>
+                        </ul>
+                    </div>
+                    <div class="solution-box">
+                        <strong>🟢 Besoins :</strong>
+                        <ul>
+                            <li>Automatisation intelligente</li>
+                            <li>Scoring IA</li>
+                            <li>Conformité légale</li>
+                            <li>Omnicanal</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 4: Objectifs -->
+            <section>
+                <h2>📋 Objectifs du Projet</h2>
+                <table>
+                    <tr>
+                        <th>Objectif</th>
+                        <th>Description</th>
+                        <th>Technologie</th>
+                    </tr>
+                    <tr>
+                        <td><strong>O1</strong></td>
+                        <td>Acquisition multicanale</td>
+                        <td>Call, Email, Web</td>
+                    </tr>
+                    <tr>
+                        <td><strong>O2</strong></td>
+                        <td>Transcription automatique</td>
+                        <td>Whisper OpenAI</td>
+                    </tr>
+                    <tr>
+                        <td><strong>O3</strong></td>
+                        <td>Aide à la décision IA</td>
+                        <td>Règles + LLM</td>
+                    </tr>
+                    <tr>
+                        <td><strong>O4</strong></td>
+                        <td>Conformité RGPD</td>
+                        <td>Chiffrement AES-256</td>
+                    </tr>
+                    <tr>
+                        <td><strong>O5</strong></td>
+                        <td>Chatbot WhatsApp</td>
+                        <td>Node.js + RAG</td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- SLIDE 5: Méthodologie -->
+            <section>
+                <h2>⚙️ Méthodologie & Stack Technique</h2>
+                
+                <h3>Approche Agile (Sprints 2 semaines)</h3>
+                <div class="architecture-flow">
+                    <span class="flow-item">Analyse</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-item">Conception</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-item">Développement</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-item">Intégration</span>
+                </div>
+                
+                <h3 style="margin-top: 40px;">Stack Technique</h3>
+                <div class="tech-stack">
+                    <div class="tech-item">
+                        <div class="icon">☕</div>
+                        <div class="name">Java 17<br>Spring Boot</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="icon">🐍</div>
+                        <div class="name">Python<br>FastAPI</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="icon">⚛️</div>
+                        <div class="name">React<br>Frontend</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="icon">🐳</div>
+                        <div class="name">Docker<br>Kubernetes</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 6: Architecture -->
+            <section>
+                <h2>🏗️ Architecture Microservices</h2>
+                
+                <div class="architecture-flow" style="margin: 40px 0;">
+                    <div style="margin-bottom: 20px;">
+                        <span style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 8px;">Frontend React</span>
+                    </div>
+                    <div style="font-size: 30px; color: #1e3a5f;">↓</div>
+                    <div style="margin: 20px 0;">
+                        <span style="background: #1e3a5f; color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold;">API Gateway (JWT + Rate Limit)</span>
+                    </div>
+                    <div style="font-size: 30px; color: #1e3a5f;">↓</div>
+                    <div style="margin: 20px 0;">
+                        <span style="background: #17a2b8; color: white; padding: 10px 20px; border-radius: 8px;">10 Microservices + Infrastructure</span>
+                    </div>
+                    <div style="font-size: 30px; color: #1e3a5f;">↓</div>
+                    <div>
+                        <span style="background: #28a745; color: white; padding: 10px 20px; border-radius: 8px;">PostgreSQL + Redis + RabbitMQ + ChromaDB</span>
+                    </div>
+                </div>
+                
+                <div class="highlight-box">
+                    <strong>Points forts :</strong> Eureka Discovery | JWT Security | Redis Cache | RabbitMQ Events | RBAC
+                </div>
+            </section>
+            
+            <!-- SLIDE 7: Services Core Part 1 -->
+            <section>
+                <h2>💼 Services Métier Principaux (1/2)</h2>
+                
+                <div class="service-grid">
+                    <div class="service-card">
+                        <h4>🎫 Ticket Service</h4>
+                        <ul>
+                            <li>Acquisition multicanale</li>
+                            <li>File d'attente temps réel</li>
+                            <li>WebSocket notifications</li>
+                            <li>Chiffrement audio</li>
+                        </ul>
+                    </div>
+                    <div class="service-card">
+                        <h4>🧠 Decision Service</h4>
+                        <ul>
+                            <li>Scoring IA 3 étapes</li>
+                            <li>Cache Redis</li>
+                            <li>Génération PDF</li>
+                            <li>Circuit Breaker</li>
+                        </ul>
+                    </div>
+                    <div class="service-card">
+                        <h4>🤖 AI Service</h4>
+                        <ul>
+                            <li>Whisper STT</li>
+                            <li>RAG Chatbot</li>
+                            <li>ChromaDB</li>
+                            <li>Ollama Gemma 4</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="highlight-box" style="margin-top: 30px;">
+                    <strong>Flux décision :</strong> Cache → Règles Métier (Score ≥60) → LLM (Fallback)
+                </div>
+            </section>
+            
+            <!-- SLIDE 8: Services Core Part 2 -->
+            <section>
+                <h2>💼 Services Métier Principaux (2/2)</h2>
+                
+                <div class="two-column">
+                    <div>
+                        <h3>📜 Rules Engine</h3>
+                        <div class="highlight-box">
+                            Conditions JSONB → Évaluation → Décision<br>
+                            <strong>FAVORABLE | DÉFAVORABLE | ÉTUDE</strong>
+                        </div>
+                        
+                        <h3 style="margin-top: 30px;">📧 Notification Service</h3>
+                        <ul>
+                            <li>Emails Thymeleaf</li>
+                            <li>RabbitMQ Events</li>
+                            <li>Retry automatique</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>💬 WhatsApp Chatbot</h3>
+                        <div class="highlight-box">
+                            <strong>Commandes :</strong><br>
+                            /stats | /ticket | /queue | /decision<br><br>
+                            <strong>Features :</strong><br>
+                            • Transcription vocale<br>
+                            • Feedback IA 👍/👎<br>
+                            • Création groupes auto
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 9: Résultats -->
+            <section>
+                <h2>📊 Résultats & Performances</h2>
+                
+                <div style="display: flex; justify-content: space-around; margin: 40px 0;">
+                    <div class="metric-card">
+                        <div class="number">-83%</div>
+                        <div class="label">Temps de traitement<br>30min → 5min</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="number">+31%</div>
+                        <div class="label">Précision décisions<br>70% → 92%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="number">65%</div>
+                        <div class="label">Tâches automatisées<br>(transcription, scoring)</div>
+                    </div>
+                </div>
+                
+                <div class="solution-box">
+                    <strong>Tests & Qualité :</strong>
+                    <ul style="margin: 10px 0;">
+                        <li>✓ 10 microservices fonctionnels</li>
+                        <li>✓ 95% couverture tests unitaires</li>
+                        <li>✓ Stress test : 1000 req/min</li>
+                        <li>✓ Conformité RGPD 100%</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- SLIDE 10: Difficultés -->
+            <section>
+                <h2>🚧 Difficultés Rencontrées</h2>
+                
+                <table>
+                    <tr>
+                        <th>Difficulté</th>
+                        <th>Solution Adoptée</th>
+                    </tr>
+                    <tr>
+                        <td>Whisper (modèle lourd)</td>
+                        <td>Lazy loading + Warmup au démarrage</td>
+                    </tr>
+                    <tr>
+                        <td>IA indisponible</td>
+                        <td>Circuit Breaker + Fallback règles métier</td>
+                    </tr>
+                    <tr>
+                        <td>WhatsApp API non officielle</td>
+                        <td>Gestion QR code + Retry logique</td>
+                    </tr>
+                    <tr>
+                        <td>RGPD chiffrement audio</td>
+                        <td>AES-256 + Consentement explicite</td>
+                    </tr>
+                </table>
+                
+                <div class="highlight-box" style="margin-top: 30px;">
+                    <strong>💡 Leçons apprises :</strong>
+                    Microservices = indépendance mais complexité | IA = assistant, pas remplacement | Tests dès le début
+                </div>
+            </section>
+            
+            <!-- SLIDE 11: Conclusion -->
+            <section>
+                <h2>✅ Conclusion & Perspectives</h2>
+                
+                <h3>Réalisations</h3>
+                <ul class="conclusion-list">
+                    <li>Plateforme complète et fonctionnelle (10 microservices)</li>
+                    <li>Intégration IA complète (STT + NLP + RAG)</li>
+                    <li>Conformité RGPD totale (chiffrement + consentement)</li>
+                    <li>Architecture scalable et maintenable</li>
+                </ul>
+                
+                <h3 style="margin-top: 40px;">Perspectives</h3>
+                <div class="two-column">
+                    <div class="perspective-item">
+                        <strong>📱 Short-term</strong><br>
+                        Application mobile iOS/Android
+                    </div>
+                    <div class="perspective-item">
+                        <strong>🌍 Mid-term</strong><br>
+                        Support multi-langue (Arabe, Anglais)
+                    </div>
+                </div>
+                <div class="perspective-item" style="margin-top: 10px;">
+                    <strong>⛓️ Long-term</strong><br>
+                    Blockchain pour traçabilité immutable
+                </div>
+            </section>
+            
+            <!-- SLIDE 12: Remerciements -->
+            <section class="center title-slide">
+                <h1 style="font-size: 52px; margin-bottom: 60px;">Merci pour votre attention</h1>
+                
+                <div style="font-size: 36px; color: #1e3a5f; margin-bottom: 80px;">
+                    Questions ?
+                </div>
+                
+                <div style="font-size: 22px; color: #555;">
+                    <strong>Projet :</strong> AutoAssist - Système Intelligent de Gestion d'Appels<br>
+                    <strong>Technologies :</strong> Java Spring Boot • Python FastAPI • React • Docker • Kubernetes • IA
+                </div>
+            </section>
+            
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            showSlideNumber: 'all',
+            transition: 'slide',
+            width: 1280,
+            height: 720,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0,
+            center: false,
+            pdfMaxPagesPerSlide: 1
+        });
+    </script>
+</body>
+</html>

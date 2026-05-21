@@ -1,3 +1,5 @@
+import { AlertTriangle } from 'lucide-react';
+
 export function CardSkeleton({ rows = 3 }: Readonly<{ rows?: number }>) {
   return (
     <div className="card-aurora rounded-[14px] p-5 animate-pulse space-y-3">
@@ -36,10 +38,10 @@ export function KpiSkeleton() {
   );
 }
 
-export function EmptyState({ icon, title, subtitle, action }: Readonly<{ icon: string; title: string; subtitle: string; action?: React.ReactNode }>) {
+export function EmptyState({ icon, title, subtitle, action }: Readonly<{ icon: React.ReactNode; title: string; subtitle: string; action?: React.ReactNode }>) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="text-4xl mb-3 opacity-40">{icon}</div>
+      <div className="mb-3 opacity-40 flex items-center justify-center">{icon}</div>
       <div className="text-sm font-bold text-txt-2 mb-1">{title}</div>
       <div className="text-xs text-txt-3 mb-4 max-w-[280px]">{subtitle}</div>
       {action}
@@ -50,7 +52,7 @@ export function EmptyState({ icon, title, subtitle, action }: Readonly<{ icon: s
 export function ErrorState({ message, onRetry }: Readonly<{ message: string; onRetry?: () => void }>) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="text-4xl mb-3">⚠️</div>
+      <div className="mb-3 flex items-center justify-center text-amber-400"><AlertTriangle size={36} /></div>
       <div className="text-sm font-bold text-danger mb-1">Erreur</div>
       <div className="text-xs text-txt-3 mb-4">{message}</div>
       {onRetry && (

@@ -16,6 +16,11 @@ import '../services/decision_service.dart';
 import '../services/api_client.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
+import 'package:flutter/services.dart';
+import 'audit_screen.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 
 /// Field definition from /api/rules/references (CDC 4.B)
 class _FieldDef {
@@ -135,6 +140,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       final updated = await _ticketService.updateStatut(widget.ticketId, newStatus);
       setState(() => _ticket = updated);
       if (mounted) {
+        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Statut → $newStatus'), backgroundColor: c.success),
         );
@@ -183,9 +189,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       ));
       setState(() => _decision = result);
       final emoji = result.decision == 'FAVORABLE' ? '🟢' : result.decision == 'DEFAVORABLE' ? '🔴' : '🟡';
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$emoji ${result.decision} — Score: ${result.score.toStringAsFixed(0)}%'), backgroundColor: c.success),
-      );
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$emoji ${result.decision} — Score: ${result.score.toStringAsFixed(0)}%'), backgroundColor: c.success),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -237,7 +246,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
     try {
       final override = OverrideRequest(
-        finalDecision: action == 'accept' ? _decision!.decision : 'DEFAVORABLE',
+        finalDecision: action == 'accept' ? 'FAVORABLE' : 'DEFAVORABLE',
         motif: motifController.text.trim(),
         operateurId: user?.userId ?? '',
         operateurName: '${user?.prenom} ${user?.nom}',
@@ -273,6 +282,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       }
 
       if (mounted) {
+        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(action == 'accept' ? '✅ Décision acceptée — ticket résolu' : '❌ Décision rejetée — ticket résolu'),
@@ -351,28 +361,41 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   /// Platform-safe temporary path getter
   Future<String> _getTemporaryPath() async {
     if (kIsWeb) return '';
-    return '/tmp';
+    final dir = await getTemporaryDirectory();
+    return dir.path;
   }
 
   /// Platform-safe file writer
   Future<void> _writeFile(String path, List<int> bytes) async {
     if (kIsWeb) return;
-    debugPrint('[PDF] Would write to: $path');
+    final file = File(path);
+    await file.writeAsBytes(bytes);
   }
 
   /// Platform-safe file opener
   Future<void> _openFile(String path) async {
     if (kIsWeb) return;
-    debugPrint('[PDF] Would open: $path');
+    await OpenFilex.open(path);
   }
+
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       appBar: AppBar(
         title: Hero(tag: 'ticket-num-${_ticket?.id ?? widget.ticketId}', child: Material(type: MaterialType.transparency, child: Text(_ticket?.numero ?? 'Ticket', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800)))),
         actions: [
+          if (_ticket != null && auth.isSupervisor)
+            IconButton(
+              icon: const Icon(Icons.shield, size: 18),
+              tooltip: 'Audit',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AuditScreen(ticketId: _ticket!.id)),
+              ),
+            ),
           if (_ticket != null)
             IconButton(icon: const Icon(Icons.refresh, size: 18), onPressed: _fetch),
         ],

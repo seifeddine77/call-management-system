@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Play, Pause, User, Phone, Mail, Award, Clock, Sparkles, Brain,
+  AlertTriangle, Shield, ShieldAlert, ArrowLeft, Download, Trash2, Camera,
+  RefreshCw, Lock, HardDrive, MessageSquare, FileText, CheckCircle2, XCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { ticketService } from '../services/ticketService';
 import { decisionService } from '../services/decisionService';
@@ -87,7 +93,7 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
     } catch (err) {
       toast.error('Impossible d\'accéder au microphone');
     }
-  }, [ticketId]);
+  }, [ticketId, onTranscriptionUpdate]);
 
   const stopRecording = useCallback(() => {
     // Stop timer
@@ -119,7 +125,7 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
 
     setIsRecording(false);
     toast.success('🛑 Transcription arrêtée et sauvegardée');
-  }, []);
+  }, [isRecording]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -136,54 +142,72 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="card-aurora rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold">🎙 Transcription temps réel</h3>
+    <div className="card-aurora rounded-2xl p-5 relative overflow-hidden bg-gradient-to-br from-[var(--surface)] to-[var(--elevated)]">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
+            <MessageSquare size={16} />
+          </div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-txt-2">🎙 Transcription temps réel</h3>
+        </div>
+        <div className="flex items-center gap-3">
           {isRecording && (
-            <span className="font-mono text-[9px] text-txt-3">
-              {formatTime(elapsed)} · {chunks} chunks
+            <span className="font-mono text-[10px] text-txt-3 flex items-center gap-1 bg-[var(--muted)] px-2 py-0.5 rounded border border-border">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              {formatTime(elapsed)} · {chunks} segments
             </span>
           )}
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            className={`h-8 px-3.5 rounded-lg text-[10px] font-mono font-medium flex items-center gap-1.5 cursor-pointer transition-all ${
+            className={`h-8 px-4 rounded-xl text-[10px] font-mono font-medium flex items-center gap-2 cursor-pointer transition-all ${
               isRecording
-                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30'
-                : 'btn-cta text-white'
+                ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                : 'btn-cta text-white shadow-lg shadow-indigo-500/25'
             }`}
           >
-            {isRecording ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-                Arrêter
-              </>
-            ) : (
-              <>🎙 Démarrer le live</>
-            )}
+            {isRecording ? 'Arrêter l\'écoute' : '🎙 Démarrer le live'}
           </button>
         </div>
       </div>
 
       {isRecording && (
-        <div className="mb-3 flex items-center gap-2 p-2 bg-rose-500/5 border border-rose-500/10 rounded-lg">
-          <div className="w-2 h-2 rounded-full bg-rose-400 animate-pulse flex-shrink-0" />
-          <span className="font-mono text-[10px] text-rose-400">En cours d'écoute — parlez dans votre micro</span>
+        <div className="mb-4 flex items-center justify-between p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+            <span className="font-mono text-[10px] text-rose-400">En cours d'écoute — parlez dans votre micro</span>
+          </div>
+          {/* Siri-style Voice Visualizer */}
+          <div className="flex items-end gap-[3px] h-3">
+            {[1, 2, 3, 4, 5].map((bar) => (
+              <span
+                key={bar}
+                className="w-[2px] bg-rose-400 rounded-full animate-bounce"
+                style={{
+                  height: `${20 + bar * 15}%`,
+                  animationDuration: `${0.6 + bar * 0.1}s`,
+                  animationDelay: `${bar * 0.05}s`
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {liveText ? (
-        <div className="p-3.5 bg-[var(--elevated)] border border-border rounded-lg max-h-[200px] overflow-y-auto">
-          <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-wrap">
+        <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl max-h-[220px] overflow-y-auto custom-scrollbar shadow-inner">
+          <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-wrap font-mono">
             {liveText}
             {isRecording && <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-sm" />}
           </div>
         </div>
       ) : (
-        <div className="text-center py-6">
-          <div className="text-2xl mb-2 opacity-30">{isRecording ? '🔊' : '🎙'}</div>
-          <div className="text-[11px] text-txt-3">
-            {isRecording ? 'En attente de parole...' : 'Cliquez sur "Démarrer le live" pour commencer la transcription en temps réel'}
+        <div className="text-center py-8 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+          <div className="text-3xl mb-2 filter drop-shadow-md">🎙️</div>
+          <div className="text-[11px] text-txt-3 max-w-[240px] mx-auto leading-relaxed">
+            {isRecording ? 'En attente de parole...' : 'Cliquez sur "Démarrer le live" pour initier la dictée vocale assistée par Whisper'}
           </div>
         </div>
       )}
@@ -191,6 +215,133 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
   );
 }
 
+interface PremiumAudioPlayerProps {
+  filename: string;
+}
+
+function PremiumAudioPlayer({ filename }: Readonly<PremiumAudioPlayerProps>) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration] = useState(48); // mock duration in seconds
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    console.log('Audio player initialized for:', filename);
+  }, [filename]);
+  
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentTime(prev => {
+          if (prev >= duration) {
+            setIsPlaying(false);
+            setProgress(0);
+            return 0;
+          }
+          const nextTime = prev + 1;
+          setProgress((nextTime / duration) * 100);
+          return nextTime;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, duration]);
+
+  const formatTime = (time: number) => {
+    const mins = Math.floor(time / 60);
+    const secs = time % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setProgress(val);
+    setCurrentTime(Math.round((val / 100) * duration));
+  };
+
+  // Generate 32 bars for the waveform
+  const barHeights = [
+    30, 45, 60, 40, 25, 35, 55, 70, 80, 50, 40, 65, 90, 75, 45, 30,
+    40, 55, 75, 60, 45, 35, 50, 60, 70, 85, 95, 65, 40, 30, 20, 15
+  ];
+
+  return (
+    <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-md backdrop-blur-md relative overflow-hidden">
+      <div className="flex items-center gap-4">
+        {/* Play/Pause Button with Glow */}
+        <button
+          type="button"
+          onClick={handlePlayPause}
+          className={`w-12 h-12 rounded-full flex items-center justify-center border-none transition-all duration-300 cursor-pointer shadow-md flex-shrink-0 ${
+            isPlaying 
+              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
+              : 'btn-cta text-white hover:shadow-[0_0_15px_rgba(99,91,255,0.4)]'
+          }`}
+        >
+          {isPlaying ? (
+            <Pause size={18} className="fill-current text-rose-400 animate-pulse" />
+          ) : (
+            <Play size={18} className="fill-current text-white ml-0.5" />
+          )}
+        </button>
+
+        {/* Audio Waveform Visualization */}
+        <div className="flex-1 flex flex-col gap-2">
+          <div className="h-10 flex items-end gap-[3px] px-2 overflow-hidden select-none">
+            {barHeights.map((h, i) => {
+              const active = (i / barHeights.length) * 100 <= progress;
+              return (
+                <div
+                  key={i}
+                  className="w-[3px] rounded-full transition-all duration-300"
+                  style={{
+                    height: `${h}%`,
+                    backgroundColor: active 
+                      ? 'var(--primary)' 
+                      : 'rgba(99, 91, 255, 0.12)',
+                    boxShadow: active && isPlaying
+                      ? '0 0 6px var(--primary)'
+                      : 'none',
+                    transform: isPlaying && active
+                      ? `scaleY(${1 + Math.sin(currentTime + i) * 0.15})`
+                      : 'scaleY(1)',
+                    transformOrigin: 'bottom'
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Progress Slider / Scrubber */}
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[24px]">
+              {formatTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={progress}
+              onChange={handleScrubberChange}
+              className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)] outline-none"
+              style={{
+                background: `linear-gradient(to right, var(--primary) ${progress}%, var(--border) ${progress}%)`
+              }}
+            />
+            <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[24px]">
+              {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -206,24 +357,27 @@ export default function TicketDetailPage() {
   const [rejecting, setRejecting] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // ── Motif opérateur (CDC: forçage avec motif) ──
+  // ── Motif opérateur ──
   const [motif, setMotif] = useState('');
 
-  // ── Formulaire de saisie demande dynamique (CDC étape 6) ──
+  // ── Formulaire de saisie dynamique ──
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [fieldRefs, setFieldRefs] = useState<ReferenceData | null>(null);
   const pieceReference = formData['pieceReference'] || '';
 
-  // ── Photos sinistre (CDC Module 5) ──
+  // ── Photos sinistre ──
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Résolution UUID → Nom (agence + opérateur) ──
+  // ── Résolution UUID → Nom ──
   const [agenceName, setAgenceName] = useState<string | null>(null);
   const [operateurName, setOperateurName] = useState<string | null>(null);
+
+  // Lightbox State
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Parse existing photos from ticket
   useEffect(() => {
@@ -237,7 +391,7 @@ export default function TicketDetailPage() {
     const validFiles = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024);
     if (validFiles.length < files.length) toast.error('Certains fichiers ignorés (non-image ou >10MB)');
     setPhotoFiles(prev => [...prev, ...validFiles]);
-    // Generate previews
+    
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => setPhotoPreviews(prev => [...prev, e.target?.result as string]);
@@ -304,8 +458,6 @@ export default function TicketDetailPage() {
     ruleService.getReferences().then(setFieldRefs).catch(() => {});
   }, []);
 
-  // L'enregistrement audio se fait directement via MediaRecorder API dans le JSX
-
   const handleAnalyze = async (forceReanalyze = false) => {
     if (!id) return;
 
@@ -326,7 +478,6 @@ export default function TicketDetailPage() {
 
     setAnalyzing(true);
     try {
-      // Si ré-analyse, supprimer l'ancienne décision d'abord
       if (forceReanalyze && decision) {
         try { await decisionService.deleteByTicket(id); } catch { /* ignore */ }
         setDecision(null);
@@ -373,7 +524,6 @@ export default function TicketDetailPage() {
       });
       setDecision(updated);
       toast.success('✅ Décision acceptée — ticket résolu automatiquement');
-      // Bug 2 fix: Auto-transition ticket → RESOLU après décision finale
       try {
         const updatedTicket = await ticketService.updateStatut(id!, 'RESOLU');
         setTicket(updatedTicket);
@@ -400,7 +550,6 @@ export default function TicketDetailPage() {
       });
       setDecision(updated);
       toast.success('❌ Décision rejetée — ticket résolu automatiquement');
-      // Bug 2 fix: Auto-transition ticket → RESOLU après décision finale
       try {
         const updatedTicket = await ticketService.updateStatut(id!, 'RESOLU');
         setTicket(updatedTicket);
@@ -442,49 +591,183 @@ export default function TicketDetailPage() {
     }
   };
 
-  const canalBadge = (canal: string) => ({ CALL: { l: '☎ Appel', c: 'bg-violet-500/10 text-violet-400 border-violet-500/20' }, EMAIL: { l: '✉ Email', c: 'bg-blue-400/10 text-blue-400 border-blue-400/20' }, WEB: { l: '⬡ Web', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' } }[canal] || { l: canal, c: 'bg-[var(--muted)] text-txt-3' });
-  const statutBadge = (statut: string) => ({ NOUVEAU: { l: '● Nouveau', c: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }, EN_COURS: { l: '◷ En cours', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }, RESOLU: { l: '✓ Résolu', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, FERME: { l: '— Fermé', c: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' } }[statut] || { l: statut, c: '' });
-  const decisionBadge = (d: string) => ({ FAVORABLE: { l: '✓ Favorable', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, DEFAVORABLE: { l: '✕ Défavorable', c: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }, ETUDE: { l: '◷ Étude', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' } }[d] || { l: d, c: '' });
+  const canalBadge = (canal: string) => ({ 
+    CALL: { l: '☎ Appel', c: 'bg-violet-500/10 text-violet-400 border-violet-500/20' }, 
+    EMAIL: { l: '✉ Email', c: 'bg-blue-400/10 text-blue-400 border-blue-400/20' }, 
+    WEB: { l: '⬡ Web', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' } 
+  }[canal] || { l: canal, c: 'bg-[var(--muted)] text-txt-3' });
 
-  if (loading) return <div className="space-y-4"><CardSkeleton rows={4} /><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4"><CardSkeleton rows={8} /><CardSkeleton rows={6} /></div></div>;
+  const statutBadge = (statut: string) => ({ 
+    NOUVEAU: { l: 'Nouveau', c: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }, 
+    EN_COURS: { l: 'En cours', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }, 
+    RESOLU: { l: 'Résolu', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, 
+    FERME: { l: 'Fermé', c: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' } 
+  }[statut] || { l: statut, c: '' });
+
+  const decisionBadge = (d: string) => ({ 
+    FAVORABLE: { l: '✓ Favorable', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, 
+    DEFAVORABLE: { l: '✕ Défavorable', c: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }, 
+    ETUDE: { l: '◷ Étude', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' } 
+  }[d] || { l: d, c: '' });
+
+  if (loading) {
+    return (
+      <div className="space-y-4 max-w-[1600px] mx-auto w-full px-2 py-4">
+        <CardSkeleton rows={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr_360px] gap-4">
+          <CardSkeleton rows={8} />
+          <CardSkeleton rows={12} />
+          <CardSkeleton rows={6} />
+        </div>
+      </div>
+    );
+  }
+
   if (error || !ticket) return <ErrorState message={error || 'Ticket introuvable'} onRetry={fetchTicket} />;
 
   const cs = canalBadge(ticket.canal);
-  const ss = statutBadge(ticket.statut);
   const keywords = ticket.transcriptionKeywords?.split(',').map(k => k.trim()).filter(Boolean) || [];
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs">
-        <button onClick={() => navigate('/')} className="text-txt-3 hover:text-txt cursor-pointer">Dashboard</button>
-        <span className="text-txt-3">/</span>
-        <span className="text-primary font-mono">{ticket.numero}</span>
+    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full px-1 py-2 relative">
+      <style>{`
+        @keyframes shine {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .btn-premium-accept {
+          background: linear-gradient(135deg, #00C48C 0%, #00D4AA 100%);
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-premium-accept:hover {
+          box-shadow: 0 0 20px rgba(0, 212, 170, 0.4);
+          transform: translateY(-1px);
+        }
+        .btn-premium-accept::after {
+          content: '';
+          position: absolute;
+          top: 0; left: -150%; width: 50%; height: 100%;
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+          transform: skewX(-25deg);
+        }
+        .btn-premium-accept:hover::after {
+          animation: shine 1.2s infinite;
+        }
+
+        .btn-premium-reject {
+          background: linear-gradient(135deg, #FF4757 0%, #FF6B81 100%);
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-premium-reject:hover {
+          box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+          transform: translateY(-1px);
+        }
+        
+        .pulse-accent {
+          box-shadow: 0 0 0 0 rgba(99, 91, 255, 0.5);
+          animation: accentPulse 2s infinite;
+        }
+        @keyframes accentPulse {
+          0% { box-shadow: 0 0 0 0 rgba(99, 91, 255, 0.4); }
+          70% { box-shadow: 0 0 0 6px rgba(99, 91, 255, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(99, 91, 255, 0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: var(--muted);
+          border-radius: 99px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: var(--text-3);
+        }
+      `}</style>
+
+      {/* Breadcrumb & Navigation Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5 text-xs">
+          <button 
+            onClick={() => navigate('/')} 
+            className="flex items-center gap-1.5 text-txt-3 hover:text-txt cursor-pointer transition-colors font-medium bg-[var(--surface)] border border-border px-2.5 py-1.5 rounded-lg shadow-sm"
+          >
+            <ArrowLeft size={13} />
+            Retour
+          </button>
+          <span className="text-txt-3 font-mono">/</span>
+          <span className="font-mono text-txt-2 bg-indigo-500/5 text-indigo-400 border border-indigo-500/10 px-2.5 py-1 rounded-lg">
+            {ticket.numero}
+          </span>
+        </div>
+
+        {/* Dynamic header badge indicators */}
+        <div className="flex items-center gap-2">
+          {ticket.priorite === 1 && (
+            <span className="flex items-center gap-1 text-[10px] font-mono font-extrabold uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.1)]">
+              🔥 Urgent
+            </span>
+          )}
+          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${cs.c}`}>
+            {cs.l}
+          </span>
+          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${statutBadge(ticket.statut).c}`}>
+            {statutBadge(ticket.statut).l}
+          </span>
+        </div>
       </div>
 
-      {/* Header */}
-      <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-violet-400 to-teal-400" />
-        <div className="flex items-start gap-4">
-          <div className="flex-1">
-            <div className="font-mono text-[10px] text-primary mb-1">{ticket.numero} · {new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').toLocaleString('fr-FR')}</div>
-            <h1 className="text-xl font-extrabold tracking-tight mb-0.5">{ticket.clientNom}</h1>
-            <div className="font-mono text-[10px] text-txt-3">{ticket.clientTel && `${ticket.clientTel} · `}{ticket.clientEmail || ''}</div>
-            <div className="flex gap-1.5 mt-3 flex-wrap">
-              <span className={`badge border ${cs.c}`}>{cs.l}</span>
-              <span className={`badge border ${ss.c}`}>{ss.l}</span>
-              {ticket.priorite === 1 && <span className="badge border bg-rose-500/10 text-rose-400 border-rose-500/20">🔥 Urgent</span>}
+      {/* Modern Premium Command Header Banner */}
+      <div className="card-aurora rounded-2xl p-6 relative overflow-hidden bg-gradient-to-r from-[var(--surface)] to-[var(--elevated)] shadow-lg">
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-violet-400 to-teal-400" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="font-mono text-[10px] text-txt-3 uppercase tracking-wider">
+                Déclaration de sinistre · {new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').toLocaleString('fr-FR')}
+              </div>
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-gradient-ai flex items-center gap-2">
+              {ticket.clientNom}
+              <span className="text-[10px] font-mono font-normal text-txt-3 bg-[var(--muted)] px-2 py-0.5 rounded border border-border">
+                CLIENT REF
+              </span>
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-txt-2">
+              {ticket.clientTel && (
+                <a href={`tel:${ticket.clientTel}`} className="hover:text-primary transition-colors flex items-center gap-1.5 font-mono">
+                  <Phone size={12} className="text-txt-3" />
+                  {ticket.clientTel}
+                </a>
+              )}
+              {ticket.clientEmail && (
+                <a href={`mailto:${ticket.clientEmail}`} className="hover:text-primary transition-colors flex items-center gap-1.5 font-mono">
+                  <Mail size={12} className="text-txt-3" />
+                  {ticket.clientEmail}
+                </a>
+              )}
             </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            {/* Bug 5 fix: Only show valid transitions */}
+
+          {/* Action Zone - Status Modifier */}
+          <div className="flex items-center gap-3 flex-shrink-0 bg-[var(--surface)] border border-border p-2 rounded-xl">
+            <span className="font-mono text-[9px] text-txt-3 uppercase tracking-wider pl-2">Modifier Statut :</span>
             <select
               value={ticket.statut}
               onChange={(e) => handleChangeStatut(e.target.value)}
               disabled={ticket.statut === 'FERME'}
-              className="aurora-select text-[11px] py-1.5 w-32 disabled:opacity-50"
+              className="aurora-select text-[11px] py-1.5 w-36 disabled:opacity-50 font-mono font-bold cursor-pointer"
             >
-              <option value={ticket.statut}>{({NOUVEAU:'Nouveau',EN_COURS:'En cours',RESOLU:'Résolu',FERME:'Fermé'} as Record<string,string>)[ticket.statut]}</option>
+              <option value={ticket.statut}>
+                {({NOUVEAU:'Nouveau',EN_COURS:'En cours',RESOLU:'Résolu',FERME:'Fermé'} as Record<string,string>)[ticket.statut]}
+              </option>
               {ticket.statut === 'NOUVEAU' && <option value="EN_COURS">→ En cours</option>}
               {ticket.statut === 'NOUVEAU' && <option value="FERME">→ Fermé</option>}
               {ticket.statut === 'EN_COURS' && <option value="RESOLU">→ Résolu</option>}
@@ -493,232 +776,539 @@ export default function TicketDetailPage() {
             </select>
           </div>
         </div>
+
         {ticket.description && (
-          <div className="mt-3.5 p-3 bg-[var(--elevated)] border border-border rounded-lg text-xs text-txt-2 leading-relaxed">
+          <div className="mt-5 p-4 bg-[var(--elevated)]/60 border border-border/80 rounded-xl text-xs text-txt-2 leading-relaxed shadow-inner">
+            <span className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1">📝 Objet initial de la réclamation</span>
             {ticket.description}
           </div>
         )}
       </div>
 
-      {/* Content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
-        <div className="flex flex-col gap-4">
-          {/* ═══ Contenu selon le canal (CDC Modules 2 & 3) ═══ */}
+      {/* Main 3-Column Command Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[330px_1fr_360px] gap-6 items-start">
+        
+        {/* ========================================================================= */}
+        {/* COLUMN 1: CLIENT & VEHICLE PROFILE, DEMAND FORM, AND PHOTOS               */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col gap-6">
+          
+          {/* Card 1.1: General Client / Agency Metadata Info */}
+          <div className="card-aurora rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                <User size={14} className="text-primary" />
+                Dossier Client
+              </h3>
+              <span className="font-mono text-[8px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                Garantie active
+              </span>
+            </div>
 
-          {/* CANAL EMAIL — Afficher le contenu de l'email parsé */}
-          {ticket.canal === 'EMAIL' && (
-            <div className="card-aurora rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold">📧 Contenu de l'email</h3>
-                <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  Canal EMAIL — Parsing IMAP automatique
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
+                <span className="font-mono text-[8px] text-txt-3 uppercase">Agence locale affiliée</span>
+                <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
+                  <Award size={12} className="text-teal-400" />
+                  {ticket.agenceName || agenceName || 'Non affilié'}
                 </span>
               </div>
-              <div className="p-3.5 bg-[var(--elevated)] border border-border rounded-lg">
-                <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-line">
-                  {ticket.description || 'Aucun contenu disponible'}
+
+              <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
+                <span className="font-mono text-[8px] text-txt-3 uppercase">Conseiller en charge</span>
+                <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
+                  <Shield size={12} className="text-indigo-400" />
+                  {ticket.operateurName || operateurName || 'Non assigné'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
+                  <span className="font-mono text-[8px] text-txt-3 uppercase">RGPD Audio</span>
+                  <span className={`text-[10px] font-bold ${ticket.consentementEnregistrement ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {ticket.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé'}
+                  </span>
+                </div>
+                <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
+                  <span className="font-mono text-[8px] text-txt-3 uppercase">ID Ticket</span>
+                  <span className="text-[10px] font-mono text-txt-2 truncate">
+                    {id?.substring(0, 8)}...
+                  </span>
                 </div>
               </div>
-              {ticket.clientEmail && (
-                <div className="mt-2 font-mono text-[10px] text-txt-3">
-                  Expéditeur : {ticket.clientEmail}
+            </div>
+          </div>
+
+          {/* Card 1.2: Dynamic Demand Input Form (Fiche Technique / Saisie de la demande) */}
+          <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-orange-500" />
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                  <FileText size={14} className="text-amber-400" />
+                  Saisie de la demande
+                </h3>
+                {(ticket.statut === 'FERME' || ticket.statut === 'RESOLU') && (
+                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 flex items-center gap-1">
+                    <Lock size={10} />
+                    Verrouillé
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3.5">
+                {(fieldRefs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => {
+                  const isRequired = ['typePiece', 'ageVehiculeAns', 'kilometrage', 'categorieClient', 'typeSinistre'].includes(fd.field);
+                  const isLocked = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
+                  return (
+                    <div key={fd.field} className="space-y-1">
+                      <label className="font-mono text-[9px] text-txt-2 uppercase tracking-wide flex items-center justify-between">
+                        <span>{fd.label}</span>
+                        {isRequired && <span className="text-[8px] text-amber-500 font-bold bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">Requis</span>}
+                      </label>
+                      {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
+                        <select 
+                          value={formData[fd.field] || ''} 
+                          onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))} 
+                          disabled={isLocked} 
+                          className="aurora-select text-[11px] py-2 w-full disabled:opacity-50 font-mono font-medium rounded-xl"
+                        >
+                          <option value="">Sélectionner une option…</option>
+                          {fd.values.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      ) : (
+                        <div className="relative">
+                          <input 
+                            type={fd.type === 'number' ? 'number' : 'text'}
+                            placeholder={fd.type === 'number' ? 'Ex: 5' : 'Saisir une valeur...'}
+                            value={formData[fd.field] || ''}
+                            onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))}
+                            disabled={isLocked}
+                            className="aurora-input text-[11px] py-2 px-3 w-full disabled:opacity-50 rounded-xl"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 1.3: Photos of the Incident (Upload & Preview Gallery) */}
+          <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-400 to-rose-500" />
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                  <Camera size={14} className="text-pink-400" />
+                  Preuves Visuelles
+                </h3>
+                <span className="font-mono text-[9px] text-txt-3">
+                  {existingPhotos.length} enregistrée(s)
+                </span>
+              </div>
+
+              {/* Grid of existing database photos */}
+              {existingPhotos.length > 0 && (
+                <div className="mb-4">
+                  <span className="font-mono text-[8px] text-txt-3 uppercase block mb-2 tracking-wide">Galerie du dossier :</span>
+                  <div className="grid grid-cols-4 gap-2">
+                    {existingPhotos.map((path, i) => {
+                      const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
+                      return (
+                        <div 
+                          key={i} 
+                          className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
+                          onClick={() => setLightboxIndex(i)}
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt={`Sinistre ${i+1}`} 
+                            className="w-full h-full object-cover" 
+                            onError={e => { 
+                              (e.target as HTMLImageElement).style.display = 'none'; 
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-sm flex items-center justify-center w-full h-full">🖼️</span>'; 
+                            }} 
+                          />
+                          <span className="absolute bottom-1 right-1 font-mono text-[7px] bg-black/60 text-white px-1.5 py-0.5 rounded-md font-bold">
+                            #{i + 1}
+                          </span>
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                            <span className="text-white text-[10px] bg-black/50 p-1.5 rounded-full">🔍</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Animated Drag & Drop Zone */}
+              {ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
+                <div
+                  className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group"
+                  onClick={() => photoInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-pink-500/50', 'bg-pink-500/5'); }}
+                  onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
+                >
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => handlePhotoSelect(e.target.files)}
+                  />
+                  <div className="text-2xl mb-1.5 transition-transform duration-300 group-hover:scale-110">📸</div>
+                  <div className="text-[11px] text-txt-2 font-medium">Déposer des fichiers ou cliquer pour explorer</div>
+                  <div className="font-mono text-[8px] text-txt-3 mt-1 uppercase tracking-wide">JPEG, PNG, WebP · max 10MB</div>
+                </div>
+              )}
+
+              {/* Local uploading file previews */}
+              {photoPreviews.length > 0 && (
+                <div className="mt-4 p-3 bg-[var(--elevated)] rounded-xl border border-border space-y-3">
+                  <span className="font-mono text-[8px] text-txt-3 uppercase block tracking-wide">Fichiers en attente d'envoi :</span>
+                  <div className="flex flex-wrap gap-2">
+                    {photoPreviews.map((src, i) => (
+                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border shadow">
+                        <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
+                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[10px]"
+                        >
+                          <Trash2 size={10} className="text-rose-400" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleUploadPhotos}
+                    disabled={uploadingPhotos}
+                    className="btn-cta h-8 px-4 rounded-xl text-[10px] font-mono text-white cursor-pointer disabled:opacity-50 w-full flex items-center justify-center gap-1.5"
+                  >
+                    {uploadingPhotos ? (
+                      <>⏳ Envoi en cours...</>
+                    ) : (
+                      <>
+                        <span>📤 Sauvegarder les {photoFiles.length} photos</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* CANAL WEB — Afficher le formulaire soumis */}
-          {ticket.canal === 'WEB' && (
-            <div className="card-aurora rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold">🌐 Formulaire web soumis</h3>
-                <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Canal WEB — API Rest publique
-                </span>
-              </div>
-              <div className="p-3.5 bg-[var(--elevated)] border border-border rounded-lg">
-                <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-line">
-                  {ticket.description || 'Aucune description disponible'}
-                </div>
-              </div>
-              <div className="mt-2 flex gap-4 font-mono text-[10px] text-txt-3">
-                {ticket.clientEmail && <span>Email : {ticket.clientEmail}</span>}
-                {ticket.clientTel && <span>Tél : {ticket.clientTel}</span>}
-              </div>
-            </div>
-          )}
+        {/* ========================================================================= */}
+        {/* COLUMN 2: CORE INCIDENT COMMUNICATIONS & ACTION HISTORY TIMELINE          */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col gap-6">
 
-          {/* CANAL CALL — Audio + Transcription (CDC Module 3 : Traitement de l'Appel) */}
-          {ticket.canal === 'CALL' && (
-            <>
-              {/* Audio — CDC Module 3 : Enregistrement auto Twilio */}
-              <div className="card-aurora rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold">🎙 Enregistrement audio</h3>
-                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    🔄 Twilio — Enregistrement automatique
+          {/* Section 2.1: Communication Stream - Responsive dynamic layout by channel */}
+          <div className="space-y-6">
+            
+            {/* CANAL EMAIL DETAILED CARD */}
+            {ticket.canal === 'EMAIL' && (
+              <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 to-indigo-500" />
+                <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+                      <Mail size={16} />
+                    </div>
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">📧 Contenu du message email</h3>
+                  </div>
+                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    IMAP Parsing
                   </span>
                 </div>
-                {ticket.audioPath ? (
-                  <div className="p-3 bg-[var(--elevated)] border border-border rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-xs text-success font-medium">Enregistrement disponible</span>
-                    </div>
-                    <div className="font-mono text-[10px] text-txt-3">Fichier : {ticket.audioPath.split('/').pop()}</div>
-                    {/* Pipeline visuel Capturé → Transcrit → Analysé */}
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[8px]">✓</div>
-                        <span className="font-mono text-[9px] text-emerald-400">Capturé</span>
-                      </div>
-                      <div className="w-4 h-px bg-border" />
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${ticket.transcription ? 'bg-emerald-500/10' : 'bg-amber-500/10'}`}>
-                          {ticket.transcription ? '✓' : '⏳'}
-                        </div>
-                        <span className={`font-mono text-[9px] ${ticket.transcription ? 'text-emerald-400' : 'text-amber-400'}`}>
-                          {ticket.transcription ? 'Transcrit' : 'Transcription...'}
-                        </span>
-                      </div>
-                      <div className="w-4 h-px bg-border" />
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${ticket.transcription ? 'bg-emerald-500/10' : 'bg-[var(--muted)]'}`}>
-                          {ticket.transcription ? '✓' : '○'}
-                        </div>
-                        <span className={`font-mono text-[9px] ${ticket.transcription ? 'text-emerald-400' : 'text-txt-3'}`}>
-                          {ticket.transcription ? 'Analysé' : 'NLP en attente'}
-                        </span>
-                      </div>
-                    </div>
+                <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar">
+                  <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-line font-serif">
+                    {ticket.description || 'Aucun contenu textuel dans le courriel.'}
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-3xl mb-2 opacity-50">📞</div>
-                    <div className="text-xs text-txt-2 font-medium">Enregistrement automatique en cours</div>
-                    <div className="text-[10px] text-txt-3 mt-1">L'appel Twilio est enregistré automatiquement. L'audio sera disponible dès la fin de l'appel.</div>
-                    <div className="mt-3 flex items-center justify-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="font-mono text-[10px] text-emerald-400">Appel actif — enregistrement</span>
-                    </div>
+                </div>
+                {ticket.clientEmail && (
+                  <div className="mt-3 flex items-center justify-between text-[9px] font-mono text-txt-3 border-t border-border pt-3">
+                    <span>Expéditeur : {ticket.clientEmail}</span>
+                    <span>Date : {new Date(ticket.createdAt).toLocaleString('fr-FR')}</span>
                   </div>
                 )}
               </div>
+            )}
 
-              {/* ── Transcription Live (CDC Module 3 : Streaming STT temps réel) ── */}
-              <LiveTranscription ticketId={id!} onTranscriptionUpdate={() => fetchTicket()} />
+            {/* CANAL WEB DETAILED CARD */}
+            {ticket.canal === 'WEB' && (
+              <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 to-teal-500" />
+                <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                      <Sparkles size={16} />
+                    </div>
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">🌐 Déclaration Formulaire Web</h3>
+                  </div>
+                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    REST API
+                  </span>
+                </div>
+                <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl shadow-inner">
+                  <div className="text-xs text-txt-2 leading-relaxed whitespace-pre-line">
+                    {ticket.description || 'Aucune observation saisie par l\'internaute.'}
+                  </div>
+                </div>
+                <div className="mt-3 border-t border-border pt-3 grid grid-cols-2 gap-4 text-[9px] font-mono text-txt-3">
+                  <div>Mail de contact : {ticket.clientEmail || 'Non spécifié'}</div>
+                  <div className="text-right">Tel de contact : {ticket.clientTel || 'Non spécifié'}</div>
+                </div>
+              </div>
+            )}
 
-              {/* Transcription — CDC Module 3 : Interface texte/audio synchronisée */}
-              <div className="card-aurora rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold">📝 Transcription</h3>
-                  {ticket.transcription && (
+            {/* CANAL CALL - Twilio Audio & Live Transcription & Whisper */}
+            {ticket.canal === 'CALL' && (
+              <>
+                {/* Audio Twilio Card */}
+                <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 to-indigo-500" />
+                  <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <Phone size={16} />
+                      </div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">☎ Enregistrement Audio Twilio</h3>
+                    </div>
                     <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      ✓ {ticket.transcription.length} caractères
+                      SIP Stream
                     </span>
+                  </div>
+
+                  {ticket.audioPath ? (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-[var(--elevated)] border border-border rounded-xl">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold">Fichier d'archive disponible</span>
+                          </div>
+                          <div className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] border border-border px-2 py-0.5 rounded-md truncate max-w-[180px]">
+                            {ticket.audioPath.split('/').pop()}
+                          </div>
+                        </div>
+
+                        {/* Premium custom scrubber audio player */}
+                        <PremiumAudioPlayer filename={ticket.audioPath} />
+                      </div>
+
+                      {/* Processing status visual pipeline */}
+                      <div className="flex items-center justify-between bg-[var(--elevated)]/40 p-3 rounded-xl border border-border">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[9px] text-emerald-400 font-bold">✓</div>
+                          <span className="font-mono text-[8px] uppercase text-emerald-400 tracking-wider">Audio Capturé</span>
+                        </div>
+                        <div className="flex-1 h-px bg-border mx-3" />
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${ticket.transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'}`}>
+                            {ticket.transcription ? '✓' : '⏳'}
+                          </div>
+                          <span className={`font-mono text-[8px] uppercase tracking-wider ${ticket.transcription ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            Whisper Transcrit
+                          </span>
+                        </div>
+                        <div className="flex-1 h-px bg-border mx-3" />
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${ticket.transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-[var(--muted)] border border-border text-txt-3'}`}>
+                            {ticket.transcription ? '✓' : '○'}
+                          </div>
+                          <span className={`font-mono text-[8px] uppercase tracking-wider ${ticket.transcription ? 'text-emerald-400' : 'text-txt-3'}`}>
+                            NLP Évalué
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+                      <div className="text-3xl mb-2 animate-bounce">📞</div>
+                      <div className="text-xs text-txt-2 font-bold uppercase tracking-wider">Enregistrement automatique en cours</div>
+                      <p className="text-[10px] text-txt-3 mt-1.5 max-w-[280px] mx-auto leading-relaxed">
+                        L'appel via le numéro vert AutoAssist est actif. L'enregistrement audio et l'analyse NLP Whisper démarreront automatiquement à la fin de la communication.
+                      </p>
+                      <div className="mt-4 inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-[9px] font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Canal Twilio Connecté
+                      </div>
+                    </div>
                   )}
                 </div>
-                {ticket.transcription ? (
-                  <div>
-                    {/* Segmented transcription with timestamps */}
-                    <div className="p-3.5 bg-[var(--elevated)] border border-border rounded-lg max-h-[240px] overflow-y-auto mb-3 space-y-2">
-                      {(() => {
-                        const text = ticket.transcription;
-                        const segmentRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*/g;
-                        const parts: { time: string; text: string }[] = [];
-                        let lastIdx = 0;
-                        let match;
-                        while ((match = segmentRegex.exec(text)) !== null) {
-                          if (lastIdx < match.index && lastIdx === 0) {
-                            const pre = text.slice(lastIdx, match.index).trim();
-                            if (pre) parts.push({ time: '00:00', text: pre });
-                          }
-                          lastIdx = match.index + match[0].length;
-                          const nextMatch = segmentRegex.exec(text);
-                          const endIdx = nextMatch ? nextMatch.index : text.length;
-                          parts.push({ time: match[1], text: text.slice(lastIdx, endIdx).trim() });
-                          lastIdx = endIdx;
-                          if (nextMatch) { segmentRegex.lastIndex = nextMatch.index; }
-                        }
-                        if (parts.length === 0) {
-                          const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-                          const avgDuration = 5;
-                          sentences.forEach((s, i) => {
-                            const mins = Math.floor((i * avgDuration) / 60);
-                            const secs = (i * avgDuration) % 60;
-                            parts.push({ time: `${mins}:${String(secs).padStart(2, '0')}`, text: s });
-                          });
-                        }
-                        const highlightText = (text: string) => {
-                          if (keywords.length === 0) return <span>{text}</span>;
-                          const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-                          const frags = text.split(pattern);
-                          return frags.map((frag, i) =>
-                            keywords.some(k => k.toLowerCase() === frag.toLowerCase())
-                              ? <mark key={i} className="bg-indigo-500/20 text-indigo-300 rounded px-0.5 font-medium">{frag}</mark>
-                              : <span key={i}>{frag}</span>
-                          );
-                        };
-                        return parts.map((seg, i) => (
-                          <div key={i} className="flex gap-2.5 group">
-                            <button className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-pointer hover:bg-indigo-500/20 transition-colors">
-                              {seg.time}
-                            </button>
-                            <div className="text-xs text-txt-2 leading-relaxed flex-1">{highlightText(seg.text)}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    {keywords.length > 0 && (
-                      <div className="flex items-center gap-1.5 flex-wrap mb-3">
-                        <span className="font-mono text-[9px] text-txt-3 mr-1">Mots-clés :</span>
-                        {keywords.map((kw) => (
-                          <span key={kw} className="font-mono text-[9px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{kw}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="border-t border-border pt-3 mt-1">
-                      <label htmlFor="ticket-operator-notes" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1.5">📋 Notes de l'opérateur</label>
-                      <textarea id="ticket-operator-notes" className="aurora-input text-[11px] w-full h-[60px] resize-none" placeholder="Ajoutez vos observations sur la transcription…" defaultValue="" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-3xl mb-2 opacity-30">📄</div>
-                    <div className="text-xs text-txt-3">{ticket.audioPath ? 'Transcription en cours de traitement...' : 'En attente de la fin de l\'appel pour la transcription'}</div>
-                    {ticket.audioPath && (
-                      <div className="mt-3 flex items-center justify-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-                        <span className="font-mono text-[10px] text-indigo-400">Traitement IA en cours</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </> /* Fin CALL */
-          )}
 
-          {/* Timeline */}
-          {ticket.actions && ticket.actions.length > 0 && (
-            <div className="card-aurora rounded-2xl p-5">
-              <h3 className="text-sm font-bold mb-3">📋 Historique</h3>
-              <div className="flex flex-col">
-                {ticket.actions.map((action, i) => (
-                  <div key={action.id} className="flex gap-3 pb-3 last:pb-0">
-                    <div className="flex flex-col items-center w-5 flex-shrink-0">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 z-[1]" />
-                      {i < ticket.actions.length - 1 && <div className="flex-1 w-px bg-border mt-1" />}
-                    </div>
-                    <div>
-                      {/* Bug 6 fix: Show transition details */}
-                      <div className="text-xs font-medium">
-                        {action.action === 'STATUT_CHANGE' && action.oldValue && action.newValue
-                          ? `${action.oldValue} → ${action.newValue}`
-                          : action.action}
+                {/* Real-time Streaming STT Module */}
+                <LiveTranscription ticketId={id!} onTranscriptionUpdate={() => fetchTicket()} />
+
+                {/* Segmented Whisper Transcription Card */}
+                <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                      <FileText size={14} className="text-indigo-400" />
+                      Transcription de la conversation (NLP)
+                    </h3>
+                    {ticket.transcription && (
+                      <span className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+                        {ticket.transcription.length} caractères
+                      </span>
+                    )}
+                  </div>
+
+                  {ticket.transcription ? (
+                    <div className="space-y-4">
+                      {/* Interactive block list of text speech fragments */}
+                      <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl max-h-[280px] overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
+                        {(() => {
+                          const text = ticket.transcription;
+                          const segmentRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*/g;
+                          const parts: { time: string; text: string }[] = [];
+                          let lastIdx = 0;
+                          let match;
+                          while ((match = segmentRegex.exec(text)) !== null) {
+                            if (lastIdx < match.index && lastIdx === 0) {
+                              const pre = text.slice(lastIdx, match.index).trim();
+                              if (pre) parts.push({ time: '00:00', text: pre });
+                            }
+                            lastIdx = match.index + match[0].length;
+                            const nextMatch = segmentRegex.exec(text);
+                            const endIdx = nextMatch ? nextMatch.index : text.length;
+                            parts.push({ time: match[1], text: text.slice(lastIdx, endIdx).trim() });
+                            lastIdx = endIdx;
+                            if (nextMatch) { segmentRegex.lastIndex = nextMatch.index; }
+                          }
+                          if (parts.length === 0) {
+                            const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+                            const avgDuration = 5;
+                            sentences.forEach((s, i) => {
+                              const mins = Math.floor((i * avgDuration) / 60);
+                              const secs = (i * avgDuration) % 60;
+                              parts.push({ time: `${mins}:${String(secs).padStart(2, '0')}`, text: s });
+                            });
+                          }
+                          const highlightText = (t: string) => {
+                            if (keywords.length === 0) return <span>{t}</span>;
+                            const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+                            const frags = t.split(pattern);
+                            return frags.map((frag, i) =>
+                              keywords.some(k => k.toLowerCase() === frag.toLowerCase())
+                                ? <mark key={i} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">{frag}</mark>
+                                : <span key={i}>{frag}</span>
+                            );
+                          };
+                          return parts.map((seg, i) => (
+                            <div key={i} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
+                              <span className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-md px-2 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-default">
+                                {seg.time}
+                              </span>
+                              <div className="text-xs text-txt-2 leading-relaxed flex-1">{highlightText(seg.text)}</div>
+                            </div>
+                          ));
+                        })()}
                       </div>
-                      {action.notes && <div className="text-[11px] text-txt-2 mt-0.5">{action.notes}</div>}
-                      <div className="font-mono text-[9px] text-txt-3 mt-0.5">
-                        {new Date(action.createdAt.endsWith('Z') ? action.createdAt : action.createdAt + 'Z').toLocaleString('fr-FR')} · {action.userName}
+
+                      {/* Extracted NLP Keywords list */}
+                      {keywords.length > 0 && (
+                        <div className="bg-[var(--elevated)]/30 p-3 rounded-xl border border-border space-y-2">
+                          <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-bold">Mots-clés sémantiques identifiés :</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {keywords.map((kw) => (
+                              <span key={kw} className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 font-bold shadow-sm">
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Operator observations field */}
+                      <div className="border-t border-border pt-4 mt-2">
+                        <label htmlFor="ticket-operator-notes" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-2 font-bold">📋 Remarques et Annotations Opérateur</label>
+                        <textarea 
+                          id="ticket-operator-notes" 
+                          className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2 px-3 focus:border-indigo-500/60" 
+                          placeholder="Saisissez ici des notes complémentaires sur l'appel ou l'entretien..." 
+                          defaultValue="" 
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+                      <div className="text-3xl mb-2 filter drop-shadow-sm">📄</div>
+                      <div className="text-xs text-txt-3 max-w-[220px] mx-auto leading-relaxed">
+                        {ticket.audioPath ? 'Analyse audio Whisper en cours. Les segments de texte apparaîtront sous peu...' : 'En attente de la clôture de la ligne téléphonique pour générer l\'audit textuel.'}
+                      </div>
+                      {ticket.audioPath && (
+                        <div className="mt-4 flex items-center justify-center gap-2 text-indigo-400 text-[10px] font-mono bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full w-fit mx-auto">
+                          <RefreshCw size={11} className="animate-spin" />
+                          Synthèse Whisper en cours...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Section 2.2: Ticket Event History Timeline (Actions) */}
+          {ticket.actions && ticket.actions.length > 0 && (
+            <div className="card-aurora rounded-2xl p-5 relative overflow-hidden shadow-md">
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-400 to-indigo-600" />
+              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                  <Clock size={14} className="text-violet-400" />
+                  Historique d'instruction du dossier
+                </h3>
+                <span className="font-mono text-[9px] text-txt-3">
+                  {ticket.actions.length} événements
+                </span>
+              </div>
+
+              <div className="flex flex-col pl-1 space-y-4">
+                {ticket.actions.map((action, i) => (
+                  <div key={action.id} className="flex gap-4 group">
+                    <div className="flex flex-col items-center flex-shrink-0 relative">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-500/80 border-2 border-indigo-300/40 z-10 shadow-[0_0_8px_rgba(99,91,255,0.4)]" />
+                      {i < ticket.actions.length - 1 && (
+                        <div className="absolute top-2 w-[1.5px] bg-gradient-to-b from-indigo-500/30 to-transparent h-[calc(100%+16px)]" />
+                      )}
+                    </div>
+                    <div className="flex-1 bg-[var(--elevated)]/30 border border-border/80 rounded-xl p-3 shadow-sm hover:bg-[var(--elevated)]/60 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="text-xs font-semibold text-txt">
+                          {action.action === 'STATUT_CHANGE' && action.oldValue && action.newValue ? (
+                            <span className="flex items-center gap-1.5">
+                              Changement Statut:
+                              <span className="font-mono text-[9px] bg-zinc-500/10 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-500/20">{action.oldValue}</span>
+                              <span className="text-txt-3">➔</span>
+                              <span className="font-mono text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">{action.newValue}</span>
+                            </span>
+                          ) : (
+                            action.action
+                          )}
+                        </div>
+                        <span className="font-mono text-[9px] text-txt-3 bg-[var(--muted)] border border-border px-2 py-0.5 rounded-md">
+                          {action.userName}
+                        </span>
+                      </div>
+                      
+                      {action.notes && (
+                        <div className="text-[11px] text-txt-2 leading-relaxed bg-[var(--elevated)] border border-border/50 p-2 rounded-lg font-medium shadow-inner mb-1.5">
+                          {action.notes}
+                        </div>
+                      )}
+                      
+                      <div className="font-mono text-[8px] text-txt-3 text-right">
+                        {new Date(action.createdAt.endsWith('Z') ? action.createdAt : action.createdAt + 'Z').toLocaleString('fr-FR')}
                       </div>
                     </div>
                   </div>
@@ -728,264 +1318,318 @@ export default function TicketDetailPage() {
           )}
         </div>
 
-        {/* Right panel */}
-        <div className="flex flex-col gap-4">
-          {/* ── Saisie de la Demande (CDC étape 6) ── */}
-          <div className="card-aurora rounded-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-orange-500" />
+        {/* ========================================================================= */}
+        {/* COLUMN 3: AI DECISION ENGINE, TRUST RADIAL GAUGE & ACTIONS                */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col gap-6 lg:col-span-2 xl:col-span-1">
+          
+          {/* Card 3.1: AI Decision Assistant & Trust Metrics Gauge */}
+          <div className="card-aurora rounded-2xl overflow-hidden relative shadow-lg bg-gradient-to-br from-[var(--surface)] to-[var(--elevated)]">
+            <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-teal-400 to-indigo-500" />
             <div className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold">📋 Saisie de la demande</h3>
-                {/* Bug 7: Show locked badge on closed tickets */}
-                {(ticket.statut === 'FERME' || ticket.statut === 'RESOLU') && (
-                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">🔒 Verrouillé</span>
-                )}
-              </div>
-              <div className="space-y-2.5">
-                {(fieldRefs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => {
-                  const isRequired = ['typePiece', 'ageVehiculeAns', 'kilometrage', 'categorieClient', 'typeSinistre'].includes(fd.field);
-                  const isLocked = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
-                  return (
-                  <div key={fd.field}>
-                    <label className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1">{fd.label}{isRequired && <span className="text-rose-400 ml-0.5">*</span>}</label>
-                    {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
-                      <select value={formData[fd.field] || ''} onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))} disabled={isLocked} className="aurora-select text-[11px] py-1.5 w-full disabled:opacity-50">
-                        <option value="">Choisir…</option>
-                        {fd.values.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    ) : (
-                      <input type={fd.type === 'number' ? 'number' : 'text'}
-                        placeholder={fd.type === 'number' ? 'Ex: 5' : 'Valeur'}
-                        value={formData[fd.field] || ''}
-                        onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))}
-                        disabled={isLocked}
-                        className="aurora-input text-[11px] py-1.5 w-full disabled:opacity-50" />
-                    )}
+              <div className="flex items-center justify-between border-b border-border pb-3 mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-400">
+                    <Brain size={16} />
                   </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Photos sinistre (CDC Module 5) */}
-          <div className="card-aurora rounded-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-400 to-rose-500" />
-            <div className="p-5">
-              <h3 className="text-sm font-bold mb-3">📸 Photos du sinistre</h3>
-
-              {/* Existing photos */}
-              {existingPhotos.length > 0 && (
-                <div className="mb-3">
-                  <span className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1.5">Photos enregistrées ({existingPhotos.length})</span>
-                  <div className="flex flex-wrap gap-2">
-                    {existingPhotos.map((path, i) => {
-                      const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
-                      return (
-                        <div key={i} className="relative w-16 h-16 rounded-lg bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group"
-                          onClick={() => window.open(imgUrl, '_blank')}>
-                          <img src={imgUrl} alt={`Photo ${i+1}`} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-lg flex items-center justify-center w-full h-full">🖼️</span>'; }} />
-                          <span className="absolute bottom-0.5 right-0.5 font-mono text-[7px] bg-black/50 text-white px-1 rounded">{i + 1}</span>
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <span className="text-white text-xs">🔍</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">🤖 Assistant de Décision IA</h3>
                 </div>
-              )}
-
-              {/* Upload zone */}
-              <div
-                className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-indigo-500/40 hover:bg-indigo-500/[0.02] transition-all"
-                onClick={() => photoInputRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-indigo-500/60', 'bg-indigo-500/5'); }}
-                onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500/60', 'bg-indigo-500/5'); }}
-                onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-indigo-500/60', 'bg-indigo-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
-              >
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => handlePhotoSelect(e.target.files)}
-                />
-                <div className="text-2xl mb-1">📷</div>
-                <div className="text-[11px] text-txt-2 font-medium">Glisser-déposer ou cliquer pour ajouter</div>
-                <div className="font-mono text-[9px] text-txt-3 mt-0.5">JPEG, PNG, WebP · max 10MB par photo</div>
-              </div>
-
-              {/* Previews */}
-              {photoPreviews.length > 0 && (
-                <div className="mt-3">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {photoPreviews.map((src, i) => (
-                      <div key={i} className="relative group">
-                        <img src={src} alt={`Photo ${i + 1}`} className="w-16 h-16 rounded-lg object-cover border border-border" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        >✕</button>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleUploadPhotos}
-                    disabled={uploadingPhotos}
-                    className="btn-cta h-8 px-4 rounded-lg text-[10px] font-mono text-white cursor-pointer disabled:opacity-50 w-full"
-                  >
-                    {uploadingPhotos ? '⏳ Upload en cours...' : `📤 Uploader ${photoFiles.length} photo(s)`}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* AI Decision */}
-          <div className="card-aurora rounded-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-400 to-indigo-500" />
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold">🤖 Aide à la Décision</h3>
                 <button
                   onClick={() => handleAnalyze(!!decision)}
                   disabled={analyzing || ticket.statut === 'FERME'}
-                  className={`h-8 px-3.5 rounded-lg text-[10px] font-mono cursor-pointer disabled:opacity-50 ${
+                  className={`h-8 px-4 rounded-xl text-[10px] font-mono font-bold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 transition-all ${
                     decision
-                      ? 'border border-border text-txt-2 hover:bg-[var(--elevated)] transition-colors'
-                      : 'btn-cta text-white'
+                      ? 'border border-border text-txt-2 hover:bg-[var(--elevated)] hover:border-border-visible'
+                      : 'btn-cta text-white shadow-md shadow-indigo-500/20'
                   }`}
                 >
-                  {analyzing ? '⏳ Analyse...' : decision ? '🔄 Ré-analyser' : '🔍 Analyser'}
+                  {analyzing ? (
+                    <>
+                      <RefreshCw size={11} className="animate-spin" />
+                      Calcul...
+                    </>
+                  ) : decision ? (
+                    <>🔄 Ré-évaluer</>
+                  ) : (
+                    <>🚀 Analyser</>
+                  )}
                 </button>
               </div>
 
               {decision ? (
-                <div>
-                  {/* Score ring */}
-                  <div className="flex gap-3 items-center mb-4">
-                    <div className="relative flex-shrink-0">
-                      <svg width="80" height="80" viewBox="0 0 80 80">
-                        <circle cx="40" cy="40" r="33" fill="none" stroke="var(--muted)" strokeWidth="7" />
-                        <circle cx="40" cy="40" r="33" fill="none" stroke="url(#score-g)" strokeWidth="7"
+                <div className="space-y-5">
+                  
+                  {/* Score circle with numeric value in center */}
+                  <div className="flex gap-4 items-center bg-[var(--elevated)]/60 border border-border p-4 rounded-2xl shadow-inner">
+                    <div className="relative flex-shrink-0 flex items-center justify-center w-20 h-20">
+                      {/* Outer Pulse effect */}
+                      {decision.score >= 70 && (
+                        <div className="absolute inset-0 rounded-full bg-teal-500/5 animate-ping" />
+                      )}
+                      <svg width="80" height="80" viewBox="0 0 80 80" className="relative z-10">
+                        {/* Background track */}
+                        <circle cx="40" cy="40" r="33" fill="none" stroke="var(--muted)" strokeWidth="6" />
+                        {/* Glowing progress arc */}
+                        <circle 
+                          cx="40" 
+                          cy="40" 
+                          r="33" 
+                          fill="none" 
+                          stroke="url(#score-gradient)" 
+                          strokeWidth="6"
                           strokeDasharray={`${(decision.score / 100) * 207} 207`}
-                          strokeLinecap="round" transform="rotate(-90 40 40)"
+                          strokeLinecap="round" 
+                          transform="rotate(-90 40 40)"
                           className="transition-all duration-1000"
+                          style={{ filter: 'drop-shadow(0 0 4px var(--primary-light))' }}
                         />
-                        <defs><linearGradient id="score-g" x1="0%" y1="0%" x2="100%"><stop offset="0%" stopColor="#00D4AA" /><stop offset="100%" stopColor="#635BFF" /></linearGradient></defs>
+                        <defs>
+                          <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#00D4AA" />
+                            <stop offset="50%" stopColor="#635BFF" />
+                            <stop offset="100%" stopColor="#A78BFA" />
+                          </linearGradient>
+                        </defs>
                       </svg>
+                      {/* Inner Numeric Content */}
                       <div className="absolute inset-0 flex items-center justify-center flex-col">
-                        <span className="text-xl font-extrabold text-gradient-ai">{Math.round(decision.score)}%</span>
-                        <span className="font-mono text-[7px] text-txt-3">SCORE</span>
+                        <span className="text-xl font-black text-gradient-ai">{Math.round(decision.score)}%</span>
+                        <span className="font-mono text-[7px] text-txt-3 uppercase font-extrabold tracking-wider">Indice</span>
                       </div>
                     </div>
-                    <div>
-                      {(() => { const db = decisionBadge(decision.decision); return <span className={`badge border text-xs font-bold ${db.c}`}>{db.l}</span>; })()}
-                      <div className="text-[10.5px] text-txt-2 mt-1 leading-relaxed">{decision.motif}</div>
+
+                    <div className="flex-1 space-y-1.5">
+                      {(() => { 
+                        const db = decisionBadge(decision.decision); 
+                        return (
+                          <span className={`inline-flex items-center gap-1.5 border text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${db.c}`}>
+                            {decision.decision === 'FAVORABLE' ? (
+                              <CheckCircle2 size={10} className="text-emerald-400" />
+                            ) : decision.decision === 'DEFAVORABLE' ? (
+                              <XCircle size={10} className="text-rose-400" />
+                            ) : (
+                              <AlertTriangle size={10} className="text-amber-400" />
+                            )}
+                            Recommandation : {db.l}
+                          </span>
+                        ); 
+                      })()}
+                      <div className="text-[11px] text-txt-2 leading-relaxed font-medium">
+                        {decision.motif}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Keywords from transcription — CDC: "mots-clés transcription audio" */}
-                  {keywords.length > 0 && (
-                    <div className="mb-4">
-                      <div className="font-mono text-[9px] text-txt-3 uppercase tracking-wider mb-2">Mots-clés transcription</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {keywords.map((kw) => (
-                          <span key={kw} className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-mono">
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Rules applied */}
+                  {/* List of evaluated decision rules with glowing checklist */}
                   {decision.rulesApplied.length > 0 && (
-                    <div className="mb-4">
-                      <div className="font-mono text-[9px] text-txt-3 uppercase tracking-wider mb-2">Règles appliquées</div>
-                      <div className="space-y-1">
+                    <div className="space-y-2 bg-[var(--elevated)]/20 p-3.5 rounded-2xl border border-border/80 shadow-sm">
+                      <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-extrabold">Filtres réglementaires appliqués :</div>
+                      <div className="space-y-1.5">
                         {decision.rulesApplied.map((r) => (
-                          <div key={r} className="flex items-center gap-2 p-2 bg-[var(--elevated)] border border-border rounded-lg text-[11px]">
-                            <span className="text-emerald-400">✓</span> {r}
+                          <div 
+                            key={r} 
+                            className="flex items-start gap-2.5 p-2 bg-[var(--elevated)]/80 border border-border rounded-xl text-[11px] font-medium transition-colors hover:border-indigo-500/20"
+                          >
+                            <span className="text-emerald-400 font-extrabold text-xs flex-shrink-0 mt-0.5">✓</span>
+                            <span className="text-txt-2 font-mono text-[10px]">{r}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Bug 8: Better source labels */}
-                  <div className="font-mono text-[9px] text-txt-3 mb-3">
-                    Source : {decision.source === 'AI' ? '🤖 IA' : decision.source === 'RULES' ? '📏 Règles' : decision.source === 'HYBRID' ? '🔄 Règles + IA' : decision.source === 'CIRCUIT_BREAKER' ? '⚡ Fallback' : decision.source} · {decision.cached ? '📦 Cache' : '🆕 Nouveau'} · {decision.ambiguous ? '⚠ Vérification requise' : '✓ Claire'}
+                  {/* Metadata and Ambiguity Warnings */}
+                  <div className="p-3 bg-[var(--elevated)]/30 border border-border rounded-xl space-y-2 text-[10px] font-mono text-txt-3">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+                      <span>Source d'évaluation</span>
+                      <span className="text-txt-2 font-semibold">
+                        {decision.source === 'AI' ? '🤖 Algorithmique IA' : decision.source === 'RULES' ? '📏 Moteur de règles' : decision.source === 'HYBRID' ? '🔄 Hybride (Règles + IA)' : '⚡ Disjoncteur Fallback'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+                      <span>État de la décision</span>
+                      <span className="text-txt-2 font-semibold">{decision.cached ? '📦 Restitution Cache' : '🆕 Nouvelle exécution'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Ambiguïté sémantique</span>
+                      {decision.ambiguous ? (
+                        <span className="text-rose-400 font-bold bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 flex items-center gap-1">
+                          <ShieldAlert size={10} /> Vérification requise
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 flex items-center gap-1">
+                          <CheckCircle2 size={10} /> Évaluation fiable
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Actions — CDC: Suivi ou forçage (avec motif) */}
-                  {/* Bug 3 fix: Hide on FERME/RESOLU tickets */}
+                  {/* Interactive operator decision control actions */}
                   {!decision.finalDecision && ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
-                    <div className="space-y-2 mb-2">
-                      <div>
-                        <label htmlFor="ticket-decision-motif" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-1">Motif de la décision *</label>
+                    <div className="space-y-3.5 border-t border-border pt-4 mt-2">
+                      <div className="space-y-1.5">
+                        <label htmlFor="ticket-decision-motif" className="font-mono text-[9px] text-txt-2 uppercase tracking-wide block font-extrabold">
+                          Justification requise (motif) *
+                        </label>
                         <textarea
                           id="ticket-decision-motif"
-                          className="aurora-input text-[11px] w-full h-[50px] resize-none"
-                          placeholder="Saisissez le motif de votre décision (obligatoire)…"
+                          className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2.5 px-3.5 focus:border-indigo-500/60"
+                          placeholder="Saisissez obligatoirement le motif qualifiant pour acter cette décision..."
                           value={motif}
                           onChange={(e) => setMotif(e.target.value)}
                         />
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={handleAccept} disabled={accepting || !motif.trim()} className="btn-accept flex-1 h-9 rounded-lg font-mono text-[10px] font-medium flex items-center justify-center cursor-pointer disabled:opacity-50">
-                          {accepting ? '...' : '✓ Accepter'}
+                      
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={handleAccept} 
+                          disabled={accepting || !motif.trim()} 
+                          className="btn-premium-accept flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {accepting ? '...' : (
+                            <>
+                              <span>✓ Accepter</span>
+                            </>
+                          )}
                         </button>
-                        <button onClick={handleReject} disabled={rejecting || !motif.trim()} className="btn-reject flex-1 h-9 rounded-lg font-mono text-[10px] font-medium flex items-center justify-center cursor-pointer disabled:opacity-50">
-                          {rejecting ? '...' : '✕ Rejeter'}
+                        <button 
+                          onClick={handleReject} 
+                          disabled={rejecting || !motif.trim()} 
+                          className="btn-premium-reject flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {rejecting ? '...' : (
+                            <>
+                              <span>✕ Rejeter</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
                   )}
+
+                  {/* Locked Final Decision Box */}
                   {decision.finalDecision && (
-                    <div className={`p-2.5 rounded-lg border text-center text-xs font-bold mb-2 ${decision.finalDecision === 'FAVORABLE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                      Décision finale : {decision.finalDecision} {decision.overrideMotif && `— ${decision.overrideMotif}`}
+                    <div className={`p-4 rounded-xl border text-center text-xs font-extrabold shadow-sm bg-[var(--elevated)] ${
+                      decision.finalDecision === 'FAVORABLE' 
+                        ? 'text-emerald-400 border-emerald-500/25 bg-emerald-500/[0.01]' 
+                        : 'text-rose-400 border-rose-500/25 bg-rose-500/[0.01]'
+                    }`}>
+                      <div className="font-mono text-[8px] text-txt-3 uppercase block mb-1">Arbitrage définitif :</div>
+                      <span className="text-sm tracking-wide">
+                        {decision.finalDecision === 'FAVORABLE' ? '🟢 FAVORABLE' : '🔴 DEFAVORABLE'}
+                      </span>
+                      {decision.overrideMotif && (
+                        <div className="mt-2 text-[10px] text-txt-2 font-mono font-medium max-w-[280px] mx-auto leading-relaxed border-t border-border/40 pt-2">
+                          "{decision.overrideMotif}"
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Mail/PDF generator action button */}
                   {decision.finalDecision && (
-                    <button onClick={handleDownloadPDF} disabled={downloading} className="btn-ghost w-full h-9 rounded-lg font-mono text-[10px] flex items-center justify-center cursor-pointer disabled:opacity-50">
-                      {downloading ? '⏳ Génération...' : '📄 Télécharger courrier PDF'}
+                    <button 
+                      onClick={handleDownloadPDF} 
+                      disabled={downloading} 
+                      className="w-full h-10 rounded-xl font-mono text-[10px] font-extrabold flex items-center justify-center gap-2 border border-border hover:bg-[var(--elevated)] hover:border-border-visible transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {downloading ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin text-txt-3" />
+                          Génération Courrier...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={13} className="text-txt-3" />
+                          <span>Télécharger courrier de réponse (PDF)</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="text-3xl mb-2 opacity-30">🤖</div>
-                  <div className="text-xs text-txt-3">Cliquez sur "Analyser" pour lancer l'aide à la décision IA</div>
+                <div className="text-center py-12 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+                  <div className="text-4xl mb-2.5 filter drop-shadow-md">🤖</div>
+                  <div className="text-xs text-txt-2 font-bold uppercase tracking-wider">Aide décisionnelle en attente</div>
+                  <p className="text-[10px] text-txt-3 mt-1.5 max-w-[220px] mx-auto leading-relaxed">
+                    Les critères requis ne sont pas encore calculés. Veuillez cliquer sur "Analyser" ci-dessus pour lancer les moteurs de conformité.
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Ticket info */}
-          <div className="card-aurora rounded-2xl p-5">
-            <h3 className="text-sm font-bold mb-3">ℹ️ Informations</h3>
-            <div className="space-y-2">
+          {/* Card 3.2: General Technical Record Details */}
+          <div className="card-aurora rounded-2xl p-5 shadow-md">
+            <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+                <HardDrive size={14} className="text-indigo-400" />
+                Métadonnées Système
+              </h3>
+              <span className="font-mono text-[8px] bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 px-2 py-0.5 rounded">
+                Audit Log
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
               {[
-                { label: 'Numéro', value: ticket.numero },
-                { label: 'Agence', value: ticket.agenceName || agenceName || '—' },
-                { label: 'Opérateur', value: ticket.operateurName || operateurName || (ticket.operateurId ? 'Non identifié' : 'Non assigné') },
-                { label: 'Créé le', value: new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').toLocaleString('fr-FR') },
-                { label: 'Mis à jour', value: new Date(ticket.updatedAt.endsWith('Z') ? ticket.updatedAt : ticket.updatedAt + 'Z').toLocaleString('fr-FR') },
-                { label: 'Consentement', value: ticket.consentementEnregistrement ? 'Oui' : 'Non' },
+                { label: 'Identifiant global', value: ticket.id },
+                { label: 'Date d\'ouverture', value: new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').toLocaleString('fr-FR') },
+                { label: 'Dernière mise à jour', value: new Date(ticket.updatedAt.endsWith('Z') ? ticket.updatedAt : ticket.updatedAt + 'Z').toLocaleString('fr-FR') },
+                { label: 'Canal d\'ingestion', value: ticket.canal },
+                { label: 'Accord d\'écoute', value: ticket.consentementEnregistrement ? 'Accord Explicite (RGPD)' : 'Refus d\'archivage' }
               ].map((info) => (
-                <div key={info.label} className="flex items-center justify-between text-xs border-b border-border pb-2 last:border-0 last:pb-0">
-                  <span className="text-txt-3">{info.label}</span>
-                  <span className="font-mono text-[10px] text-right max-w-[200px] truncate">{info.value}</span>
+                <div key={info.label} className="flex flex-col gap-1 border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
+                  <span className="font-mono text-[8px] text-txt-3 uppercase tracking-wide">{info.label}</span>
+                  <span className="font-mono text-[10px] text-txt-2 truncate block" title={info.value}>
+                    {info.value}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Full screen dynamic Lightbox component for gallery photos */}
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
+            onClick={() => setLightboxIndex(null)}
+          >
+            <button 
+              className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full border border-white/15 transition-all text-sm font-mono cursor-pointer"
+              onClick={() => setLightboxIndex(null)}
+            >
+              ✕ Fermer
+            </button>
+            <div className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+              {(() => {
+                const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${existingPhotos[lightboxIndex]}`;
+                return (
+                  <motion.img 
+                    initial={{ scale: 0.95, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 10 }}
+                    src={imgUrl} 
+                    alt={`Agrandissement sinistre ${lightboxIndex + 1}`}
+                    className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10" 
+                  />
+                );
+              })()}
+              <div className="absolute -bottom-8 left-0 right-0 text-center font-mono text-xs text-white/60">
+                Photo #{lightboxIndex + 1} sur {existingPhotos.length}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
 

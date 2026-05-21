@@ -43,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _emailC = TextEditingController(text: user?.email ?? '');
     _phoneC = TextEditingController();
     _resolveAgence();
+    _loadUserProfile();
   }
 
   @override
@@ -69,6 +70,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _loadUserProfile() async {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return;
+    try {
+      final fullUser = await _userService.getUserById(user.userId);
+      if (mounted) {
+        setState(() {
+          _prenomC.text = fullUser.prenom;
+          _nomC.text = fullUser.nom;
+          _emailC.text = fullUser.email;
+          _phoneC.text = fullUser.telephone;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading full user profile: $e');
+    }
+  }
+
   Future<void> _handleSaveProfile() async {
     final c = context.colors;
     final auth = context.read<AuthProvider>();
@@ -86,6 +105,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         password: '',
         agenceId: user.agenceId,
       ));
+      
+      // Update local authentication session / persistent storage
+      await auth.updateUserSession(
+        prenom: _prenomC.text.trim(),
+        nom: _nomC.text.trim(),
+        email: _emailC.text.trim(),
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('✅ Profil mis à jour !'), backgroundColor: c.success),

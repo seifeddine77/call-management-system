@@ -49,6 +49,10 @@ public class DecisionServiceImpl {
     private final ObjectMapper objectMapper;
     private final RestTemplate llmRestTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final LetterGenerationService letterService;
+
+    @Value("${letters.storage-path:/tmp/letters}")
+    private String storagePath;
 
     @Value("${openai.api-key:}")
     private String openaiApiKey;
@@ -228,6 +232,19 @@ public class DecisionServiceImpl {
         decision.setOverriddenAt(LocalDateTime.now());
         decisionRepository.save(decision);
 
+        // Generate PDF letter
+        String letterFilePath = null;
+        try {
+            letterService.generateLetter(decision);
+            letterFilePath = java.nio.file.Paths.get(storagePath)
+                    .resolve(decision.getId().toString() + ".pdf")
+                    .toAbsolutePath()
+                    .toString();
+        } catch (Exception e) {
+            log.error("❌ Failed to generate PDF letter for decision {}: {}", decision.getId(), e.getMessage(), e);
+            throw new RuntimeException("Erreur de génération du courrier PDF", e);
+        }
+
         // Publish event for notification-service
         DecisionFinalizedEvent event = DecisionFinalizedEvent.builder()
                 .decisionId(decision.getId())
@@ -236,6 +253,7 @@ public class DecisionServiceImpl {
                 .clientEmail(request.getClientEmail())
                 .finalDecision(request.getFinalDecision())
                 .motif(decision.getMotif())
+                .letterFilePath(letterFilePath)
                 .build();
         rabbitTemplate.convertAndSend(RabbitMQConfig.DECISION_EXCHANGE, RabbitMQConfig.DECISION_FINALIZED_ROUTING_KEY, event);
         log.info("📤 Published decision.finalized event for ticket {}: {}", decision.getTicketId(),
@@ -344,11 +362,22 @@ public class DecisionServiceImpl {
         userPrompt.append("- Kilometrage: ").append(request.getKilometrage()).append(" km\n");
         userPrompt.append("- Type de sinistre: ").append(request.getTypeSinistre()).append("\n");
         userPrompt.append("- Categorie client: ").append(request.getCategorieClient()).append("\n");
+        if (request.getPieceReference() != null && !request.getPieceReference().isBlank()) {
+            userPrompt.append("- Reference piece: ").append(request.getPieceReference()).append("\n");
+        }
         if (request.getTranscriptionText() != null && !request.getTranscriptionText().isBlank()) {
             String summary = request.getTranscriptionText().substring(0,
                     Math.min(200, request.getTranscriptionText().length()));
             userPrompt.append("- Resume de l'appel: ").append(summary).append("\n");
         }
+        // Contexte du moteur de règles pour aider le LLM
+        userPrompt.append("\nResultat du moteur de regles: ")
+                .append(rulesResult.getDecision()).append(" (score: ")
+                .append(rulesResult.getScore()).append(", ")
+                .append(rulesResult.getMatchedRules() != null ? rulesResult.getMatchedRules() : 0)
+                .append(" regles matchees sur ")
+                .append(rulesResult.getTotalRulesEvaluated() != null ? rulesResult.getTotalRulesEvaluated() : 0)
+                .append("). Ce resultat est ambigu, confirme ou corrige la decision.\n");
 
         // Build request body — llama.cpp supports response_format for structured output
         Map<String, Object> body = new HashMap<>();
