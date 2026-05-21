@@ -44,6 +44,8 @@ class DecisionServiceImplTest {
         private RabbitTemplate rabbitTemplate;
         @Mock
         private ValueOperations<String, String> valueOperations;
+        @Mock
+        private LetterGenerationService letterService;
         @Spy
         private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -59,6 +61,7 @@ class DecisionServiceImplTest {
                 ReflectionTestUtils.setField(decisionService, "openaiTimeoutSeconds", 60);
                 ReflectionTestUtils.setField(decisionService, "openaiBaseUrl", "http://localhost:12434/engines/llama.cpp/v1");
                 ReflectionTestUtils.setField(decisionService, "cacheTtlSeconds", 3600);
+                ReflectionTestUtils.setField(decisionService, "storagePath", "/tmp/letters");
 
                 baseRequest = new DecisionRequest();
                 baseRequest.setTicketId(UUID.randomUUID());
