@@ -345,7 +345,9 @@ services:
       MAX_AUDIO_SIZE_MB: 50
       WHISPER_MODEL: base
       EUREKA_SERVER: ${EUREKA_URL}
+      AUDIO_ENCRYPTION_KEY: ${AUDIO_ENCRYPTION_KEY:-}
       APP_NAME: ai-service
+
       INSTANCE_PORT: 8000
       # LLM (Gemma 4) for RAG chatbot
       LLM_BASE_URL: http://host.docker.internal:12434/engines/llama.cpp/v1

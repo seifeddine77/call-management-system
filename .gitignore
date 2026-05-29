@@ -146,3 +146,17 @@ ticket_lifecycle_analysis.md
 # GitHub Actions self-hosted runner
 # ========================
 actions-runner/
+
+# ========================
+# Local Scripts and Analysis Reports
+# ========================
+sonar_issues.py
+sonar_issues_full.json
+analyze_test_constants.py
+fix_test_constants.py
+expert_analysis_results.md
+audit_expert_rules_decision.md
+EXPLICATION_MOTEUR_REGLES.md
+trace_data_decision_scoring.md
+dashboard-admin.yaml
+autoassist_logo.png

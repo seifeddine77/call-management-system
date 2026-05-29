@@ -31,6 +31,8 @@ public class AudioEncryptionService {
 
     private final SecretKey secretKey;
     private final boolean enabled;
+    // SonarCloud S2119 fix — reuse SecureRandom instance
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AudioEncryptionService(
             @Value("${audio.encryption.key:}") String base64Key) {
@@ -70,7 +72,7 @@ public class AudioEncryptionService {
         try {
             // Générer un IV aléatoire unique
             byte[] iv = new byte[GCM_IV_LENGTH];
-            new SecureRandom().nextBytes(iv);
+            secureRandom.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);

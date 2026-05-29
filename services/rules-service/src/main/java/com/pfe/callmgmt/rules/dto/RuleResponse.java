@@ -24,6 +24,7 @@ public class RuleResponse {
     private String action;
     private String actionMotif;
     private Short priorite;
+    private Short scoreImpact;
     private Boolean actif;
     private Short version;
     private UUID createdBy;

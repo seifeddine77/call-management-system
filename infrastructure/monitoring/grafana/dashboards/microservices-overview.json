@@ -2,16 +2,34 @@
   "annotations": { "list": [] },
   "title": "AutoAssist — Microservices Overview",
   "uid": "autoassist-overview",
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-1h", "to": "now" },
   "refresh": "10s",
   "templating": {
     "list": [
       {
+        "current": {
+          "selected": true,
+          "value": "Prometheus",
+          "text": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
         "name": "service",
         "type": "query",
         "query": "label_values(up, job)",
-        "datasource": "Prometheus",
+        "datasource": "${datasource}",
         "multi": true,
         "includeAll": true,
         "current": { "text": "All", "value": "$__all" }
@@ -20,57 +38,148 @@
   },
   "panels": [
     {
+      "title": "📊 VUE D'ENSEMBLE DES SERVICES",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
       "title": "Services Status",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 1 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "count(up == 1)", "legendFormat": "UP" }, { "expr": "count(up == 0)", "legendFormat": "DOWN" }],
       "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } } }
     },
     {
       "title": "Service Health Map",
       "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "up", "legendFormat": "{{job}}", "format": "table", "instant": true }],
       "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true } } }]
     },
     {
-      "title": "Request Rate (req/s)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
-      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
-    },
-    {
-      "title": "Response Time P95 (ms)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[5m])) by (le, job)) * 1000", "legendFormat": "{{job}}" }],
-      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 } } }
-    },
-    {
-      "title": "Error Rate (5xx)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\", job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
-      "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 20 } } }
-    },
-    {
-      "title": "Active HTTP Connections",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 20 },
-      "targets": [{ "expr": "sum(http_server_requests_active_count{job=~\"$service\"}) by (job)", "legendFormat": "{{job}}" }]
-    },
-    {
       "title": "Eureka Registered Instances",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 20 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "eureka_server_registered_count", "legendFormat": "instances" }]
     },
     {
       "title": "API Gateway Routes",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 20 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "spring_cloud_gateway_routes_count", "legendFormat": "routes" }]
+    },
+    {
+      "title": "⚡ TRAFIC & PERFORMANCE HTTP",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "collapsed": false
+    },
+    {
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate({__name__=~\"http_server_requests_seconds_count|http_request_duration_seconds_count\", job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+    },
+    {
+      "title": "Error Rate (5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate({__name__=~\"http_server_requests_seconds_count|http_request_duration_seconds_count\", status=~\"5..\", job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 20 } } }
+    },
+    {
+      "title": "Response Time P95 (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 22 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate({__name__=~\"http_server_requests_seconds_bucket|http_request_duration_seconds_bucket\", job=~\"$service\"}[5m])) by (le, job)) * 1000", "legendFormat": "{{job}}" }],
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "title": "Active HTTP Connections",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(http_server_requests_active_count{job=~\"$service\"}) by (job)", "legendFormat": "{{job}}" }]
+    },
+    {
+      "title": "🧠 SYNTHÈSE IA & RÉSILIENCE",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "collapsed": false
+    },
+    {
+      "title": "Circuit Breaker State (LLM)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 31 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "(resilience4j_circuitbreaker_state{name=\"llm\", state=\"closed\"} == 1) * 0 or (resilience4j_circuitbreaker_state{name=\"llm\", state=\"open\"} == 1) * 1 or (resilience4j_circuitbreaker_state{name=\"llm\", state=\"half_open\"} == 1) * 2",
+          "legendFormat": "State"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "CLOSED (Normal)", "color": "green" },
+                "1": { "text": "OPEN (Active Tripped)", "color": "red" },
+                "2": { "text": "HALF-OPEN (Testing)", "color": "orange" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 },
+              { "color": "orange", "value": 2 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "title": "AI Inference Latency P95 (Seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 31 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=~\"/transcribe/|/chat/\"}[5m])) by (le, handler))",
+          "legendFormat": "{{handler}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
     }
   ],
   "schemaVersion": 39

@@ -12,12 +12,15 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("AudioEncryptionService")
 class AudioEncryptionServiceTest {
 
+    // SonarCloud S2119 fix — reuse SecureRandom instance
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     /**
      * Génère une clé AES-256 aléatoire pour les tests.
      */
     private String generateTestKey() {
         byte[] key = new byte[32]; // 256 bits
-        new SecureRandom().nextBytes(key);
+        SECURE_RANDOM.nextBytes(key);
         return Base64.getEncoder().encodeToString(key);
     }
 
@@ -135,7 +138,7 @@ class AudioEncryptionServiceTest {
         @DisplayName("Clé de taille invalide (16 bytes au lieu de 32) lance exception")
         void constructor_invalidKeySize_throws() {
             byte[] shortKey = new byte[16]; // 128 bits — trop court
-            new SecureRandom().nextBytes(shortKey);
+            SECURE_RANDOM.nextBytes(shortKey);
             String base64 = Base64.getEncoder().encodeToString(shortKey);
 
             assertThatThrownBy(() -> new AudioEncryptionService(base64))

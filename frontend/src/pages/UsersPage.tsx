@@ -234,7 +234,10 @@ export default function UsersPage() {
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -10 }}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedUser(u)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedUser(u); } }}
                       className={`group flex items-center justify-between gap-4 px-5 py-3.5 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden
                         ${isSelected ? 'bg-indigo-500/[0.04] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-indigo-500' : ''}`}
                     >

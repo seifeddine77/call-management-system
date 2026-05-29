@@ -7,6 +7,7 @@ export interface Rule {
   action: 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
   actionMotif: string;
   priorite: number;
+  scoreImpact: number;
   actif: boolean;
   version: number;
   createdByName: string;
@@ -31,6 +32,7 @@ export interface CreateRuleRequest {
   action: 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
   actionMotif: string;
   priorite: number;
+  scoreImpact?: number;
 }
 
 export interface RuleVersion {
@@ -38,6 +40,8 @@ export interface RuleVersion {
   ruleId: string;
   conditions: RuleConditions;
   action: string;
+  priorite?: number;
+  scoreImpact?: number;
   version: number;
   changedByName: string;
   changedAt: string;

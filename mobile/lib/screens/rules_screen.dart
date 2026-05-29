@@ -379,6 +379,30 @@ class _RulesScreenState extends State<RulesScreen> with TickerProviderStateMixin
                 child: Text(rule.action, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: actionColor)),
               ),
               const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: rule.scoreImpact > 0
+                      ? c.success.withOpacity(0.1)
+                      : rule.scoreImpact < 0
+                          ? c.danger.withOpacity(0.1)
+                          : c.text3.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  rule.scoreImpact > 0 ? '+${rule.scoreImpact}' : '${rule.scoreImpact}',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: rule.scoreImpact > 0
+                        ? c.success
+                        : rule.scoreImpact < 0
+                            ? c.danger
+                            : c.text3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
               Text('P${rule.priorite}', style: GoogleFonts.inter(fontSize: 9, color: c.text3)),
               const SizedBox(width: 6),
               Text('${rule.conditions.conditions.length} cond.', style: GoogleFonts.inter(fontSize: 9, color: c.text3)),
@@ -422,7 +446,36 @@ class _RulesScreenState extends State<RulesScreen> with TickerProviderStateMixin
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
+          // Metadata Row
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('PRIORITÉ', style: GoogleFonts.inter(fontSize: 8, color: c.text3, fontWeight: FontWeight.bold)),
+              Text('P${rule.priorite}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: c.text)),
+            ]),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('IMPACT SCORE', style: GoogleFonts.inter(fontSize: 8, color: c.text3, fontWeight: FontWeight.bold)),
+              Text(
+                rule.scoreImpact > 0 ? '+${rule.scoreImpact}' : '${rule.scoreImpact}',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: rule.scoreImpact > 0
+                      ? c.success
+                      : rule.scoreImpact < 0
+                          ? c.danger
+                          : c.text,
+                ),
+              ),
+            ]),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('VERSION', style: GoogleFonts.inter(fontSize: 8, color: c.text3, fontWeight: FontWeight.bold)),
+              Text('v${rule.version}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: c.primary)),
+            ]),
+          ]),
+          const SizedBox(height: 12),
+          Divider(color: c.border.withOpacity(0.5)),
+          const SizedBox(height: 8),
           Text('Opérateur : ${rule.conditions.operator}', style: GoogleFonts.inter(fontSize: 10, color: c.text3)),
           const SizedBox(height: 8),
           ...rule.conditions.conditions.asMap().entries.map((e) {
@@ -504,7 +557,24 @@ class _RulesScreenState extends State<RulesScreen> with TickerProviderStateMixin
                   child: Text('v${h.version}', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: c.primary)),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(h.action, style: GoogleFonts.inter(fontSize: 11, color: c.text2))),
+                Expanded(child: Text.rich(TextSpan(children: [
+                  TextSpan(text: h.action, style: GoogleFonts.inter(fontSize: 11, color: c.text2)),
+                  if (h.scoreImpact != null) ...[
+                    const TextSpan(text: ' '),
+                    TextSpan(
+                      text: h.scoreImpact! > 0 ? '(+${h.scoreImpact})' : '(${h.scoreImpact})',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: h.scoreImpact! > 0
+                            ? c.success
+                            : h.scoreImpact! < 0
+                                ? c.danger
+                                : c.text3,
+                      ),
+                    ),
+                  ],
+                ]))),
                 if (h.changedByName != null)
                   Text(h.changedByName!, style: GoogleFonts.inter(fontSize: 9, color: c.text3)),
                 if (h.changedAt != null) ...[
@@ -811,6 +881,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
   late TextEditingController _descCtrl;
   late TextEditingController _motifCtrl;
   late TextEditingController _prioCtrl;
+  late TextEditingController _scoreImpactCtrl;
   String _action = 'FAVORABLE';
   String _condOperator = 'AND';
   List<Map<String, String>> _conditions = [];
@@ -823,6 +894,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
     _descCtrl = TextEditingController(text: init?.description ?? '');
     _motifCtrl = TextEditingController(text: init?.actionMotif ?? '');
     _prioCtrl = TextEditingController(text: (init?.priorite ?? 10).toString());
+    _scoreImpactCtrl = TextEditingController(text: (init?.scoreImpact ?? 0).toString());
     _action = init?.action ?? 'FAVORABLE';
     _condOperator = init?.conditions.operator ?? 'AND';
     _conditions = init?.conditions.conditions.map((c) => {'field': c.field, 'operator': c.operator, 'value': c.value}).toList()
@@ -835,6 +907,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
     _descCtrl.dispose();
     _motifCtrl.dispose();
     _prioCtrl.dispose();
+    _scoreImpactCtrl.dispose();
     super.dispose();
   }
 
@@ -856,17 +929,25 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
               const SizedBox(height: 16),
               Flexible(child: SingleChildScrollView(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Nom + Priorité
+                  // Nom
+                  TextField(
+                    controller: _nomCtrl,
+                    decoration: InputDecoration(labelText: 'Nom *', isDense: true),
+                    style: GoogleFonts.inter(fontSize: 12, color: c.text),
+                  ),
+                  const SizedBox(height: 10),
+                  // Priorité + Score Impact
                   Row(children: [
                     Expanded(child: TextField(
-                      controller: _nomCtrl,
-                      decoration: InputDecoration(labelText: 'Nom *', isDense: true),
+                      controller: _prioCtrl,
+                      decoration: InputDecoration(labelText: 'Priorité', isDense: true),
+                      keyboardType: TextInputType.number,
                       style: GoogleFonts.inter(fontSize: 12, color: c.text),
                     )),
                     const SizedBox(width: 10),
-                    SizedBox(width: 70, child: TextField(
-                      controller: _prioCtrl,
-                      decoration: InputDecoration(labelText: 'Priorité', isDense: true),
+                    Expanded(child: TextField(
+                      controller: _scoreImpactCtrl,
+                      decoration: InputDecoration(labelText: 'Impact de Score *', isDense: true),
                       keyboardType: TextInputType.number,
                       style: GoogleFonts.inter(fontSize: 12, color: c.text),
                     )),
@@ -1021,6 +1102,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
       'action': _action,
       'actionMotif': _motifCtrl.text.trim(),
       'priorite': int.tryParse(_prioCtrl.text) ?? 10,
+      'scoreImpact': int.tryParse(_scoreImpactCtrl.text) ?? 0,
       'conditions': {
         'operator': _condOperator,
         'conditions': _conditions.map((c) => {

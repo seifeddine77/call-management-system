@@ -42,6 +42,7 @@ class RuleVersion {
   final String action;
   final String? changedByName;
   final String? changedAt;
+  final int? scoreImpact;
 
   RuleVersion({
     required this.id,
@@ -49,6 +50,7 @@ class RuleVersion {
     required this.action,
     this.changedByName,
     this.changedAt,
+    this.scoreImpact,
   });
 
   factory RuleVersion.fromJson(Map<String, dynamic> json) {
@@ -58,6 +60,7 @@ class RuleVersion {
       action: json['action'] ?? '',
       changedByName: json['changedByName'],
       changedAt: json['changedAt'],
+      scoreImpact: json['scoreImpact'],
     );
   }
 }

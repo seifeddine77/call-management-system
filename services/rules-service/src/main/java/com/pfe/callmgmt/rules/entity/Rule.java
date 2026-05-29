@@ -56,6 +56,10 @@ public class Rule {
     @Builder.Default
     private Short priorite = 5;
 
+    @Column(name = "score_impact", nullable = false)
+    @Builder.Default
+    private Short scoreImpact = 0;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean actif = true;

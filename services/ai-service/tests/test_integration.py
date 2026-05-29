@@ -96,7 +96,7 @@ class TestTranscriptionIntegration:
         data = response.json()
         # Mock returns avg_logprob -0.3 and -0.25 → avg = -0.275
         # confidence = min(1.0, max(0.0, 1.0 + (-0.275))) = 0.725
-        assert data["confidence"] == 0.725
+        assert data["confidence"] == pytest.approx(0.725)
 
     def test_transcription_multiple_formats(self, client):
         """All supported audio formats should be accepted."""
@@ -160,7 +160,7 @@ class TestAnalysisIntegration:
         assert data["type_sinistre"] == "PANNE"
         assert data["sentiment"] == "NEGATIF"
         assert isinstance(data["keywords"], list)
-        assert data["confidence"] == 0.9  # piece found + sinistre found
+        assert data["confidence"] == pytest.approx(0.9)  # piece found + sinistre found
 
         # Step 3: GET to verify DB persistence
         get_response = client.get("/analyze/analysis-lifecycle-001")
@@ -278,7 +278,7 @@ class TestFullPipeline:
         # The mock transcription says "alternateur est en panne"
         assert analysis["piece_reference"] == "alternateur"  # keyword match
         assert analysis["type_sinistre"] == "PANNE"  # keyword "panne"
-        assert analysis["confidence"] == 0.9  # piece + sinistre → 0.9
+        assert analysis["confidence"] == pytest.approx(0.9)  # piece + sinistre → 0.9
 
         # Step 4: Both records should be retrievable from DB
         t_record = client.get("/transcribe/pipeline-ticket-001")

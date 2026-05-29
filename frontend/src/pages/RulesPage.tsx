@@ -584,13 +584,13 @@ export default function RulesPage() {
 
   // Create form
   const [form, setForm] = useState<CreateRuleRequest>({
-    nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10,
+    nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
     conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '' }] },
   });
 
   // Edit form
   const [editForm, setEditForm] = useState<CreateRuleRequest>({
-    nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10,
+    nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
     conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '' }] },
   });
 
@@ -693,7 +693,7 @@ export default function RulesPage() {
       setRules(prev => [created, ...prev]);
       setShowCreate(false);
       setForm({
-        nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10,
+        nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
         conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '' }] },
       });
       setFormErrors({});
@@ -711,6 +711,7 @@ export default function RulesPage() {
       action: rule.action,
       actionMotif: rule.actionMotif,
       priorite: rule.priorite,
+      scoreImpact: rule.scoreImpact ?? 0,
       conditions: rule.conditions,
     });
     setFormErrors({});
@@ -772,13 +773,18 @@ export default function RulesPage() {
   // ── Rule form fields (shared between create & edit) ──
   const renderFormFields = (f: CreateRuleRequest, setF: React.Dispatch<React.SetStateAction<CreateRuleRequest>>) => (
     <div className="space-y-3.5">
+      <div>
+        <label htmlFor="rule-nom" className="field-label block">Nom *</label>
+        <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
+        {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="rule-nom" className="field-label block">Nom *</label>
-          <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
-          {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
-        </div>
         <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
+        <div>
+          <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
+          <span className="text-[9px] text-txt-3 font-mono block mb-1">Plage : -50 à +50</span>
+          <input id="rule-scoreImpact" className="aurora-input" type="number" min={-50} max={50} value={f.scoreImpact ?? 0} onChange={e => setF(p => ({ ...p, scoreImpact: Math.max(-50, Math.min(50, parseInt(e.target.value) || 0)) }))} placeholder="Ex: -15 ou +10" />
+        </div>
       </div>
       <div>
         <label htmlFor="rule-desc" className="field-label block">Description *</label>
@@ -827,7 +833,10 @@ export default function RulesPage() {
             rules.map((rule) => (
               <div
                 key={rule.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleSelectRule(rule)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectRule(rule); } }}
                 className={`card-aurora rounded-2xl p-4 cursor-pointer transition-all hover:border-indigo-500/30 ${selectedRule?.id === rule.id ? 'border border-indigo-500/40 bg-indigo-500/[0.03]' : ''}`}
               >
                 <div className="flex items-center gap-3">
@@ -841,13 +850,20 @@ export default function RulesPage() {
                       <span className={`badge border text-[9px] ${rule.action === 'FAVORABLE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : rule.action === 'DEFAVORABLE' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                         {rule.action}
                       </span>
+                      <span className={`badge font-mono text-[9px] ${rule.scoreImpact > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : rule.scoreImpact < 0 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-txt-3/10 text-txt-3 border-txt-3/20'}`}>
+                        Impact: {rule.scoreImpact > 0 ? `+${rule.scoreImpact}` : rule.scoreImpact}
+                      </span>
                       <span className="font-mono text-[9px] text-txt-3">P{rule.priorite}</span>
                       <span className="font-mono text-[9px] text-txt-3">{rule.conditions.conditions.length} cond.</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div
+                      role="switch"
+                      tabIndex={0}
+                      aria-checked={rule.actif}
                       onClick={(e) => { e.stopPropagation(); handleToggle(rule.id); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleToggle(rule.id); } }}
                       className={`toggle-switch cursor-pointer ${rule.actif ? 'on' : ''} ${toggling === rule.id ? 'opacity-50' : ''}`}
                     />
                     <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(rule); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer">
@@ -912,6 +928,26 @@ export default function RulesPage() {
                     <Pencil size={12} /> Modifier
                   </button>
                 </div>
+                <div className="flex items-center gap-4 mb-4 pb-3 border-b border-border/30">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-txt-3 font-mono uppercase">Priorité</span>
+                    <span className="text-xs font-bold text-txt-1">P{selectedRule.priorite}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-txt-3 font-mono uppercase">Impact Score</span>
+                    <span className={`text-xs font-bold ${selectedRule.scoreImpact > 0 ? 'text-emerald-400' : selectedRule.scoreImpact < 0 ? 'text-rose-400' : 'text-txt-2'}`}>
+                      {selectedRule.scoreImpact > 0 ? `+${selectedRule.scoreImpact}` : selectedRule.scoreImpact}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-txt-3 font-mono uppercase">Version</span>
+                    <span className="text-xs font-bold text-indigo-400">v{selectedRule.version}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-txt-3 font-mono uppercase">Créateur</span>
+                    <span className="text-xs font-bold text-txt-2 truncate max-w-[100px]">{selectedRule.createdByName || 'N/A'}</span>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <div className="font-mono text-[10px] text-txt-3 mb-1">Opérateur : {selectedRule.conditions.operator}</div>
                   {selectedRule.conditions.conditions.map((cond, i) => (
@@ -942,7 +978,14 @@ export default function RulesPage() {
                     {history.map((h) => (
                       <div key={h.id} className="flex items-center gap-2 p-2.5 bg-[var(--elevated)] border border-border rounded-lg text-xs">
                         <span className="font-mono text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">v{h.version}</span>
-                        <span className="flex-1 text-txt-2">{h.action}</span>
+                        <span className="flex-1 text-txt-2">
+                          {h.action}
+                          {h.scoreImpact !== undefined && h.scoreImpact !== null ? (
+                            <span className={`ml-2 text-[10px] font-mono ${h.scoreImpact > 0 ? 'text-emerald-400' : h.scoreImpact < 0 ? 'text-rose-400' : 'text-txt-3'}`}>
+                              ({h.scoreImpact > 0 ? `+${h.scoreImpact}` : h.scoreImpact})
+                            </span>
+                          ) : ''}
+                        </span>
                         <span className="font-mono text-[9px] text-txt-3">{h.changedByName}</span>
                         <span className="font-mono text-[9px] text-txt-3">{h.changedAt ? new Date(h.changedAt).toLocaleDateString('fr-FR') : ''}</span>
                       </div>

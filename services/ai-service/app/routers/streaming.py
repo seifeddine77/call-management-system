@@ -42,7 +42,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     The server accumulates them and periodically transcribes with Whisper.
     """
     await websocket.accept()
-    logger.info(f"🎙️ [STREAM] WebSocket connected for ticket {ticket_id}")
+    logger.info("🎙️ [STREAM] WebSocket connected for ticket %s", ticket_id)
 
     whisper_model = websocket.app.state.whisper_model
     if whisper_model is None:
@@ -70,7 +70,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
             if "text" in message:
                 text_data = message["text"]
                 if text_data.strip().upper() == "STOP":
-                    logger.info(f"🛑 [STREAM] STOP received for ticket {ticket_id}")
+                    logger.info("🛑 [STREAM] STOP received for ticket %s", ticket_id)
                     break
                 continue
 
@@ -105,9 +105,9 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                     audio_buffer = bytearray()
 
     except WebSocketDisconnect:
-        logger.info(f"🔌 [STREAM] Client disconnected for ticket {ticket_id}")
+        logger.info("🔌 [STREAM] Client disconnected for ticket %s", ticket_id)
     except Exception as e:
-        logger.error(f"❌ [STREAM] Error for ticket {ticket_id}: {e}")
+        logger.error("❌ [STREAM] Error for ticket %s: %s", ticket_id, e)
         try:
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json({"type": "error", "detail": str(e)})
@@ -125,8 +125,8 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     duration = round(time.time() - session_start, 1)
 
     logger.info(
-        f"✅ [STREAM] Session complete for ticket {ticket_id}: "
-        f"{len(full_text)} chars, {duration}s, {chunk_count} chunks"
+        "✅ [STREAM] Session complete for ticket %s: %d chars, %ss, %d chunks",
+        ticket_id, len(full_text), duration, chunk_count
     )
 
     # Send final result

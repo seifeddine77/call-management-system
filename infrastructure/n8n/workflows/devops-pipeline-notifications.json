@@ -57,7 +57,7 @@
     {
       "parameters": {
         "fromEmail": "autoassist-devops@insy2s.com",
-        "toEmail": "team@insy2s.com",
+        "toEmail": "saifrezgui77@gmail.com",
         "subject": "✅ Deploy Réussi — AutoAssist {{ $json.branch }}",
         "text": "Déploiement réussi!\n\nBranche: {{ $json.branch }}\nCommit: {{ $json.commit }}\nPar: {{ $json.actor }}\nLien: {{ $json.run_url }}\nDate: {{ $json.timestamp }}"
       },
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "fromEmail": "autoassist-devops@insy2s.com",
-        "toEmail": "team@insy2s.com",
+        "toEmail": "saifrezgui77@gmail.com",
         "subject": "❌ Deploy Échoué — AutoAssist {{ $json.branch }}",
         "text": "⚠️ ÉCHEC du déploiement!\n\nBranche: {{ $json.branch }}\nCommit: {{ $json.commit }}\nPar: {{ $json.actor }}\nLien: {{ $json.run_url }}\n\n→ Action requise immédiatement"
       },
@@ -79,7 +79,7 @@
     {
       "parameters": {
         "fromEmail": "autoassist-alerts@insy2s.com",
-        "toEmail": "devops@insy2s.com",
+        "toEmail": "saifrezgui77@gmail.com",
         "subject": "🔴 ALERTE CRITIQUE — {{ $json.alerts[0].labels.job }}",
         "text": "🚨 Alerte Prometheus CRITIQUE\n\nService: {{ $json.alerts[0].labels.job }}\nAlerte: {{ $json.alerts[0].annotations.summary }}\nDescription: {{ $json.alerts[0].annotations.description }}\nDébut: {{ $json.alerts[0].startsAt }}\n\n→ Vérifier immédiatement!"
       },
@@ -90,7 +90,7 @@
     {
       "parameters": {
         "fromEmail": "autoassist-alerts@insy2s.com",
-        "toEmail": "team@insy2s.com",
+        "toEmail": "saifrezgui77@gmail.com",
         "subject": "⚠️ Warning — {{ $json.alerts[0].labels.job }}",
         "text": "Alerte Prometheus Warning\n\nService: {{ $json.alerts[0].labels.job }}\nAlerte: {{ $json.alerts[0].annotations.summary }}\nDescription: {{ $json.alerts[0].annotations.description }}"
       },

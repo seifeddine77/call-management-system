@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📞 AutoAssist — Web Softphone</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- NOSONAR: SRI integrity hashes cannot be used with Google Fonts (dynamic CSS) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -233,6 +234,10 @@
         <div class="form-group">
             <label>👤 Nom du client</label>
             <input type="text" id="clientName" placeholder="Mohamed Ben Ali" value="Mohamed Ben Ali">
+        </div>
+        <div class="form-group">
+            <label>✉️ Adresse Email</label>
+            <input type="email" id="clientEmail" placeholder="mohamed.benali@example.com" value="mohamed.benali@gmail.com">
         </div>
         <div class="form-group">
             <label>📱 Téléphone</label>
@@ -464,6 +469,7 @@
                 const callPayload = {
                     callerNumber: document.getElementById('clientPhone').value.trim(),
                     callerName: document.getElementById('clientName').value.trim(),
+                    callerEmail: document.getElementById('clientEmail').value.trim(),
                     agenceId: document.getElementById('agenceSelect').value,
                     description: `Appel client via Web Softphone (durée: ${duration}s)`,
                     priorite: 3,

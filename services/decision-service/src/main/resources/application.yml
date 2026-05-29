@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8085
 
 spring:
@@ -92,7 +92,9 @@ openai:
 letters:
   storage-path: ${LETTERS_STORAGE_PATH:/tmp/letters}
 
-# Decision cache TTL
+# Decision service custom configuration
 decision:
   cache:
     ttl-seconds: 3600
+  rules:
+    confidence-threshold: 60.0

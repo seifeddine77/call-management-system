@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, User, Phone, Mail, Award, Clock, Sparkles, Brain,
@@ -216,129 +216,288 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
 }
 
 interface PremiumAudioPlayerProps {
-  filename: string;
+  ticketId: string;
+  filename?: string;
 }
 
-function PremiumAudioPlayer({ filename }: Readonly<PremiumAudioPlayerProps>) {
+function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumAudioPlayerProps>) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [duration] = useState(48); // mock duration in seconds
+  const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+
+  // Build audio source URL (via gateway with JWT auth)
+  const audioUrl = useMemo(() => {
+    const base = import.meta.env.VITE_API_URL || '';
+    return `${base}/api/audio/${ticketId}`;
+  }, [ticketId]);
+
+  // Fetch audio blob with JWT token (gateway requires auth)
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Audio player initialized for:', filename);
-  }, [filename]);
-  
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= duration) {
-            setIsPlaying(false);
-            setProgress(0);
-            return 0;
+    let cancelled = false;
+
+    const fetchAudio = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const stored = localStorage.getItem('aurora-auth');
+        const headers: Record<string, string> = {};
+        if (stored) {
+          try {
+            const { accessToken } = JSON.parse(stored);
+            if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+          } catch { /* ignore */ }
+        }
+
+        const response = await fetch(audioUrl, { headers });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        if (cancelled) return;
+
+        const url = URL.createObjectURL(blob);
+        setAudioBlobUrl(url);
+
+        // Generate waveform from audio data
+        try {
+          const arrayBuffer = await blob.arrayBuffer();
+          const audioContext = new AudioContext();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const channelData = audioBuffer.getChannelData(0);
+          
+          // Sample down to 48 bars
+          const barCount = 48;
+          const samplesPerBar = Math.floor(channelData.length / barCount);
+          const bars: number[] = [];
+          for (let i = 0; i < barCount; i++) {
+            let sum = 0;
+            for (let j = 0; j < samplesPerBar; j++) {
+              sum += Math.abs(channelData[i * samplesPerBar + j]);
+            }
+            bars.push(sum / samplesPerBar);
           }
-          const nextTime = prev + 1;
-          setProgress((nextTime / duration) * 100);
-          return nextTime;
-        });
-      }, 1000);
+          // Normalize to 15-100 range
+          const max = Math.max(...bars, 0.001);
+          const normalized = bars.map(v => Math.round(15 + (v / max) * 85));
+          if (!cancelled) setWaveformData(normalized);
+          audioContext.close();
+        } catch {
+          // Fallback waveform if decoding fails
+          if (!cancelled) setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70)));
+        }
+
+        setIsLoading(false);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Erreur de chargement');
+          setIsLoading(false);
+          // Fallback waveform
+          setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70)));
+        }
+      }
+    };
+
+    fetchAudio();
+
+    return () => {
+      cancelled = true;
+      if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
+    };
+  }, [audioUrl]);
+
+  // Update progress during playback
+  const startProgressTracking = useCallback(() => {
+    const update = () => {
+      const audio = audioRef.current;
+      if (audio && !audio.paused) {
+        setCurrentTime(audio.currentTime);
+        setProgress(audio.duration > 0 ? (audio.currentTime / audio.duration) * 100 : 0);
+        animFrameRef.current = requestAnimationFrame(update);
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(update);
+  }, []);
+
+  const stopProgressTracking = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, duration]);
+  }, []);
+
+  // Audio event handlers
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onPlay = () => { setIsPlaying(true); startProgressTracking(); };
+    const onPause = () => { setIsPlaying(false); stopProgressTracking(); };
+    const onEnded = () => { setIsPlaying(false); setProgress(0); setCurrentTime(0); stopProgressTracking(); };
+
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      stopProgressTracking();
+    };
+  }, [audioBlobUrl, startProgressTracking, stopProgressTracking]);
 
   const formatTime = (time: number) => {
+    if (!isFinite(time) || time < 0) return '0:00';
     const mins = Math.floor(time / 60);
-    const secs = time % 60;
+    const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play().catch(() => setError('Impossible de lire l\'audio'));
+    } else {
+      audio.pause();
+    }
   };
 
   const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !isFinite(audio.duration)) return;
     const val = parseFloat(e.target.value);
+    const newTime = (val / 100) * audio.duration;
+    audio.currentTime = newTime;
     setProgress(val);
-    setCurrentTime(Math.round((val / 100) * duration));
+    setCurrentTime(newTime);
   };
 
-  // Generate 32 bars for the waveform
-  const barHeights = [
-    30, 45, 60, 40, 25, 35, 55, 70, 80, 50, 40, 65, 90, 75, 45, 30,
-    40, 55, 75, 60, 45, 35, 50, 60, 70, 85, 95, 65, 40, 30, 20, 15
-  ];
+  const handleBarClick = (barIndex: number) => {
+    const audio = audioRef.current;
+    if (!audio || !isFinite(audio.duration) || waveformData.length === 0) return;
+    const newTime = (barIndex / waveformData.length) * audio.duration;
+    audio.currentTime = newTime;
+    setProgress((newTime / audio.duration) * 100);
+    setCurrentTime(newTime);
+  };
+
+  // Use real waveform or fallback
+  const barHeights = waveformData.length > 0
+    ? waveformData
+    : [30, 45, 60, 40, 25, 35, 55, 70, 80, 50, 40, 65, 90, 75, 45, 30, 40, 55, 75, 60, 45, 35, 50, 60, 70, 85, 95, 65, 40, 30, 20, 15];
 
   return (
     <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-md backdrop-blur-md relative overflow-hidden">
-      <div className="flex items-center gap-4">
-        {/* Play/Pause Button with Glow */}
-        <button
-          type="button"
-          onClick={handlePlayPause}
-          className={`w-12 h-12 rounded-full flex items-center justify-center border-none transition-all duration-300 cursor-pointer shadow-md flex-shrink-0 ${
-            isPlaying 
-              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
-              : 'btn-cta text-white hover:shadow-[0_0_15px_rgba(99,91,255,0.4)]'
-          }`}
-        >
-          {isPlaying ? (
-            <Pause size={18} className="fill-current text-rose-400 animate-pulse" />
-          ) : (
-            <Play size={18} className="fill-current text-white ml-0.5" />
-          )}
-        </button>
+      {/* Hidden <audio> element */}
+      {audioBlobUrl && <audio ref={audioRef} src={audioBlobUrl} preload="metadata" />}
 
-        {/* Audio Waveform Visualization */}
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="h-10 flex items-end gap-[3px] px-2 overflow-hidden select-none">
-            {barHeights.map((h, i) => {
-              const active = (i / barHeights.length) * 100 <= progress;
-              return (
-                <div
-                  key={i}
-                  className="w-[3px] rounded-full transition-all duration-300"
-                  style={{
-                    height: `${h}%`,
-                    backgroundColor: active 
-                      ? 'var(--primary)' 
-                      : 'rgba(99, 91, 255, 0.12)',
-                    boxShadow: active && isPlaying
-                      ? '0 0 6px var(--primary)'
-                      : 'none',
-                    transform: isPlaying && active
-                      ? `scaleY(${1 + Math.sin(currentTime + i) * 0.15})`
-                      : 'scaleY(1)',
-                    transformOrigin: 'bottom'
-                  }}
-                />
-              );
-            })}
-          </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-3 py-4">
+          <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-[10px] font-mono text-[var(--text-3)]">Chargement de l'audio...</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-4">
+          {/* Play/Pause Button with Glow */}
+          <button
+            type="button"
+            onClick={handlePlayPause}
+            disabled={!!error && !audioBlobUrl}
+            className={`w-12 h-12 rounded-full flex items-center justify-center border-none transition-all duration-300 cursor-pointer shadow-md flex-shrink-0 ${
+              error && !audioBlobUrl
+                ? 'bg-[var(--muted)] text-[var(--text-3)] cursor-not-allowed opacity-50'
+                : isPlaying 
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
+                  : 'btn-cta text-white hover:shadow-[0_0_15px_rgba(99,91,255,0.4)]'
+            }`}
+          >
+            {isPlaying ? (
+              <Pause size={18} className="fill-current text-rose-400 animate-pulse" />
+            ) : (
+              <Play size={18} className="fill-current text-white ml-0.5" />
+            )}
+          </button>
 
-          {/* Progress Slider / Scrubber */}
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[24px]">
-              {formatTime(currentTime)}
-            </span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={progress}
-              onChange={handleScrubberChange}
-              className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)] outline-none"
-              style={{
-                background: `linear-gradient(to right, var(--primary) ${progress}%, var(--border) ${progress}%)`
-              }}
-            />
-            <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[24px]">
-              {formatTime(duration)}
-            </span>
+          {/* Audio Waveform Visualization */}
+          <div className="flex-1 flex flex-col gap-2">
+            <div 
+              className="h-10 flex items-end gap-[2px] px-1 overflow-hidden select-none cursor-pointer"
+              role="slider"
+              aria-label="Audio waveform"
+              tabIndex={0}
+            >
+              {barHeights.map((h, i) => {
+                const barProgress = (i / barHeights.length) * 100;
+                const active = barProgress <= progress;
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-full transition-all duration-150"
+                    style={{
+                      height: `${h}%`,
+                      minWidth: '2px',
+                      backgroundColor: active 
+                        ? 'var(--primary)' 
+                        : 'rgba(99, 91, 255, 0.12)',
+                      boxShadow: active && isPlaying
+                        ? '0 0 6px var(--primary)'
+                        : 'none',
+                      transform: isPlaying && active
+                        ? `scaleY(${1 + Math.sin(currentTime * 3 + i) * 0.1})`
+                        : 'scaleY(1)',
+                      transformOrigin: 'bottom'
+                    }}
+                    onClick={() => handleBarClick(i)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Progress Slider / Scrubber */}
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[28px]">
+                {formatTime(currentTime)}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={progress}
+                onChange={handleScrubberChange}
+                className="flex-1 h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)] outline-none"
+                style={{
+                  background: `linear-gradient(to right, var(--primary) ${progress}%, var(--border) ${progress}%)`
+                }}
+              />
+              <span className="font-mono text-[9px] text-[var(--text-3)] font-bold min-w-[28px]">
+                {formatTime(duration)}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {error && (
+        <div className="mt-2 text-[9px] font-mono text-amber-400 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+          <AlertTriangle size={10} />
+          <span>Audio indisponible: {error}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -736,7 +895,7 @@ export default function TicketDetailPage() {
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-gradient-ai flex items-center gap-2">
               {ticket.clientNom}
-              <span className="text-[10px] font-mono font-normal text-txt-3 bg-[var(--muted)] px-2 py-0.5 rounded border border-border">
+              <span className="text-[10.5px] font-mono font-semibold tracking-wider text-primary bg-primary-soft px-2.5 py-0.5 rounded-full border border-primary/20 shadow-sm ml-2">
                 CLIENT REF
               </span>
             </h1>
@@ -919,8 +1078,11 @@ export default function TicketDetailPage() {
                       return (
                         <div 
                           key={i} 
+                          role="button"
+                          tabIndex={0}
                           className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
                           onClick={() => setLightboxIndex(i)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(i); } }}
                         >
                           <img 
                             src={imgUrl} 
@@ -947,8 +1109,11 @@ export default function TicketDetailPage() {
               {/* Custom Animated Drag & Drop Zone */}
               {ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
                 <div
+                  role="button"
+                  tabIndex={0}
                   className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group"
                   onClick={() => photoInputRef.current?.click()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInputRef.current?.click(); } }}
                   onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-pink-500/50', 'bg-pink-500/5'); }}
                   onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); }}
                   onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
@@ -1102,7 +1267,7 @@ export default function TicketDetailPage() {
                         </div>
 
                         {/* Premium custom scrubber audio player */}
-                        <PremiumAudioPlayer filename={ticket.audioPath} />
+                        <PremiumAudioPlayer ticketId={ticket.id} filename={ticket.audioPath ?? undefined} />
                       </div>
 
                       {/* Processing status visual pipeline */}

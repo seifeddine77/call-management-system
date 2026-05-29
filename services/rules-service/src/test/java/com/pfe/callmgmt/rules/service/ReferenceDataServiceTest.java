@@ -120,11 +120,11 @@ class ReferenceDataServiceTest {
     }
 
     @Test
-    @DisplayName("Opérateurs de comparaison — contient les 8 opérateurs CDC 4.A")
+    @DisplayName("Opérateurs de comparaison — contient les 9 opérateurs CDC 4.A")
     void operateursComparaison() {
         ReferenceDataResponse data = service.getReferenceData();
 
-        assertEquals(8, data.getOperateursComparaison().size());
+        assertEquals(9, data.getOperateursComparaison().size());
         assertTrue(data.getOperateursComparaison().stream().anyMatch(i -> "EQ".equals(i.getCode())));
         assertTrue(data.getOperateursComparaison().stream().anyMatch(i -> "IN".equals(i.getCode())));
     }

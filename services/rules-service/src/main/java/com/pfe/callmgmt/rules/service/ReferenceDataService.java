@@ -107,7 +107,8 @@ public class ReferenceDataService {
                 ReferenceItem.builder().code("LTE").label("Inférieur ou égal (≤)").build(),
                 ReferenceItem.builder().code("GTE").label("Supérieur ou égal (≥)").build(),
                 ReferenceItem.builder().code("CONTAINS").label("Contient").build(),
-                ReferenceItem.builder().code("IN").label("Dans la liste").build());
+                ReferenceItem.builder().code("IN").label("Dans la liste").build(),
+                ReferenceItem.builder().code("NOT_IN").label("Pas dans la liste").build());
     }
 
     // Opérateurs logiques (statiques)

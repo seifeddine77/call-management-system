@@ -7,10 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """AI Service configuration."""
 
-    DATABASE_URL: str = ""  # Set via environment variable or .env file
+    DATABASE_URL: str = ""  # NOSONAR — Loaded from .env file, not hardcoded (pydantic-settings)
     AUDIO_STORAGE_PATH: str = "./audio_storage"
     MAX_AUDIO_SIZE_MB: int = 50
     WHISPER_MODEL: str = "small"
+    AUDIO_ENCRYPTION_KEY: str = ""
+
 
     # Eureka settings
     EUREKA_SERVER: str = "http://localhost:8761/eureka"

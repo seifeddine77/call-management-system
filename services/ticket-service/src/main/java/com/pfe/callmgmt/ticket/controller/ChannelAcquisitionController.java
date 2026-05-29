@@ -49,6 +49,7 @@ public class ChannelAcquisitionController {
         ticketReq.setClientNom(
                 request.getCallerName() != null ? request.getCallerName() : "Appelant " + request.getCallerNumber());
         ticketReq.setClientTel(request.getCallerNumber());
+        ticketReq.setClientEmail(request.getCallerEmail());
         ticketReq.setCanal("CALL");
         ticketReq.setAgenceId(request.getAgenceId());
         ticketReq.setDescription(request.getDescription() != null

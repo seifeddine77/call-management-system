@@ -39,6 +39,72 @@ public class RuleService {
     private final RuleVersionRepository ruleVersionRepository;
     private final RuleEvaluator ruleEvaluator;
 
+    private void validateConditionsStructure(Map<String, Object> conditions) {
+        if (conditions == null) {
+            throw new IllegalArgumentException("Les conditions ne peuvent pas être nulles");
+        }
+        
+        Object operator = conditions.get("operator");
+        if (operator != null && !(operator instanceof String && 
+            (((String) operator).equalsIgnoreCase("AND") || ((String) operator).equalsIgnoreCase("OR")))) {
+            throw new IllegalArgumentException("L'opérateur global des conditions doit être 'AND' ou 'OR'");
+        }
+        
+        Object condList = conditions.get("conditions");
+        if (condList == null) {
+            throw new IllegalArgumentException("La liste des conditions ('conditions') est obligatoire");
+        }
+        if (!(condList instanceof List)) {
+            throw new IllegalArgumentException("Le champ 'conditions' doit être une liste de conditions");
+        }
+        
+        List<?> list = (List<?>) condList;
+        if (list.isEmpty()) {
+            throw new IllegalArgumentException("La liste des conditions ne peut pas être vide");
+        }
+        
+        for (Object item : list) {
+            if (!(item instanceof Map)) {
+                throw new IllegalArgumentException("Chaque élément de 'conditions' doit être un objet");
+            }
+            Map<?, ?> cond = (Map<?, ?>) item;
+            
+            Object field = cond.get("field");
+            if (field == null || !(field instanceof String) || ((String) field).isBlank()) {
+                throw new IllegalArgumentException("Chaque condition doit avoir un champ 'field' valide");
+            }
+            
+            Object op = cond.get("operator");
+            if (op == null) {
+                op = cond.get("op");
+            }
+            if (op == null || !(op instanceof String) || ((String) op).isBlank()) {
+                throw new IllegalArgumentException("Chaque condition doit avoir un opérateur 'operator' ou 'op' valide");
+            }
+            
+            String opStr = ((String) op).trim().toUpperCase();
+            List<String> validOps = List.of(
+                "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "CONTAINS", "IN", "NOT_IN", "NOT IN",
+                "=", "!=", "<", ">", "<=", ">="
+            );
+            if (!validOps.contains(opStr)) {
+                throw new IllegalArgumentException("Opérateur inconnu ou non supporté : " + opStr);
+            }
+            
+            if (!cond.containsKey("value")) {
+                throw new IllegalArgumentException("Chaque condition doit spécifier une valeur ('value')");
+            }
+            Object val = cond.get("value");
+            if (val == null) {
+                throw new IllegalArgumentException("Le champ 'value' ne peut pas être null");
+            }
+            
+            if ((opStr.equals("IN") || opStr.equals("NOT_IN") || opStr.equals("NOT IN")) && !(val instanceof List)) {
+                throw new IllegalArgumentException("La valeur de l'opérateur " + opStr + " doit être une liste (ex: [\"VIP\", \"PREMIUM\"])");
+            }
+        }
+    }
+
     // ============================
     // CRUD Operations
     // ============================
@@ -48,6 +114,8 @@ public class RuleService {
      */
     @Transactional
     public RuleResponse createRule(CreateRuleRequest request, UUID userId, String userName) {
+        validateConditionsStructure(request.getConditions());
+
         Rule rule = Rule.builder()
                 .nom(request.getNom())
                 .description(request.getDescription())
@@ -55,6 +123,7 @@ public class RuleService {
                 .action(request.getAction().toUpperCase())
                 .actionMotif(request.getActionMotif())
                 .priorite(request.getPriorite() != null ? request.getPriorite() : 5)
+                .scoreImpact(request.getScoreImpact() != null ? request.getScoreImpact() : 0)
                 .actif(true)
                 .version((short) 1)
                 .createdBy(userId)
@@ -62,8 +131,8 @@ public class RuleService {
                 .build();
 
         rule = ruleRepository.save(rule);
-        log.info("✅ Règle créée: '{}' (id={}, action={}, priorité={})",
-                rule.getNom(), rule.getId(), rule.getAction(), rule.getPriorite());
+        log.info("✅ Règle créée: '{}' (id={}, action={}, priorité={}, scoreImpact={})",
+                rule.getNom(), rule.getId(), rule.getAction(), rule.getPriorite(), rule.getScoreImpact());
 
         return toResponse(rule);
     }
@@ -74,6 +143,8 @@ public class RuleService {
      */
     @Transactional
     public RuleResponse updateRule(UUID ruleId, UpdateRuleRequest request, UUID userId, String userName) {
+        validateConditionsStructure(request.getConditions());
+
         Rule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
 
@@ -86,6 +157,7 @@ public class RuleService {
                 .action(rule.getAction())
                 .actionMotif(rule.getActionMotif())
                 .priorite(rule.getPriorite())
+                .scoreImpact(rule.getScoreImpact())
                 .version(rule.getVersion())
                 .changedBy(userId)
                 .changedByName(userName)
@@ -101,6 +173,9 @@ public class RuleService {
         rule.setActionMotif(request.getActionMotif());
         if (request.getPriorite() != null) {
             rule.setPriorite(request.getPriorite());
+        }
+        if (request.getScoreImpact() != null) {
+            rule.setScoreImpact(request.getScoreImpact());
         }
         rule.setVersion((short) (rule.getVersion() + 1));
         rule.setUpdatedAt(LocalDateTime.now());
@@ -260,9 +335,18 @@ public class RuleService {
             // Conflit → la règle de plus haute priorité gagne
             Rule highestPriority = matchedRules.get(0); // Déjà triées par priorité DESC
             finalDecision = highestPriority.getAction();
-            double conflictBase = 55.0;
-            double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText());
-            score = Math.min(70.0, Math.max(35.0, conflictBase + transcriptionBonus));
+            double baseScore = DECISION_FAVORABLE.equals(finalDecision) ? 65.0 : 35.0;
+            double dynamicBonus = matchedRules.stream()
+                    .mapToInt(r -> r.getScoreImpact() != null ? r.getScoreImpact() : 0)
+                    .sum();
+            dynamicBonus = Math.max(-50.0, Math.min(50.0, dynamicBonus));
+            double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText()) * 0.3;
+            double rawScore = baseScore + dynamicBonus + transcriptionBonus;
+            if (DECISION_FAVORABLE.equals(finalDecision)) {
+                score = Math.min(98.0, Math.max(40.0, rawScore));
+            } else {
+                score = Math.min(59.0, Math.max(10.0, rawScore));
+            }
             motif = String.format(
                     "Conflit entre règles (%d FAVORABLE, %d DÉFAVORABLE). Décision basée sur la règle la plus prioritaire '%s'. Vérification IA recommandée.",
                     actionCounts.getOrDefault(DECISION_FAVORABLE, 0L),
@@ -270,57 +354,37 @@ public class RuleService {
                     highestPriority.getNom());
             ambiguous = true;
 
-        } else if (hasFavorable && !hasDefavorable) {
-            finalDecision = DECISION_FAVORABLE;
-            // Formule enrichie : base + bonus règles + bonus age/km
-            double baseScore = 55.0;
-            double rulesBonus = Math.min(20.0, matchedRules.size() * 8.0);
-            double ageBonus = 0.0;
-            double kmBonus = 0.0;
-            if (request.getAgeVehiculeAns() != null) {
-                ageBonus = request.getAgeVehiculeAns() <= 3 ? 10.0 : request.getAgeVehiculeAns() <= 5 ? 5.0 : -5.0;
-            }
-            if (request.getKilometrage() != null) {
-                kmBonus = request.getKilometrage() <= 50000 ? 8.0 : request.getKilometrage() <= 100000 ? 3.0 : -5.0;
-            }
-            // Bonus catégorie client
-            double clientBonus = 0.0;
-            if ("VIP".equalsIgnoreCase(request.getCategorieClient()))
-                clientBonus = 5.0;
-            else if ("PREMIUM".equalsIgnoreCase(request.getCategorieClient()))
-                clientBonus = 3.0;
-            else if ("PROFESSIONNEL".equalsIgnoreCase(request.getCategorieClient()))
-                clientBonus = 2.0;
-            // Bonus/malus mots-clés transcription audio (CDC: "mots-clés transcription
-            // audio")
-            double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText());
-            score = Math.min(98.0,
-                    Math.max(40.0, baseScore + rulesBonus + ageBonus + kmBonus + clientBonus + transcriptionBonus));
-            motif = matchedRules.get(0).getActionMotif();
-            ambiguous = false;
-
-        } else if (hasDefavorable && !hasFavorable) {
-            finalDecision = DECISION_DEFAVORABLE;
-            // Formule enrichie pour DEFAVORABLE
-            double baseScore = 55.0;
-            double rulesBonus = Math.min(20.0, matchedRules.size() * 8.0);
-            double ageMalus = 0.0;
-            if (request.getAgeVehiculeAns() != null) {
-                ageMalus = request.getAgeVehiculeAns() > 10 ? 10.0 : request.getAgeVehiculeAns() > 5 ? 5.0 : 0.0;
-            }
-            // Bonus/malus mots-clés transcription audio (CDC: "mots-clés transcription
-            // audio")
-            double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText());
-            score = Math.min(98.0, Math.max(40.0, baseScore + rulesBonus + ageMalus + transcriptionBonus));
-            motif = matchedRules.get(0).getActionMotif();
-            ambiguous = false;
-
         } else {
-            // Toutes les règles sont ETUDE
-            finalDecision = DECISION_ETUDE;
-            score = 45.0;
+            // Un seul type dominant (FAVORABLE, DEFAVORABLE ou toutes les règles sont ETUDE)
+            if (hasFavorable && !hasDefavorable) {
+                finalDecision = DECISION_FAVORABLE;
+                ambiguous = false;
+            } else if (hasDefavorable && !hasFavorable) {
+                finalDecision = DECISION_DEFAVORABLE;
+                ambiguous = false;
+            } else {
+                finalDecision = DECISION_ETUDE;
+                ambiguous = true;
+            }
+
+            if (DECISION_ETUDE.equals(finalDecision)) {
+                score = 45.0;
+            } else {
+                // Formule de scoring 100% dynamique pilotée par la base de données (somme des score_impact + transcription)
+                double baseScore = DECISION_FAVORABLE.equals(finalDecision) ? 65.0 : 35.0;
+                double dynamicBonus = matchedRules.stream()
+                        .mapToInt(r -> r.getScoreImpact() != null ? r.getScoreImpact() : 0)
+                        .sum();
+                dynamicBonus = Math.max(-50.0, Math.min(50.0, dynamicBonus));
+                double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText()) * 0.3;
+                double rawScore = baseScore + dynamicBonus + transcriptionBonus;
+                if (DECISION_FAVORABLE.equals(finalDecision)) {
+                    score = Math.min(98.0, Math.max(40.0, rawScore));
+                } else {
+                    score = Math.min(59.0, Math.max(10.0, rawScore));
+                }
+            }
             motif = matchedRules.get(0).getActionMotif();
-            ambiguous = true;
         }
 
         log.info("📊 Évaluation: {}/{} règles matchées → {} (score={}, ambiguous={})",
@@ -352,6 +416,30 @@ public class RuleService {
      * 3. Risque / exclusion (-5) → facteurs d'exclusion de garantie
      * 4. Fraude / abus (-7) → signaux de fraude potentielle
      */
+    private boolean hasNonNegatedOccurrence(String text, String kw) {
+        int index = text.indexOf(kw);
+        if (index == -1) {
+            return false;
+        }
+        while (index != -1) {
+            int lookBack = Math.max(0, index - 20);
+            String context = text.substring(lookBack, index);
+            boolean negated = context.contains("pas") || 
+                              context.contains("non") || 
+                              context.contains("ne ") || 
+                              context.contains("n'") || 
+                              context.contains("sans") || 
+                              context.contains("aucun") || 
+                              context.contains("plus") || 
+                              context.contains("jamais");
+            if (!negated) {
+                return true; // Found a clean, non-negated occurrence!
+            }
+            index = text.indexOf(kw, index + 1);
+        }
+        return false; // All occurrences of the keyword are negated
+    }
+
     private double analyzeTranscriptionKeywords(String transcriptionText) {
         if (transcriptionText == null || transcriptionText.isBlank())
             return 0.0;
@@ -370,7 +458,7 @@ public class RuleService {
                 "remplacement sous garantie", "prise en charge"
         };
         for (String kw : garantieKeywords) {
-            if (text.contains(kw)) {
+            if (hasNonNegatedOccurrence(text, kw)) {
                 bonus += 4.0;
                 matched.add("+" + kw);
             }
@@ -385,7 +473,7 @@ public class RuleService {
                 "facture entretien", "garagiste agréé", "concessionnaire"
         };
         for (String kw : entretienKeywords) {
-            if (text.contains(kw)) {
+            if (hasNonNegatedOccurrence(text, kw)) {
                 bonus += 3.0;
                 matched.add("+" + kw);
             }
@@ -402,7 +490,7 @@ public class RuleService {
                 "conduite sportive", "circuit", "course"
         };
         for (String kw : risqueKeywords) {
-            if (text.contains(kw)) {
+            if (hasNonNegatedOccurrence(text, kw)) {
                 bonus -= 5.0;
                 matched.add("-" + kw);
             }
@@ -417,7 +505,7 @@ public class RuleService {
                 "tuning", "reprogrammation moteur", "chiptuning"
         };
         for (String kw : fraudeKeywords) {
-            if (text.contains(kw)) {
+            if (hasNonNegatedOccurrence(text, kw)) {
                 bonus -= 7.0;
                 matched.add("⚠" + kw);
             }
@@ -444,6 +532,7 @@ public class RuleService {
                 .action(rule.getAction())
                 .actionMotif(rule.getActionMotif())
                 .priorite(rule.getPriorite())
+                .scoreImpact(rule.getScoreImpact())
                 .actif(rule.getActif())
                 .version(rule.getVersion())
                 .createdBy(rule.getCreatedBy())

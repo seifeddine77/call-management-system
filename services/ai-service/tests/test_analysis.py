@@ -120,7 +120,7 @@ class TestAnalyzeEndpoint:
         assert data["type_sinistre"] == "PANNE"
         assert data["sentiment"] == "NEGATIF"
         assert isinstance(data["keywords"], list)
-        assert data["confidence"] == 0.9  # piece found + sinistre found
+        assert data["confidence"] == pytest.approx(0.9)  # piece found + sinistre found
 
     def test_analyze_empty_text(self, client):
         """POST /analyze with empty text should return 400."""

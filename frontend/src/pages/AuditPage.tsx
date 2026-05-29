@@ -216,6 +216,13 @@ export default function AuditPage() {
         recommendation: !hasAudio ? 'Aucun enregistrement audio associé à cet appel' : undefined,
       });
       checks.push({
+        label: 'Chiffrement audio (AES-256-GCM)',
+        desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
+        ok: hasAudio,
+        icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
+        recommendation: !hasAudio ? 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements' : undefined,
+      });
+      checks.push({
         label: 'Transcription générée (Whisper)',
         desc: 'Art. 22 — Transparence du traitement automatisé',
         ok: hasTranscription,
@@ -309,92 +316,396 @@ export default function AuditPage() {
       const W = 210; const M = 15; const CW = W - 2 * M;
       let y = 20;
 
-      // Header
-      doc.setFillColor(99, 91, 255); doc.rect(0, 0, W, 35, 'F');
-      doc.setTextColor(255); doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-      doc.text('RAPPORT D\'AUDIT', M, 15);
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(`${ticket.numero} — Généré le ${new Date().toLocaleString('fr-FR')}`, M, 22);
-      doc.text('AutoAssist — Centre d\'Investigation', M, 28);
-      y = 45;
+      // Brand Colors (Deep Space Navy, Aurora Indigo, Aurora Teal)
 
-      // Client info
-      doc.setTextColor(60); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-      doc.text('1. Informations du ticket', M, y); y += 8;
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const info = [
-        ['Client', ticket.clientNom], ['N° Ticket', ticket.numero],
-        ['Canal', ticket.canal], ['Statut', ticket.statut],
-        ['Email', ticket.clientEmail || 'N/A'], ['Tél', ticket.clientTel || 'N/A'],
-        ['Créé le', new Date(ticket.createdAt).toLocaleString('fr-FR')],
-      ];
-      info.forEach(([k, v]) => { doc.setFont('helvetica', 'bold'); doc.text(`${k}:`, M, y); doc.setFont('helvetica', 'normal'); doc.text(String(v), M + 35, y); y += 5; });
-      y += 5;
+      // Page numbers & Header/Footer builder
+      const drawHeaderFooter = (pdfDoc: typeof doc, pageNum: number, totalPages: number) => {
+        // Top accent line for subsequent pages
+        if (pageNum > 1) {
+          pdfDoc.setFillColor(99, 91, 255);
+          pdfDoc.rect(0, 0, W, 3, 'F');
+          
+          pdfDoc.setFont('helvetica', 'normal');
+          pdfDoc.setFontSize(7.5);
+          pdfDoc.setTextColor(139, 146, 165);
+          pdfDoc.text(`Rapport d'Audit Complet — Ticket: ${ticket.numero}`, M, 10);
+          
+          pdfDoc.setDrawColor(226, 229, 235);
+          pdfDoc.setLineWidth(0.3);
+          pdfDoc.line(M, 12, W - M, 12);
+        }
 
-      // Performance
-      if (perf) {
-        doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-        doc.text('2. Métriques de performance', M, y); y += 8;
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-        doc.text(`Durée totale: ${fmtDuration(perf.totalDuration)}`, M, y); y += 5;
-        doc.text(`Assignation: ${perf.assignTime ? fmtDuration(perf.assignTime) : 'N/A'}`, M, y); y += 5;
-        doc.text(`Résolution: ${perf.resolveTime ? fmtDuration(perf.resolveTime) : 'N/A'}`, M, y); y += 5;
-        doc.text(`SLA: ${perf.slaOk ? 'CONFORME (< 4h)' : 'DÉPASSÉ'}`, M, y); y += 5;
-        doc.text(`Nombre d'actions: ${perf.actionCount}`, M, y); y += 8;
-      }
+        // Draw Footer
+        pdfDoc.setDrawColor(226, 229, 235);
+        pdfDoc.setLineWidth(0.3);
+        pdfDoc.line(M, 283, W - M, 283);
 
-      // Decision IA
-      if (decision) {
-        doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-        doc.text('3. Pipeline décisionnel IA', M, y); y += 8;
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-        doc.text(`Décision: ${decision.decision}`, M, y); y += 5;
-        doc.text(`Score de confiance: ${decision.score}%`, M, y); y += 5;
-        doc.text(`Source: ${decision.source}`, M, y); y += 5;
-        if (decision.rulesApplied.length > 0) { doc.text(`Règles: ${decision.rulesApplied.join(', ')}`, M, y); y += 5; }
-        const motifLines = doc.splitTextToSize(`Motif: ${decision.motif}`, CW);
-        doc.text(motifLines, M, y); y += motifLines.length * 4 + 3;
-        if (decision.finalDecision) { doc.text(`Décision superviseur: ${decision.finalDecision}`, M, y); y += 5; }
-        y += 5;
-      }
+        pdfDoc.setFont('helvetica', 'normal');
+        pdfDoc.setFontSize(7.5);
+        pdfDoc.setTextColor(139, 146, 165);
+        pdfDoc.text("Document confidentiel — Généré par le moteur d'audit AutoAssist", M, 288);
+        pdfDoc.text(`Page ${pageNum} / ${totalPages}`, W - M - 15, 288);
+      };
 
-      // Timeline
-      if (y > 240) { doc.addPage(); y = 20; }
-      doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-      doc.text(`4. Timeline (${timeline.length} événements)`, M, y); y += 8;
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-      timeline.forEach(ev => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        const ts = new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR');
-        doc.setFont('helvetica', 'bold'); doc.text(`[${ts}] ${ev.title}`, M, y);
-        doc.setFont('helvetica', 'normal');
-        const detailLines = doc.splitTextToSize(ev.detail, CW - 5);
-        doc.text(detailLines, M + 2, y + 4); y += 4 + detailLines.length * 3.5 + 3;
-      });
+      // Header Banner (Page 1)
+      doc.setFillColor(99, 91, 255); 
+      doc.rect(0, 0, W, 4, 'F'); // Top accent
+      
+      doc.setFillColor(14, 16, 23); // Dark Space Background
+      doc.rect(0, 4, W, 36, 'F');
 
-      // RGPD
-      if (y > 240) { doc.addPage(); y = 20; }
-      y += 3;
-      doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-      doc.text(`5. Conformité RGPD — Score: ${rgpdScore}%`, M, y); y += 8;
+      // Teal block accent next to title
+      doc.setFillColor(0, 212, 170);
+      doc.rect(M, 13, 1.5, 18, 'F');
+
+      doc.setTextColor(255); 
+      doc.setFontSize(16); 
+      doc.setFont('helvetica', 'bold');
+      doc.text("RAPPORT D'AUDIT & SÉCURITÉ", M + 5, 20);
+      
+      doc.setFontSize(8.5); 
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 212, 170);
+      doc.text("AUTOASSIST COMPLIANCE & DECISION TRACKING", M + 5, 26);
+      doc.setTextColor(139, 146, 165);
+      doc.text("Investigation complète · RGPD & Aide à la décision IA", M + 5, 31);
+
+      // Top right metadata
+      doc.setTextColor(255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(ticket.numero, W - M - 42, 19);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(139, 146, 165);
+      doc.text(`Généré le : ${new Date().toLocaleString('fr-FR')}`, W - M - 42, 24);
+      doc.text(`Canal : ${ticket.canal} · Statut : ${ticket.statut}`, W - M - 42, 29);
+
+      y = 52;
+
+      // Section header drawer
+      const drawSectionTitle = (title: string, currentY: number) => {
+        // Little violet indicator square
+        doc.setFillColor(99, 91, 255);
+        doc.rect(M, currentY, 3, 3, 'F');
+        doc.setTextColor(17, 19, 24);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, M + 5, currentY + 2.8);
+        
+        // Horizontal divider
+        doc.setDrawColor(226, 229, 235);
+        doc.setLineWidth(0.3);
+        doc.line(M, currentY + 5, W - M, currentY + 5);
+        return currentY + 11;
+      };
+
+      // ── Section 1: Ticket Information ──
+      y = drawSectionTitle("1. INFORMATIONS GÉNÉRALES DU DOSSIER", y);
+      
+      // Background rounded card for details
+      doc.setFillColor(247, 248, 250);
+      doc.setDrawColor(230, 233, 238);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(M, y, CW, 38, 2, 2, 'FD');
+
+      doc.setTextColor(17, 19, 24);
       doc.setFontSize(9);
-      rgpd.forEach(r => {
-        if (y > 275) { doc.addPage(); y = 20; }
-        const status = (r as any).na ? 'N/A' : r.ok ? '✓ CONFORME' : '✕ NON CONFORME';
-        doc.setFont('helvetica', 'bold'); doc.text(`${status} — ${r.label}`, M, y);
-        doc.setFont('helvetica', 'normal'); doc.text((r as any).desc || '', M + 2, y + 4); y += 10;
+      
+      const details = [
+        ['Client référent', ticket.clientNom, 'Canal d\'entrée', ticket.canal],
+        ['Numéro de dossier', ticket.numero, 'Statut du ticket', ticket.statut],
+        ['Adresse Email', ticket.clientEmail || 'Non spécifiée', 'N° Téléphone', ticket.clientTel || 'Non spécifié'],
+        ['Date de création', new Date(ticket.createdAt).toLocaleString('fr-FR'), 'Conseiller en charge', ticket.operateurName || 'Non assigné']
+      ];
+
+      let rowY = y + 7;
+      details.forEach(([k1, v1, k2, v2]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${k1} :`, M + 5, rowY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(v1), M + 38, rowY);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${k2} :`, M + 105, rowY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(v2), M + 142, rowY);
+        
+        rowY += 7;
+      });
+      y += 46;
+
+      // ── Section 2: Performance metrics ──
+      if (perf) {
+        y = drawSectionTitle("2. ANALYSE ET INDEX DE PERFORMANCE (SLA)", y);
+
+        // Three columns metrics layout
+        const colW = (CW - 6) / 3;
+        
+        // Box 1: Total duration
+        doc.setFillColor(247, 248, 250);
+        doc.roundedRect(M, y, colW, 18, 2, 2, 'F');
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(74, 81, 104);
+        doc.text("DURÉE TOTALE", M + 4, y + 5);
+        doc.setFontSize(10.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(17, 19, 24);
+        doc.text(fmtDuration(perf.totalDuration), M + 4, y + 12);
+
+        // Box 2: Assignment duration
+        doc.setFillColor(247, 248, 250);
+        doc.roundedRect(M + colW + 3, y, colW, 18, 2, 2, 'F');
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(74, 81, 104);
+        doc.text("TEMPS D'ASSIGNATION", M + colW + 7, y + 5);
+        doc.setFontSize(10.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(17, 19, 24);
+        doc.text(perf.assignTime ? fmtDuration(perf.assignTime) : 'Immédiat', M + colW + 7, y + 12);
+
+        // Box 3: Resolution duration
+        doc.setFillColor(247, 248, 250);
+        doc.roundedRect(M + 2 * colW + 6, y, colW, 18, 2, 2, 'F');
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(74, 81, 104);
+        doc.text("TEMPS DE RÉSOLUTION", M + 2 * colW + 10, y + 5);
+        doc.setFontSize(10.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(17, 19, 24);
+        doc.text(perf.resolveTime ? fmtDuration(perf.resolveTime) : 'N/A', M + 2 * colW + 10, y + 12);
+
+        y += 24;
+
+        // SLA Card
+        doc.setLineWidth(0.3);
+        if (perf.slaOk) {
+          doc.setFillColor(240, 253, 250); // Soft emerald green bg
+          doc.setDrawColor(153, 246, 228);  // Soft emerald border
+          doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
+          doc.setTextColor(15, 118, 110);   // Dark green text
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'bold');
+          doc.text("✓ CONFORMITÉ SLA : Dossier traité dans les temps impartis (< 4 heures)", M + 5, y + 6.5);
+        } else {
+          doc.setFillColor(254, 242, 242); // Soft red bg
+          doc.setDrawColor(254, 202, 202);  // Soft red border
+          doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
+          doc.setTextColor(185, 28, 28);    // Dark red text
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'bold');
+          doc.text("✕ DÉPASSEMENT SLA : Temps de traitement hors objectif (> 4 heures)", M + 5, y + 6.5);
+        }
+        y += 18;
+      }
+
+      // ── Section 3: IA Decision ──
+      if (decision) {
+        y = drawSectionTitle("3. PIPELINE DÉCISIONNEL & INTELLIGENCE ARTIFICIELLE", y);
+
+        // General Card with Left Indigo Accent
+        doc.setFillColor(247, 248, 250);
+        doc.roundedRect(M, y, CW, 45, 2, 2, 'F');
+        doc.setFillColor(99, 91, 255);
+        doc.rect(M, y, 2.5, 45, 'F'); // Left accent line
+
+        doc.setTextColor(17, 19, 24);
+        doc.setFontSize(9);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text("Décision automatique calculée :", M + 7, y + 6);
+        doc.setFont('helvetica', 'normal');
+        
+        // Decision status color-coding
+        const isFavorable = decision.decision.toLowerCase().includes('favor') || decision.decision.toLowerCase().includes('accept');
+        const isDefavorable = decision.decision.toLowerCase().includes('défavor') || decision.decision.toLowerCase().includes('refus');
+        
+        if (isFavorable) {
+          doc.setTextColor(0, 196, 140);
+          doc.setFont('helvetica', 'bold');
+        } else if (isDefavorable) {
+          doc.setTextColor(255, 71, 87);
+          doc.setFont('helvetica', 'bold');
+        } else {
+          doc.setTextColor(255, 176, 32);
+          doc.setFont('helvetica', 'bold');
+        }
+        doc.text(decision.decision, M + 60, y + 6);
+
+        // Restore normal text color
+        doc.setTextColor(17, 19, 24);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Score de confiance IA :", M + 7, y + 13);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${decision.score} %`, M + 60, y + 13);
+
+        // Confidence Score Progress Bar Mockup
+        doc.setFillColor(220, 224, 230);
+        doc.roundedRect(M + 80, y + 10.5, 50, 2.5, 1, 1, 'F');
+        
+        if (isFavorable) doc.setFillColor(0, 196, 140);
+        else if (isDefavorable) doc.setFillColor(255, 71, 87);
+        else doc.setFillColor(255, 176, 32);
+        
+        doc.roundedRect(M + 80, y + 10.5, 50 * (decision.score / 100), 2.5, 1, 1, 'F');
+
+        doc.setTextColor(17, 19, 24);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Source de décision :", M + 7, y + 20);
+        doc.setFont('helvetica', 'normal');
+        doc.text(decision.source, M + 60, y + 20);
+
+        if (decision.rulesApplied.length > 0) {
+          doc.setFont('helvetica', 'bold');
+          doc.text("Règles appliquées :", M + 7, y + 27);
+          doc.setFont('helvetica', 'normal');
+          doc.text(decision.rulesApplied.join(', '), M + 60, y + 27);
+        }
+
+        // Draw a clean box for the explanation Motif
+        doc.setFillColor(238, 241, 246);
+        doc.roundedRect(M + 7, y + 31, CW - 14, 11, 1.5, 1.5, 'F');
+        
+        doc.setFont('helvetica', 'oblique');
+        doc.setFontSize(8);
+        doc.setTextColor(74, 81, 104);
+        const motifLines = doc.splitTextToSize(`Explication (Motif) : ${decision.motif}`, CW - 20);
+        doc.text(motifLines, M + 10, y + 35);
+
+        y += 52;
+      }
+
+      // ── Section 4: Timeline ──
+      // Dynamic page overflow protection
+      if (y > 200) { doc.addPage(); y = 20; }
+      y = drawSectionTitle(`4. HISTORIQUE & TRACABILITÉ D'AUDIT (${timeline.length} événements)`, y);
+      
+      const timelineStartY = y;
+      let timelineEndY = y;
+      
+      doc.setFontSize(8);
+      timeline.forEach((ev) => {
+        if (y > 260) {
+          // Draw connecting line for this page
+          doc.setDrawColor(226, 229, 235);
+          doc.setLineWidth(0.6);
+          doc.line(M + 4, timelineStartY, M + 4, y - 10);
+
+          doc.addPage(); 
+          y = 20;
+        }
+
+        const ts = new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR');
+        
+        // Node circle
+        doc.setFillColor(99, 91, 255);
+        doc.circle(M + 4, y + 1, 1.5, 'F');
+
+        doc.setTextColor(17, 19, 24);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`[${ts}] ${ev.title}`, M + 9, y + 2);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(74, 81, 104);
+        const detailLines = doc.splitTextToSize(ev.detail, CW - 15);
+        doc.text(detailLines, M + 9, y + 5.5);
+        
+        y += 5.5 + detailLines.length * 3.5 + 4;
+        timelineEndY = y - 6;
       });
 
-      // Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
+      // Draw the connecting vertical line passing behind all node dots
+      if (timelineEndY > timelineStartY) {
+        doc.setDrawColor(226, 229, 235);
+        doc.setLineWidth(0.6);
+        doc.line(M + 4, timelineStartY, M + 4, timelineEndY);
+      }
+      y += 8;
+
+      // ── Section 5: GDPR / RGPD Compliance ──
+      if (y > 210) { doc.addPage(); y = 20; }
+      y = drawSectionTitle(`5. CONFORMITÉ RÉGLEMENTAIRE & RGPD`, y);
+
+      // Score Header Box
+      const getScoreColor = (score: number) => {
+        if (score >= 90) return { bg: [240, 253, 250], border: [153, 246, 228], text: [15, 118, 110] }; // emerald
+        if (score >= 70) return { bg: [255, 251, 235], border: [253, 230, 138], text: [180, 83, 9] };   // amber
+        return { bg: [254, 242, 242], border: [254, 202, 202], text: [185, 28, 28] };                // rose
+      };
+      
+      const scColor = getScoreColor(rgpdScore);
+      doc.setFillColor(scColor.bg[0], scColor.bg[1], scColor.bg[2]);
+      doc.setDrawColor(scColor.border[0], scColor.border[1], scColor.border[2]);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(M, y, CW, 14, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(scColor.text[0], scColor.text[1], scColor.text[2]);
+      doc.text(`INDICE GLOBAL DE CONFORMITÉ RGPD : ${rgpdScore} %`, M + 6, y + 8.5);
+
+      y += 22;
+
+      // List each compliance item
+      rgpd.forEach((r) => {
+        if (y > 262) { doc.addPage(); y = 20; }
+
+        const isNa = (r as any).na;
+        const isOk = r.ok;
+        
+        // Draw badge box
+        if (isNa) {
+          doc.setFillColor(243, 244, 246); // gray
+          doc.setDrawColor(229, 231, 235);
+          doc.setTextColor(107, 114, 128);
+        } else if (isOk) {
+          doc.setFillColor(240, 253, 250); // emerald green
+          doc.setDrawColor(153, 246, 228);
+          doc.setTextColor(15, 118, 110);
+        } else {
+          doc.setFillColor(254, 242, 242); // rose red
+          doc.setDrawColor(254, 202, 202);
+          doc.setTextColor(185, 28, 28);
+        }
+
+        doc.setLineWidth(0.2);
+        doc.roundedRect(M, y, 32, 6, 1, 1, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        
+        const badgeLabel = isNa ? "N/A" : isOk ? "✓ CONFORME" : "✕ REFUSÉ";
+        doc.text(badgeLabel, M + 4, y + 4.2);
+
+        // Description title
+        doc.setTextColor(17, 19, 24);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(r.label, M + 36, y + 4.5);
+
+        // Description detail
+        doc.setTextColor(74, 81, 104);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        const descLines = doc.splitTextToSize((r as any).desc || '', CW - 38);
+        doc.text(descLines, M + 36, y + 9);
+        
+        y += 9 + descLines.length * 3.5 + 4;
+      });
+
+      // Apply dynamic Page Numbers & Header/Footers on all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(7); doc.setTextColor(150);
-        doc.text(`AutoAssist — Rapport d'audit confidentiel — Page ${i}/${pageCount}`, M, 290);
+        drawHeaderFooter(doc, i, totalPages);
       }
 
       doc.save(`audit_${ticket.numero}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch { /* silent */ }
+    } catch (err) {
+      /* silent */
+    }
     finally { setExporting(false); }
   }, [ticket, decision, perf, timeline, rgpd, rgpdScore]);
 

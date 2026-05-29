@@ -165,7 +165,7 @@ class DecisionServiceImplTest {
     }
 
     @Test
-    @DisplayName("analyze — rules DEFAVORABLE, score >= 60 → retour DEFAVORABLE")
+    @DisplayName("analyze — rules DEFAVORABLE, score < 60 → retour DEFAVORABLE")
     void analyze_rulesDefavorable_returnsDefavorable() {
         when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -173,7 +173,7 @@ class DecisionServiceImplTest {
 
         RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
                 .decision(DEFAVORABLE)
-                .score(70.0)
+                .score(35.0)
                 .motif("Kilométrage trop élevé")
                 .rulesApplied(List.of("Règle kilométrage"))
                 .ambiguous(false)
@@ -185,7 +185,7 @@ class DecisionServiceImplTest {
                 .id(UUID.randomUUID())
                 .ticketId(baseRequest.getTicketId())
                 .decision(DEFAVORABLE)
-                .score(BigDecimal.valueOf(70.0))
+                .score(BigDecimal.valueOf(35.0))
                 .motif("Kilométrage trop élevé")
                 .source(SOURCE_RULES)
                 .build();

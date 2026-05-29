@@ -1,31 +1,28 @@
 # ============================================================
-# Alertmanager — Routes alerts to n8n webhook
+# Alertmanager — Envoi direct d'e-mails via SMTP Gmail
 # ============================================================
 global:
   resolve_timeout: 5m
+  
+  # ── Configuration SMTP Globale (Gmail) ──
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'saifrezgui77@gmail.com'
+  smtp_auth_username: 'saifrezgui77@gmail.com'
+  smtp_auth_password: 'dskrwxfgfitdxyxc'  
+  smtp_require_tls: true
 
 route:
   group_by: ['alertname', 'job']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
-  receiver: 'n8n-webhook'
-  routes:
-    # Critical → immediate notification
-    - match:
-        severity: critical
-      receiver: 'n8n-webhook'
-      group_wait: 10s
-      repeat_interval: 1h
-    # Warning → grouped
-    - match:
-        severity: warning
-      receiver: 'n8n-webhook'
-      group_wait: 1m
-      repeat_interval: 4h
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  receiver: 'email-direct'
 
 receivers:
-  - name: 'n8n-webhook'
-    webhook_configs:
-      - url: 'http://n8n:5678/webhook/prometheus-alert'
+  - name: 'email-direct'
+    email_configs:
+      - to: 'saifrezgui77@gmail.com'
         send_resolved: true
+        # Personnalisation du sujet du mail
+        headers:
+          subject: '{{ if eq .Status "firing" }}🔴[ALERTE] {{ else }}✅[RÉSOLU] {{ end }}{{ .CommonLabels.alertname }} sur {{ .CommonLabels.job }}'

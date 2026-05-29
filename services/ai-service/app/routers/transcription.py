@@ -16,11 +16,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.crypto import AudioCrypto
 from app.core.database import get_db
 from app.models import AudioRecord
 from app.schemas import AudioRecordResponse, TranscribeResponse
 
 logger = logging.getLogger("ai-service.transcription")
+
+audio_crypto = AudioCrypto(settings.AUDIO_ENCRYPTION_KEY)
+
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 
@@ -84,10 +88,31 @@ async def transcribe_audio(
     saved_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(ticket_dir, saved_filename)
 
+    # Check if content is already encrypted
+    is_encrypted = False
+    if audio_crypto.is_enabled():
+        try:
+            # Try to decrypt. If it succeeds, it's already encrypted!
+            _ = audio_crypto.decrypt(content)
+            is_encrypted = True
+            logger.info("Incoming audio file is already encrypted.")
+        except Exception:
+            # It's plaintext
+            is_encrypted = False
+
+    # If key is enabled and the content is not already encrypted, encrypt it
+    if audio_crypto.is_enabled() and not is_encrypted:
+        try:
+            content = audio_crypto.encrypt(content)
+            logger.info(f"Plaintext audio file encrypted before saving on disk ({len(content)} bytes).")
+        except Exception as e:
+            logger.error(f"Failed to encrypt file on save: {e}")
+            raise HTTPException(status_code=500, detail=f"Erreur de chiffrement: {e}")
+
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
 
-    logger.info(f"Audio saved: {file_path} ({len(content)} bytes)")
+    logger.info("Audio saved: %s (%d bytes)", file_path, len(content))
 
     # ── Create DB record ────────────────────────────────────────
     record = AudioRecord(
@@ -108,8 +133,34 @@ async def transcribe_audio(
         )
 
     # ── Transcribe with Whisper ─────────────────────────────────
+    temp_transcribe_path = file_path
+    temp_file = None
     try:
-        result = whisper_model.transcribe(file_path, language="fr", fp16=False)
+        # Check if the file is encrypted and decrypt it to a temporary file for Whisper
+        if audio_crypto.is_enabled():
+            try:
+                with open(file_path, "rb") as rf:
+                    encrypted_data = rf.read()
+
+                # Decrypt
+                decrypted_data = audio_crypto.decrypt(encrypted_data)
+
+                # Create a secure temporary file
+                import tempfile
+                ext = os.path.splitext(file_path)[1] or ".wav"
+                temp_file = tempfile.NamedTemporaryFile(suffix=ext, dir=ticket_dir, delete=False)
+                temp_file.write(decrypted_data)
+                temp_file.flush()
+                temp_file.close()
+
+                temp_transcribe_path = temp_file.name
+                logger.info(f"Temporary decrypted file created for Whisper: {temp_transcribe_path}")
+            except Exception as dec_err:
+                # Decryption failed (meaning it's already plaintext, e.g. an old or unencrypted file)
+                logger.warning(f"File {file_path} could not be decrypted. Treating as plaintext. Error: {dec_err}")
+                temp_transcribe_path = file_path
+
+        result = whisper_model.transcribe(temp_transcribe_path, language="fr", fp16=False)
 
         text = result.get("text", "").strip()
         raw_segments = result.get("segments", [])
@@ -138,8 +189,8 @@ async def transcribe_audio(
         record.status = "DONE"
         db.commit()
 
-        logger.info(f"Transcription done for ticket {ticket_id}: {len(text)} chars, "
-                     f"confidence={confidence}, duration={duration_seconds}s")
+        logger.info("Transcription done for ticket %s: %d chars, confidence=%s, duration=%ss",
+                     ticket_id, len(text), confidence, duration_seconds)
 
         return TranscribeResponse(
             ticket_id=ticket_id,
@@ -155,6 +206,16 @@ async def transcribe_audio(
         record.error_message = str(e)
         db.commit()
         raise HTTPException(status_code=500, detail=f"Erreur de transcription: {e}")
+
+    finally:
+        # Securely remove temporary decrypted file if created
+        if temp_file and os.path.exists(temp_transcribe_path) and temp_transcribe_path != file_path:
+            try:
+                os.remove(temp_transcribe_path)
+                logger.info(f"Temporary decrypted file securely deleted: {temp_transcribe_path}")
+            except OSError as cleanup_err:
+                logger.warning(f"Failed to delete temporary decrypted file {temp_transcribe_path}: {cleanup_err}")
+
 
 
 @router.post("/quick")
@@ -177,12 +238,22 @@ async def quick_transcribe(
     if len(content) > MAX_SIZE_BYTES:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux.")
 
+    # Try to decrypt if encrypted
+    if audio_crypto.is_enabled():
+        try:
+            content = audio_crypto.decrypt(content)
+            logger.info("Quick transcription: decrypted incoming encrypted audio.")
+        except Exception:
+            # Ignore decryption error, treat as plaintext
+            pass
+
     # Save to temp file
     tmp_path = os.path.join(settings.AUDIO_STORAGE_PATH, f"wa_{uuid.uuid4()}.ogg")
     os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
 
     async with aiofiles.open(tmp_path, "wb") as f:
         await f.write(content)
+
 
     try:
         result = whisper_model.transcribe(tmp_path, language="fr", fp16=False)

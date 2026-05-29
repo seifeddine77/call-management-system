@@ -1,0 +1,1742 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: autoassist
+data:
+  microservices-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "title": "AutoAssist — Microservices Overview",
+      "uid": "autoassist-overview",
+      "version": 2,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "name": "service",
+            "type": "query",
+            "query": "label_values(up, job)",
+            "datasource": "${datasource}",
+            "multi": true,
+            "includeAll": true,
+            "current": { "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "📊 VUE D'ENSEMBLE DES SERVICES",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "Services Status",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "count(up == 1)", "legendFormat": "UP" }, { "expr": "count(up == 0)", "legendFormat": "DOWN" }],
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } } }
+        },
+        {
+          "title": "Service Health Map",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "up", "legendFormat": "{{job}}", "format": "table", "instant": true }],
+          "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true } } }]
+        },
+        {
+          "title": "Eureka Registered Instances",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "eureka_server_registered_count", "legendFormat": "instances" }]
+        },
+        {
+          "title": "API Gateway Routes",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "spring_cloud_gateway_routes_count", "legendFormat": "routes" }]
+        },
+        {
+          "title": "⚡ TRAFIC & PERFORMANCE HTTP",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+          "collapsed": false
+        },
+        {
+          "title": "Request Rate (req/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate({__name__=~\"http_server_requests_seconds_count|http_request_duration_seconds_count\", job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+        },
+        {
+          "title": "Error Rate (5xx)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate({__name__=~\"http_server_requests_seconds_count|http_request_duration_seconds_count\", status=~\"5..\", job=~\"$service\"}[5m])) by (job)", "legendFormat": "{{job}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 20 } } }
+        },
+        {
+          "title": "Response Time P95 (ms)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 22 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "histogram_quantile(0.95, sum(rate({__name__=~\"http_server_requests_seconds_bucket|http_request_duration_seconds_bucket\", job=~\"$service\"}[5m])) by (le, job)) * 1000", "legendFormat": "{{job}}" }],
+          "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "Active HTTP Connections",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(http_server_requests_active_count{job=~\"$service\"}) by (job)", "legendFormat": "{{job}}" }]
+        },
+        {
+          "title": "🧠 SYNTHÈSE IA & RÉSILIENCE",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+          "collapsed": false
+        },
+        {
+          "title": "Circuit Breaker State (LLM)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 31 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "(resilience4j_circuitbreaker_state{name=\"llm\", state=\"closed\"} == 1) * 0 or (resilience4j_circuitbreaker_state{name=\"llm\", state=\"open\"} == 1) * 1 or (resilience4j_circuitbreaker_state{name=\"llm\", state=\"half_open\"} == 1) * 2",
+              "legendFormat": "State"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": { "text": "CLOSED (Normal)", "color": "green" },
+                    "1": { "text": "OPEN (Active Tripped)", "color": "red" },
+                    "2": { "text": "HALF-OPEN (Testing)", "color": "orange" }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 },
+                  { "color": "orange", "value": 2 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "title": "AI Inference Latency P95 (Seconds)",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 31 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=~\"/transcribe/|/chat/\"}[5m])) by (le, handler))",
+              "legendFormat": "{{handler}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth"
+              }
+            }
+          },
+          "options": {
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  jvm-details.json: |
+    {
+      "title": "AutoAssist — JVM Details",
+      "uid": "autoassist-jvm",
+      "version": 2,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "name": "service",
+            "type": "query",
+            "query": "label_values(jvm_memory_used_bytes, job)",
+            "datasource": "${datasource}",
+            "multi": false,
+            "current": { "text": "auth-service", "value": "auth-service" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "🧠 MÉMOIRE JVM & RAM",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "JVM Heap Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "jvm_memory_used_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Used" },
+            { "expr": "jvm_memory_committed_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Committed" },
+            { "expr": "jvm_memory_max_bytes{job=\"$service\", area=\"heap\"}", "legendFormat": "Max" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15 } } }
+        },
+        {
+          "title": "JVM Non-Heap Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "jvm_memory_used_bytes{job=\"$service\", area=\"nonheap\"}", "legendFormat": "Used" },
+            { "expr": "jvm_memory_committed_bytes{job=\"$service\", area=\"nonheap\"}", "legendFormat": "Committed" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15 } } }
+        },
+        {
+          "title": "GC Pause Time",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 9 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rate(jvm_gc_pause_seconds_sum{job=\"$service\"}[5m])", "legendFormat": "{{cause}} — {{action}}" }],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "🧵 PROCESSUS & CPU",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+          "collapsed": false
+        },
+        {
+          "title": "Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "jvm_threads_live_threads{job=\"$service\"}", "legendFormat": "Live" },
+            { "expr": "jvm_threads_daemon_threads{job=\"$service\"}", "legendFormat": "Daemon" },
+            { "expr": "jvm_threads_peak_threads{job=\"$service\"}", "legendFormat": "Peak" }
+          ]
+        },
+        {
+          "title": "CPU Usage",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "process_cpu_usage{job=\"$service\"}", "legendFormat": "CPU" }],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 0.8 }] } } }
+        },
+        {
+          "title": "Uptime",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "process_uptime_seconds{job=\"$service\"}", "legendFormat": "Uptime" }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "title": "🔌 POOL DE CONNEXIONS BDD (HIKARICP)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+          "collapsed": false
+        },
+        {
+          "title": "HikariCP — Connection Pool",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "hikaricp_connections_active{job=\"$service\"}", "legendFormat": "Active" },
+            { "expr": "hikaricp_connections_idle{job=\"$service\"}", "legendFormat": "Idle" },
+            { "expr": "hikaricp_connections_max{job=\"$service\"}", "legendFormat": "Max" },
+            { "expr": "hikaricp_connections_pending{job=\"$service\"}", "legendFormat": "Pending" }
+          ]
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  business-kpis.json: |
+    {
+      "annotations": { "list": [] },
+      "title": "AutoAssist — Business KPIs & Operations",
+      "uid": "autoassist-business-kpis",
+      "version": 1,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "tags": ["business", "kpi", "ops", "tickets", "decisions"],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "📞 ACQUISITION DES CANAUX (COMMUNICATIONS)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "Incoming Voice Calls Rate",
+          "description": "Nombre d'appels reçus par seconde via le canal voix (Twilio)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/call\"}[5m]))", "legendFormat": "Appels/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#5794F2" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Incoming Emails Rate",
+          "description": "Nombre d'emails reçus par seconde pour traitement",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/email\"}[5m]))", "legendFormat": "Emails/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#FFB347" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Web Portal Submissions Rate",
+          "description": "Nombre de formulaires soumis par seconde sur l'interface Web",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/web\"}[5m]))", "legendFormat": "Web/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#73BF69" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Channels Ingestion Activity",
+          "description": "Activité d'ingestion par canal d'entrée",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/call\"}[5m]))", "legendFormat": "🎤 Voice Calls" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/email\"}[5m]))", "legendFormat": "📧 Emails Ingested" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/web\"}[5m]))", "legendFormat": "💻 Web Portal" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "gradientMode": "scheme",
+                "lineInterpolation": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "title": "🎫 GESTION DES TICKETS & CONFORMITÉ",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+          "collapsed": false
+        },
+        {
+          "title": "Ticket Creation Rate",
+          "description": "Débit de création de nouveaux tickets d'assistance",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 12, "x": 0, "y": 15 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets\", method=\"POST\"}[5m]))", "legendFormat": "Tickets/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#8AB8FF", "value": null },
+                  { "color": "#73BF69", "value": 0.1 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "GDPR Right to be Forgotten (Anonymizations)",
+          "description": "Demandes d'anonymisation RGPD traitées par seconde",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 12, "x": 12, "y": 15 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/anonymize\", method=\"POST\"}[5m]))", "legendFormat": "Anonymisations/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#9966FF" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Ticket Management Operations",
+          "description": "Volume des opérations d'administration des tickets",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets\", method=\"POST\"}[5m]))", "legendFormat": "🎫 New Tickets Created" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/statut\", method=\"PATCH\"}[5m]))", "legendFormat": "🔄 Status Transitions" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/assign\", method=\"PATCH\"}[5m]))", "legendFormat": "👤 Operator Assignments" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/anonymize\", method=\"POST\"}[5m]))", "legendFormat": "🛡️ GDPR Anonymizations" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "lineInterpolation": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "title": "⚖️ AIDE À LA DÉCISION (IA & RÈGLES)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+          "collapsed": false
+        },
+        {
+          "title": "Decision Analysis Throughput",
+          "description": "Requêtes d'évaluation envoyées au moteur de décision (IA/Règles)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 12, "x": 0, "y": 29 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/analyze\", method=\"POST\"}[5m]))", "legendFormat": "Analyses/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#00C0EF" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Decision Analysis Latency P95 (ms)",
+          "description": "Latence au 95ème percentile du processus complet de décision (RAG + Règles + LLM)",
+          "type": "timeseries",
+          "gridPos": { "h": 5, "w": 12, "x": 12, "y": 29 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"decision-service\", uri=\"/api/decisions/analyze\"}[5m])) by (le)) * 1000", "legendFormat": "P95 Latency" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15
+              }
+            }
+          }
+        },
+        {
+          "title": "🙋‍♀️ ACTIVITÉ DES OPÉRATEURS & RAPPORTS",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+          "collapsed": false
+        },
+        {
+          "title": "LLM Recommendations Accepted",
+          "description": "Validation directe de la recommandation de l'IA par l'opérateur",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 0, "y": 35 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/accept\", method=\"POST\"}[5m]))", "legendFormat": "Accords/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#73BF69" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "LLM Recommendations Overridden (Rejected)",
+          "description": "Rejet de la recommandation de l'IA et override manuel par l'opérateur",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 8, "y": 35 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/reject\", method=\"POST\"}[5m]))", "legendFormat": "Overrides/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#F2495C" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "PDF Decision Letters Generated",
+          "description": "Nombre de courriers de décisions officiels générés en PDF",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 8, "x": 16, "y": 35 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/letter\", method=\"GET\"}[5m]))", "legendFormat": "Courriers/s" }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": { "mode": "fixed", "fixedColor": "#9966FF" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Operator Overrides Activity",
+          "description": "Suivi des validations vs overrides par les opérateurs",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/accept\", method=\"POST\"}[5m]))", "legendFormat": "✅ Validate LLM Recomm." },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/reject\", method=\"POST\"}[5m]))", "legendFormat": "⚠️ Override LLM Recomm. (Reject)" },
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/letter\", method=\"GET\"}[5m]))", "legendFormat": "📄 PDF Letters Downloaded" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "gradientMode": "scheme",
+                "lineInterpolation": "smooth"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Validate.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Override.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+              }
+            ]
+          }
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  jenkins-pipeline.json: |
+    {
+      "title": "AutoAssist — Jenkins Pipeline",
+      "uid": "autoassist-jenkins",
+      "version": 1,
+      "time": { "from": "now-24h", "to": "now" },
+      "refresh": "30s",
+      "panels": [
+        {
+          "title": "Build Duration (last 20)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 0 },
+          "targets": [{ "expr": "jenkins_job_duration_seconds", "legendFormat": "{{jobName}}" }],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "drawStyle": "bars", "fillOpacity": 50 } } }
+        },
+        {
+          "title": "Build Success Rate",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "jenkins_job_last_build_result_ordinal == 0", "legendFormat": "Success" }],
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "green", "value": 0.9 }] } } }
+        },
+        {
+          "title": "Jenkins Queue Length",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+          "targets": [{ "expr": "jenkins_queue_size_value", "legendFormat": "Queued" }]
+        },
+        {
+          "title": "Jenkins Executors — Busy",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 },
+          "targets": [{ "expr": "jenkins_executor_in_use_value", "legendFormat": "Busy" }]
+        },
+        {
+          "title": "Jenkins Nodes Online",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 },
+          "targets": [{ "expr": "jenkins_node_online_value", "legendFormat": "Online" }]
+        },
+        {
+          "title": "Pipeline Stage Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "targets": [{ "expr": "jenkins_job_stage_duration_seconds", "legendFormat": "{{stageName}}" }],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "drawStyle": "bars", "fillOpacity": 30 } } }
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  ai-resilience.json: |
+    {
+      "annotations": { "list": [] },
+      "title": "AutoAssist — AI & Resilience",
+      "uid": "autoassist-ai-resilience",
+      "description": "Monitoring des modèles IA (Whisper STT, Gemma 4 LLM) et de la résilience du Circuit Breaker LLM",
+      "version": 2,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "tags": ["ai", "resilience4j", "whisper", "gemma", "circuit-breaker"],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "current": {
+              "selected": true,
+              "value": "llm",
+              "text": "llm"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Circuit Breaker",
+            "multi": false,
+            "name": "circuit_breaker",
+            "options": [],
+            "query": "label_values(resilience4j_circuitbreaker_state, name)",
+            "datasource": "${datasource}",
+            "refresh": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "🤖 AI SERVICE — INFERENCE MONITORING",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "Whisper Transcription — Latency P95",
+          "description": "95th percentile latency of Whisper STT transcription requests (/transcribe/)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+              "legendFormat": "P95"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 10 },
+                  { "color": "#F2495C", "value": 30 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "textMode": "value_and_name",
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Gemma 4 RAG Chat — Latency P95",
+          "description": "95th percentile latency of LLM-powered RAG chat requests (/chat/)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+              "legendFormat": "P95"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 5 },
+                  { "color": "#F2495C", "value": 15 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "textMode": "value_and_name",
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "AI Request Rate",
+          "description": "Requêtes par seconde vers les endpoints AI (transcription + chat + analyse)",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\"}[5m]))",
+              "legendFormat": "req/s"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#8AB8FF", "value": null },
+                  { "color": "#73BF69", "value": 0.1 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "AI Error Rate (5xx)",
+          "description": "Taux d'erreur des endpoints AI",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\", status=~\"5..\"}[5m])) / sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\"}[5m])) * 100",
+              "legendFormat": "Error %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 5 },
+                  { "color": "#F2495C", "value": 20 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "noValue": "0%"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "AI Uptime",
+          "description": "AI Service availability",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "up{job=\"ai-service\"}",
+              "legendFormat": "AI Service"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "#F2495C" }, "1": { "text": "UP", "color": "#73BF69" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#F2495C", "value": null },
+                  { "color": "#73BF69", "value": 1 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "title": "AI Inference Latency — Time Series",
+          "description": "Latence d'inférence détaillée par endpoint AI (P50, P95, P99)",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+              "legendFormat": "Whisper P50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+              "legendFormat": "Whisper P95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+              "legendFormat": "Whisper P99"
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+              "legendFormat": "Gemma Chat P50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+              "legendFormat": "Gemma Chat P95"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "gradientMode": "scheme",
+                "showPoints": "auto",
+                "pointSize": 5,
+                "spanNulls": true,
+                "lineInterpolation": "smooth"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*P99.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "AI Request Rate — Time Series",
+          "description": "Nombre de requêtes par seconde vers chaque endpoint AI",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/transcribe/\"}[5m]))",
+              "legendFormat": "🎤 Whisper STT"
+            },
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/chat/\"}[5m]))",
+              "legendFormat": "🤖 Gemma RAG Chat"
+            },
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/analyze/\"}[5m]))",
+              "legendFormat": "🔍 NLP Analysis"
+            },
+            {
+              "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/quick\"}[5m]))",
+              "legendFormat": "📱 WhatsApp Quick STT"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "gradientMode": "scheme",
+                "lineInterpolation": "smooth",
+                "stacking": { "mode": "normal" }
+              }
+            }
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "mean", "lastNotNull"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "🛡️ RESILIENCE4J — CIRCUIT BREAKER ($circuit_breaker)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+          "collapsed": false
+        },
+        {
+          "title": "Circuit Breaker State",
+          "description": "État actuel du Circuit Breaker '$circuit_breaker' : CLOSED (✅ normal), OPEN (🔴 coupé), HALF_OPEN (🟡 test)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"closed\"}",
+              "legendFormat": "closed",
+              "hide": true
+            },
+            {
+              "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"open\"}",
+              "legendFormat": "open",
+              "hide": true
+            },
+            {
+              "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"half_open\"}",
+              "legendFormat": "half_open",
+              "hide": true
+            },
+            {
+              "expr": "(resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"closed\"} == 1) * 0 or (resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"open\"} == 1) * 1 or (resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"half_open\"} == 1) * 2",
+              "legendFormat": "CB State"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": { "text": "✅ CLOSED", "color": "#73BF69" },
+                    "1": { "text": "🔴 OPEN", "color": "#F2495C" },
+                    "2": { "text": "🟡 HALF-OPEN", "color": "#FF9830" }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#F2495C", "value": 1 },
+                  { "color": "#FF9830", "value": 2 }
+                ]
+              },
+              "noValue": "⚪ NO DATA"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value",
+            "orientation": "auto"
+          }
+        },
+        {
+          "title": "Failure Rate",
+          "description": "Taux d'échec du Circuit Breaker $circuit_breaker (seuil configuré : 60%)",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_failure_rate{name=\"$circuit_breaker\"}",
+              "legendFormat": "Failure Rate"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 30 },
+                  { "color": "#F2495C", "value": 60 }
+                ]
+              },
+              "noValue": "0%"
+            }
+          },
+          "options": {
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true,
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          }
+        },
+        {
+          "title": "Slow Call Rate",
+          "description": "Taux d'appels lents du CB $circuit_breaker (seuil configuré : 80%, durée > 10s)",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_slow_call_rate{name=\"$circuit_breaker\"}",
+              "legendFormat": "Slow Call Rate"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 50 },
+                  { "color": "#F2495C", "value": 80 }
+                ]
+              },
+              "noValue": "0%"
+            }
+          },
+          "options": {
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true,
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          }
+        },
+        {
+          "title": "Not Permitted Calls",
+          "description": "Appels rejetés par le Circuit Breaker en état OPEN",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "increase(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"$circuit_breaker\"}[5m])",
+              "legendFormat": "Rejected (5m)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#FF9830", "value": 1 },
+                  { "color": "#F2495C", "value": 5 }
+                ]
+              },
+              "noValue": "0",
+              "color": { "mode": "thresholds" }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "area"
+          }
+        },
+        {
+          "title": "Circuit Breaker — Call Duration ($circuit_breaker)",
+          "description": "Durée des appels à travers le Circuit Breaker (succès vs échec)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "rate(resilience4j_circuitbreaker_calls_seconds_sum{name=\"$circuit_breaker\", kind=\"successful\"}[5m]) / rate(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"successful\"}[5m])",
+              "legendFormat": "✅ Successful (avg)"
+            },
+            {
+              "expr": "rate(resilience4j_circuitbreaker_calls_seconds_sum{name=\"$circuit_breaker\", kind=\"failed\"}[5m]) / rate(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"failed\"}[5m])",
+              "legendFormat": "❌ Failed (avg)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "gradientMode": "scheme",
+                "lineInterpolation": "smooth",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Failed.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Successful.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "Circuit Breaker — Call Counts",
+          "description": "Nombre d'appels réussis, échoués et rejetés (fenêtre glissante 5min)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "datasource": "${datasource}",
+          "targets": [
+            {
+              "expr": "increase(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"successful\"}[5m])",
+              "legendFormat": "✅ Successful"
+            },
+            {
+              "expr": "increase(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"failed\"}[5m])",
+              "legendFormat": "❌ Failed"
+            },
+            {
+              "expr": "increase(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"$circuit_breaker\"}[5m])",
+              "legendFormat": "🚫 Not Permitted"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 25,
+                "gradientMode": "scheme",
+                "lineInterpolation": "smooth",
+                "stacking": { "mode": "normal" }
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Successful.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Failed.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Not Permitted.*" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "📊 CIRCUIT BREAKER — CONFIGURATION",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+          "collapsed": false
+        },
+        {
+          "title": "Circuit Breaker Configuration — $circuit_breaker",
+          "description": "Paramètres de configuration du Circuit Breaker tel que défini dans application.yml",
+          "type": "text",
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 31 },
+          "options": {
+            "mode": "markdown",
+            "content": "## 🛡️ Circuit Breaker `llm` — Configuration\n\n| Paramètre | Valeur | Description |\n|-----------|--------|-------------|\n| **Sliding Window Size** | `5` | Nombre d'appels dans la fenêtre d'évaluation |\n| **Min. Calls** | `3` | Appels minimum avant évaluation du taux d'échec |\n| **Failure Rate Threshold** | `60%` | Seuil de taux d'échec pour passer en OPEN |\n| **Wait in Open State** | `30s` | Temps d'attente avant passage en HALF-OPEN |\n| **Calls in Half-Open** | `2` | Appels de test autorisés en HALF-OPEN |\n| **Slow Call Threshold** | `10s` | Durée au-delà de laquelle un appel est considéré lent |\n| **Slow Call Rate Threshold** | `80%` | Seuil de taux d'appels lents pour passer en OPEN |"
+          }
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  infrastructure.json: |
+    {
+      "title": "AutoAssist — Infrastructure",
+      "uid": "autoassist-infra",
+      "version": 2,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "15s",
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "💾 BASES DE DONNÉES (POSTGRESQL)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "PostgreSQL — Active Connections",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "pg_stat_activity_count", "legendFormat": "{{datname}}" }],
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+        },
+        {
+          "title": "PostgreSQL — DB Size",
+          "type": "bargauge",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "pg_database_size_bytes", "legendFormat": "{{datname}}" }],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "title": "⚡ CACHE & BROKER (REDIS & RABBITMQ)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "collapsed": false
+        },
+        {
+          "title": "Redis — Commands/sec",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rate(redis_commands_processed_total[5m])", "legendFormat": "cmd/s" }],
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "Redis — Memory Usage",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "redis_memory_used_bytes", "legendFormat": "Used" }],
+          "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 500000000 }] } } }
+        },
+        {
+          "title": "Redis — Hit Rate",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)", "legendFormat": "Hit Rate" }],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "green", "value": 0.9 }] } } }
+        },
+        {
+          "title": "RabbitMQ — Queue Messages",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rabbitmq_queue_messages", "legendFormat": "{{queue}}" }]
+        },
+        {
+          "title": "RabbitMQ — Publish & Deliver Rates",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 10, "x": 8, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(rate(rabbitmq_queue_messages_published_total[5m])) by (queue)", "legendFormat": "Pub {{queue}}" },
+            { "expr": "sum(rate(rabbitmq_queue_messages_delivered_total[5m])) by (queue)", "legendFormat": "Deliv {{queue}}" }
+          ],
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "RabbitMQ — Consumers Active",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 18 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rabbitmq_queue_consumers", "legendFormat": "{{queue}}" }]
+        },
+        {
+          "title": "🌐 SERVEUR WEB GATEWAY (NGINX)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+          "collapsed": false
+        },
+        {
+          "title": "Nginx Gateway — Active Connections",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "nginx_connections_active", "legendFormat": "Active" }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" }
+            }
+          }
+        },
+        {
+          "title": "Nginx Gateway — Request Rate (accepted/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rate(nginx_connections_accepted[5m])", "legendFormat": "Accepted/s" }],
+          "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "🐳 CONTENEURS & SERVEUR HÔTE",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+          "collapsed": false
+        },
+        {
+          "title": "Container CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "rate(container_cpu_usage_seconds_total{name=~\"callmgmt.*\"}[5m])", "legendFormat": "{{name}}" }],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "lineWidth": 2 } } }
+        },
+        {
+          "title": "Container Memory Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "container_memory_usage_bytes{name=~\"callmgmt.*\"}", "legendFormat": "{{name}}" }],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
+        }
+      ],
+      "schemaVersion": 39
+    }
+    
+
+  k8s-cluster.json: |
+    {
+      "annotations": { "list": [] },
+      "title": "AutoAssist — Kubernetes Cluster Status",
+      "uid": "autoassist-k8s-cluster",
+      "version": 1,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "tags": ["k8s", "kubernetes", "cluster", "infrastructure"],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "value": "Prometheus",
+              "text": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "name": "namespace",
+            "type": "query",
+            "query": "label_values(kube_pod_status_phase, namespace)",
+            "datasource": "${datasource}",
+            "multi": false,
+            "current": { "text": "autoassist", "value": "autoassist" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "☸️ VUE D'ENSEMBLE DU CLUSTER KUBERNETES",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "collapsed": false
+        },
+        {
+          "title": "Pods Running",
+          "description": "Nombre total de pods en état de fonctionnement",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(kube_pod_status_phase{namespace=\"$namespace\", phase=\"Running\"})", "legendFormat": "Running" }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "#73BF69" },
+              "noValue": "0"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "Pods Pending",
+          "description": "Nombre de pods en attente d'ordonnancement ou de démarrage",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(kube_pod_status_phase{namespace=\"$namespace\", phase=\"Pending\"})", "legendFormat": "Pending" }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#8AB8FF", "value": null },
+                  { "color": "#FF9830", "value": 1 }
+                ]
+              },
+              "noValue": "0"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "Pods Failed / Unschedulable",
+          "description": "Nombre de pods en échec",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(kube_pod_status_phase{namespace=\"$namespace\", phase=~\"Failed|Unknown\"})", "legendFormat": "Failed" }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "#73BF69", "value": null },
+                  { "color": "#F2495C", "value": 1 }
+                ]
+              },
+              "noValue": "0"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "Kubernetes Nodes Online",
+          "description": "Nombre de nœuds du cluster actifs et prêts",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(kube_node_status_condition{condition=\"Ready\", status=\"true\"})", "legendFormat": "Ready Nodes" }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "#5794F2" },
+              "noValue": "1"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "📦 ÉTAT DES DÉPLOIEMENTS",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+          "collapsed": false
+        },
+        {
+          "title": "Deployments Replica Status (Available vs Desired)",
+          "description": "Statut de réplication de chaque déploiement applicatif",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 7 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\"}) by (deployment)", "legendFormat": "Available {{deployment}}" },
+            { "expr": "sum(kube_deployment_spec_replicas{namespace=\"$namespace\"}) by (deployment)", "legendFormat": "Desired {{deployment}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 5,
+                "lineInterpolation": "smooth"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*Desired.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [5, 5] } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "⚠️ ANOMALIES & REDÉMARRAGES DE PODS (RESTARTS)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+          "collapsed": false
+        },
+        {
+          "title": "Container Restarts Rate (5m)",
+          "description": "Nombre de redémarrages de conteneurs par pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            }
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"] }
+          }
+        },
+        {
+          "title": "Pods Non-Running Status Detail",
+          "description": "Statut détaillé des pods qui ne sont pas en cours d'exécution normale",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": "${datasource}",
+          "targets": [{ "expr": "kube_pod_status_phase{namespace=\"$namespace\", phase!=\"Running\"} == 1", "legendFormat": "{{pod}}", "format": "table", "instant": true }],
+          "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "Value": true } } }]
+        },
+        {
+          "title": "📊 ATTRIBUTION DES RESSOURCES (REQUESTS & LIMITS)",
+          "type": "row",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+          "collapsed": false
+        },
+        {
+          "title": "Pod CPU Resource Requests & Limits",
+          "description": "Besoins et limites CPU configurés par pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(kube_pod_container_resource_requests{namespace=\"$namespace\", resource=\"cpu\"}) by (pod)", "legendFormat": "Req {{pod}}" },
+            { "expr": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"cpu\"}) by (pod)", "legendFormat": "Limit {{pod}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "custom": { "lineWidth": 2 }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "Req.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "solid" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": "Limit.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [5, 5] } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "lastNotNull"] }
+          }
+        },
+        {
+          "title": "Pod Memory Resource Requests & Limits",
+          "description": "Besoins et limites RAM configurés par pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+          "datasource": "${datasource}",
+          "targets": [
+            { "expr": "sum(kube_pod_container_resource_requests{namespace=\"$namespace\", resource=\"memory\"}) by (pod)", "legendFormat": "Req {{pod}}" },
+            { "expr": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"memory\"}) by (pod)", "legendFormat": "Limit {{pod}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "lineWidth": 2 }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "Req.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "solid" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": "Limit.*" },
+                "properties": [{ "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [5, 5] } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "lastNotNull"] }
+          }
+        }
+      ],
+      "schemaVersion": 39
+    }
+
+    
+

@@ -3,16 +3,17 @@ FastAPI application entry point.
 Loads Whisper model and spaCy NLP at startup via lifespan.
 """
 import logging
+import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from py_eureka_client import eureka_client
 
 from app.core.database import Base, engine
-from app.routers import analysis, chat, streaming, transcription
+from app.routers import analysis, audio_stream, chat, streaming, transcription
 from app.rag import rag_service
 from app.core.config import settings
 
@@ -105,6 +106,7 @@ app.include_router(transcription.router)
 app.include_router(analysis.router)
 app.include_router(streaming.router)
 app.include_router(chat.router)
+app.include_router(audio_stream.router)
 
 # Instrument for Prometheus metrics
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -142,9 +144,15 @@ async def proxy_upload_audio(ticket_id: str, file: Annotated[UploadFile, File(..
     Proxy audio upload to ticket-service.
     This triggers the FULL pipeline: Whisper → NLP → save transcription to ticket.
     """
-    import logging
+    import logging  # noqa: PLC0415
     logger = logging.getLogger("ai-service.softphone")
-    logger.info(f"📞 Softphone: uploading audio to ticket {ticket_id}")
+
+    # SonarCloud S7044 — Validate ticket_id is a strict UUID before using in URL path
+    _UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+    if not _UUID_RE.match(ticket_id):
+        raise HTTPException(status_code=400, detail="Invalid ticket_id format")
+
+    logger.info("📞 Softphone: uploading audio to ticket %s", ticket_id)
 
     audio_bytes = await file.read()
 
@@ -156,7 +164,7 @@ async def proxy_upload_audio(ticket_id: str, file: Annotated[UploadFile, File(..
             files=files,
             headers={"X-User-Id": "00000000-0000-0000-0000-000000000000", "X-User-Email": "SYSTEM-SOFTPHONE"},
         )
-        logger.info(f"✅ Softphone: audio pipeline complete for ticket {ticket_id} (status={r.status_code})")
+        logger.info("✅ Softphone: audio pipeline complete for ticket %s (status=%d)", ticket_id, r.status_code)
         return r.json()
 
 @app.get("/api/agences", tags=["softphone"])

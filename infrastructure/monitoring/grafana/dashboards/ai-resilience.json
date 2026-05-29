@@ -1,0 +1,588 @@
+{
+  "annotations": { "list": [] },
+  "title": "AutoAssist — AI & Resilience",
+  "uid": "autoassist-ai-resilience",
+  "description": "Monitoring des modèles IA (Whisper STT, Gemma 4 LLM) et de la résilience du Circuit Breaker LLM",
+  "version": 2,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "tags": ["ai", "resilience4j", "whisper", "gemma", "circuit-breaker"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "Prometheus",
+          "text": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "value": "llm",
+          "text": "llm"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Circuit Breaker",
+        "multi": false,
+        "name": "circuit_breaker",
+        "options": [],
+        "query": "label_values(resilience4j_circuitbreaker_state, name)",
+        "datasource": "${datasource}",
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "🤖 AI SERVICE — INFERENCE MONITORING",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Whisper Transcription — Latency P95",
+      "description": "95th percentile latency of Whisper STT transcription requests (/transcribe/)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 10 },
+              { "color": "#F2495C", "value": 30 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Gemma 4 RAG Chat — Latency P95",
+      "description": "95th percentile latency of LLM-powered RAG chat requests (/chat/)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 5 },
+              { "color": "#F2495C", "value": 15 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "AI Request Rate",
+      "description": "Requêtes par seconde vers les endpoints AI (transcription + chat + analyse)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#8AB8FF", "value": null },
+              { "color": "#73BF69", "value": 0.1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "AI Error Rate (5xx)",
+      "description": "Taux d'erreur des endpoints AI",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\", status=~\"5..\"}[5m])) / sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/|/chat/|/analyze/\"}[5m])) * 100",
+          "legendFormat": "Error %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 5 },
+              { "color": "#F2495C", "value": 20 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "noValue": "0%"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
+      "title": "AI Uptime",
+      "description": "AI Service availability",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "up{job=\"ai-service\"}",
+          "legendFormat": "AI Service"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "#F2495C" }, "1": { "text": "UP", "color": "#73BF69" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#F2495C", "value": null },
+              { "color": "#73BF69", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "title": "AI Inference Latency — Time Series",
+      "description": "Latence d'inférence détaillée par endpoint AI (P50, P95, P99)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+          "legendFormat": "Whisper P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+          "legendFormat": "Whisper P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{handler=\"/transcribe/\"}[5m])) by (le))",
+          "legendFormat": "Whisper P99"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+          "legendFormat": "Gemma Chat P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/chat/\"}[5m])) by (le))",
+          "legendFormat": "Gemma Chat P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": true,
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*P99.*" },
+            "properties": [{ "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "AI Request Rate — Time Series",
+      "description": "Nombre de requêtes par seconde vers chaque endpoint AI",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/transcribe/\"}[5m]))",
+          "legendFormat": "🎤 Whisper STT"
+        },
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/chat/\"}[5m]))",
+          "legendFormat": "🤖 Gemma RAG Chat"
+        },
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=\"/analyze/\"}[5m]))",
+          "legendFormat": "🔍 NLP Analysis"
+        },
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{handler=~\"/transcribe/quick\"}[5m]))",
+          "legendFormat": "📱 WhatsApp Quick STT"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "stacking": { "mode": "normal" }
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "mean", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "🛡️ RESILIENCE4J — CIRCUIT BREAKER ($circuit_breaker)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "collapsed": false
+    },
+    {
+      "title": "Circuit Breaker State",
+      "description": "État actuel du Circuit Breaker '$circuit_breaker' : CLOSED (✅ normal), OPEN (🔴 coupé), HALF_OPEN (🟡 test)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"closed\"}",
+          "legendFormat": "closed",
+          "hide": true
+        },
+        {
+          "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"open\"}",
+          "legendFormat": "open",
+          "hide": true
+        },
+        {
+          "expr": "resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"half_open\"}",
+          "legendFormat": "half_open",
+          "hide": true
+        },
+        {
+          "expr": "(resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"closed\"} == 1) * 0 or (resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"open\"} == 1) * 1 or (resilience4j_circuitbreaker_state{name=\"$circuit_breaker\", state=\"half_open\"} == 1) * 2",
+          "legendFormat": "CB State"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "✅ CLOSED", "color": "#73BF69" },
+                "1": { "text": "🔴 OPEN", "color": "#F2495C" },
+                "2": { "text": "🟡 HALF-OPEN", "color": "#FF9830" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#F2495C", "value": 1 },
+              { "color": "#FF9830", "value": 2 }
+            ]
+          },
+          "noValue": "⚪ NO DATA"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "orientation": "auto"
+      }
+    },
+    {
+      "title": "Failure Rate",
+      "description": "Taux d'échec du Circuit Breaker $circuit_breaker (seuil configuré : 60%)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_failure_rate{name=\"$circuit_breaker\"}",
+          "legendFormat": "Failure Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 30 },
+              { "color": "#F2495C", "value": 60 }
+            ]
+          },
+          "noValue": "0%"
+        }
+      },
+      "options": {
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Slow Call Rate",
+      "description": "Taux d'appels lents du CB $circuit_breaker (seuil configuré : 80%, durée > 10s)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 16 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_slow_call_rate{name=\"$circuit_breaker\"}",
+          "legendFormat": "Slow Call Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 50 },
+              { "color": "#F2495C", "value": 80 }
+            ]
+          },
+          "noValue": "0%"
+        }
+      },
+      "options": {
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Not Permitted Calls",
+      "description": "Appels rejetés par le Circuit Breaker en état OPEN",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 16 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "increase(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"$circuit_breaker\"}[5m])",
+          "legendFormat": "Rejected (5m)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#73BF69", "value": null },
+              { "color": "#FF9830", "value": 1 },
+              { "color": "#F2495C", "value": 5 }
+            ]
+          },
+          "noValue": "0",
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Circuit Breaker — Call Duration ($circuit_breaker)",
+      "description": "Durée des appels à travers le Circuit Breaker (succès vs échec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "rate(resilience4j_circuitbreaker_calls_seconds_sum{name=\"$circuit_breaker\", kind=\"successful\"}[5m]) / rate(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"successful\"}[5m])",
+          "legendFormat": "✅ Successful (avg)"
+        },
+        {
+          "expr": "rate(resilience4j_circuitbreaker_calls_seconds_sum{name=\"$circuit_breaker\", kind=\"failed\"}[5m]) / rate(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"failed\"}[5m])",
+          "legendFormat": "❌ Failed (avg)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Failed.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Successful.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Circuit Breaker — Call Counts",
+      "description": "Nombre d'appels réussis, échoués et rejetés (fenêtre glissante 5min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "datasource": "${datasource}",
+      "targets": [
+        {
+          "expr": "increase(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"successful\"}[5m])",
+          "legendFormat": "✅ Successful"
+        },
+        {
+          "expr": "increase(resilience4j_circuitbreaker_calls_seconds_count{name=\"$circuit_breaker\", kind=\"failed\"}[5m])",
+          "legendFormat": "❌ Failed"
+        },
+        {
+          "expr": "increase(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"$circuit_breaker\"}[5m])",
+          "legendFormat": "🚫 Not Permitted"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 25,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Successful.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Failed.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Not Permitted.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "📊 CIRCUIT BREAKER — CONFIGURATION",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "collapsed": false
+    },
+    {
+      "title": "Circuit Breaker Configuration — $circuit_breaker",
+      "description": "Paramètres de configuration du Circuit Breaker tel que défini dans application.yml",
+      "type": "text",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 31 },
+      "options": {
+        "mode": "markdown",
+        "content": "## 🛡️ Circuit Breaker `llm` — Configuration\n\n| Paramètre | Valeur | Description |\n|-----------|--------|-------------|\n| **Sliding Window Size** | `5` | Nombre d'appels dans la fenêtre d'évaluation |\n| **Min. Calls** | `3` | Appels minimum avant évaluation du taux d'échec |\n| **Failure Rate Threshold** | `60%` | Seuil de taux d'échec pour passer en OPEN |\n| **Wait in Open State** | `30s` | Temps d'attente avant passage en HALF-OPEN |\n| **Calls in Half-Open** | `2` | Appels de test autorisés en HALF-OPEN |\n| **Slow Call Threshold** | `10s` | Durée au-delà de laquelle un appel est considéré lent |\n| **Slow Call Rate Threshold** | `80%` | Seuil de taux d'appels lents pour passer en OPEN |"
+      }
+    }
+  ],
+  "schemaVersion": 39
+}

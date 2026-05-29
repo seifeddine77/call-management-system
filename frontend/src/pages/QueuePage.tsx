@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   RefreshCw, ClipboardList, PlusCircle, RotateCw, CheckCircle2, 
-  FolderClosed, PhoneCall, Mail, Globe, Clock, User, ArrowRight, ShieldAlert 
+  FolderClosed, PhoneCall, Mail, Globe, Clock, User, ArrowRight, ShieldAlert,
+  Search, SlidersHorizontal, Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -36,6 +37,13 @@ export default function QueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('QUEUE');
+
+  /* ── Advanced Filter States ── */
+  const [search, setSearch] = useState('');
+  const [channelFilter, setChannelFilter] = useState<string>('ALL');
+  const [priorityFilter, setPriorityFilter] = useState<number | 'ALL'>('ALL');
+  const [sortBy, setSortBy] = useState<'PRIO_SLA' | 'NEWEST' | 'OLDEST'>('PRIO_SLA');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   /* ── Map Ticket → DisplayItem ── */
   const ticketToItem = (t: Ticket, i: number): DisplayItem => ({
@@ -76,7 +84,7 @@ export default function QueuePage() {
         setItems((queueData.tickets || []).map(queueToItem));
       } else {
         const ticketData = await ticketService.getTickets({ statut: activeFilter, size: 50 });
-        setItems((ticketData.content || []).map(ticketToItem));
+        setItems((ticketData.content || []).map((t, i) => ticketToItem(t, i)));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -99,7 +107,7 @@ export default function QueuePage() {
     setAssigning(ticketId);
     try {
       await ticketService.assignTicket(ticketId, user.userId);
-      toast.success('🎙 Ticket assignateur pris en charge avec succès !');
+      toast.success('🎙 Ticket pris en charge avec succès !');
       setItems(prev => prev.filter(t => t.ticketId !== ticketId));
       navigate(`/tickets/${ticketId}`);
     } catch {
@@ -108,6 +116,87 @@ export default function QueuePage() {
       setAssigning(null);
     }
   };
+
+  /* ── Auto-Dispatch Handler ── */
+  const handleAutoDispatch = async () => {
+    if (!user?.userId) return;
+    
+    // Find candidate tickets in the queue (or new status)
+    const queueCandidates = items.filter(t => !t.statut || t.statut === 'NOUVEAU');
+    
+    if (queueCandidates.length === 0) {
+      toast.error("Aucun ticket disponible dans la file d'attente");
+      return;
+    }
+    
+    // Sort them strictly by priority (highest priority = 1) and age (older first)
+    const sortedCandidates = [...queueCandidates].sort((a, b) => {
+      if (a.priorite !== b.priorite) return a.priorite - b.priorite;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    const targetTicket = sortedCandidates[0];
+    setAssigning(targetTicket.ticketId);
+    
+    try {
+      await ticketService.assignTicket(targetTicket.ticketId, user.userId);
+      toast.success(`🎙️ Auto-dispatch : Ticket #${targetTicket.ticketNumero} pris en charge !`);
+      navigate(`/tickets/${targetTicket.ticketId}`);
+    } catch {
+      toast.error("Impossible d'assigner automatiquement ce ticket");
+    } finally {
+      setAssigning(null);
+    }
+  };
+
+  /* ── Filtered & Sorted Display Items ── */
+  const filteredItems = useMemo(() => {
+    let result = [...items];
+
+    // 1. Text Search Filter (Client Name or Ticket Number)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        t =>
+          t.clientNom.toLowerCase().includes(q) ||
+          t.ticketNumero.toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Channel Filter
+    if (channelFilter !== 'ALL') {
+      result = result.filter(t => t.canal === channelFilter);
+    }
+
+    // 3. Priority Filter
+    if (priorityFilter !== 'ALL') {
+      result = result.filter(t => t.priorite === priorityFilter);
+    }
+
+    // 4. Sort order
+    result.sort((a, b) => {
+      if (sortBy === 'PRIO_SLA') {
+        if (a.priorite !== b.priorite) {
+          return a.priorite - b.priorite; // 1 (Urgent) first, then 2, then 3
+        }
+        // Older first within equal priority level to prevent SLA breach
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === 'NEWEST') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === 'OLDEST') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return 0;
+    });
+
+    // Re-index position cleanly based on the final filtered & sorted list
+    return result.map((item, idx) => ({
+      ...item,
+      position: idx + 1
+    }));
+  }, [items, search, channelFilter, priorityFilter, sortBy]);
 
   const canalIcon = (canal: string) => {
     const map: Record<string, { icon: React.ReactNode; cls: string }> = {
@@ -134,11 +223,11 @@ export default function QueuePage() {
   ];
 
   const subtitleMap: Record<FilterKey, string> = {
-    QUEUE: `${items.length} ticket${items.length > 1 ? 's' : ''} en attente de traitement`,
-    NOUVEAU: `${items.length} nouveau${items.length > 1 ? 'x' : ''} ticket${items.length > 1 ? 's' : ''} disponible${items.length > 1 ? 's' : ''}`,
-    EN_COURS: `${items.length} ticket${items.length > 1 ? 's' : ''} en cours d'instruction`,
-    RESOLU: `${items.length} ticket${items.length > 1 ? 's' : ''} résolu${items.length > 1 ? 's' : ''}`,
-    FERME: `${items.length} ticket${items.length > 1 ? 's' : ''} clos définitivement`,
+    QUEUE: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} en attente de traitement`,
+    NOUVEAU: `${filteredItems.length} nouveau${filteredItems.length > 1 ? 'x' : ''} ticket${filteredItems.length > 1 ? 's' : ''} disponible${filteredItems.length > 1 ? 's' : ''}`,
+    EN_COURS: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} en cours d'instruction`,
+    RESOLU: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} résolu${filteredItems.length > 1 ? 's' : ''}`,
+    FERME: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} clos définitivement`,
   };
 
   const statutBadge = (statut?: string) => {
@@ -167,16 +256,18 @@ export default function QueuePage() {
           </p>
         </div>
         
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleRefresh} 
-          className="btn-ghost h-9 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm font-medium" 
-          disabled={loading}
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} /> 
-          Actualiser le flux
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleRefresh} 
+            className="btn-ghost h-9 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm font-medium" 
+            disabled={loading}
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} /> 
+            Actualiser
+          </motion.button>
+        </div>
       </div>
 
       {/* Bento Grid Filters */}
@@ -230,25 +321,140 @@ export default function QueuePage() {
 
       {/* Ticket List command center */}
       <div className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-xl">
-        <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5">
+        <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5 flex-wrap gap-3">
           <div className="font-mono text-[10px] text-txt-3 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
             <ClipboardList size={11} className="text-indigo-400" />
             Liste des incidents
           </div>
-          <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2 py-0.5 border border-border rounded-md">
-            {items.length} entrée{items.length > 1 ? 's' : ''}
-          </span>
+
+          <div className="flex items-center gap-2">
+            {/* Auto-Dispatch CTA Button */}
+            {(filter === 'QUEUE' || filter === 'NOUVEAU') && items.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleAutoDispatch}
+                disabled={assigning !== null}
+                className="btn-cta h-8 px-4 rounded-xl text-[10.5px] font-mono font-extrabold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer text-white disabled:opacity-50"
+              >
+                <Bot size={13} className={assigning ? 'animate-spin text-white' : 'animate-pulse text-white'} />
+                Auto-Dispatch (Suivant)
+              </motion.button>
+            )}
+            
+            <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2.5 py-1 border border-border rounded-xl shadow-sm">
+              {filteredItems.length} affiché{filteredItems.length > 1 ? 's' : ''} / {items.length} total
+            </span>
+          </div>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        <div className="px-5 py-3 border-b border-border/60 bg-[var(--surface)]/40 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Real-time search query */}
+            <div className="relative flex-1 min-w-[240px]">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3" />
+              <input
+                type="text"
+                placeholder="Rechercher par client ou par numéro de ticket..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="aurora-input pl-10"
+              />
+            </div>
+
+            {/* Filter Toggle Button */}
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`btn-ghost h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer font-semibold border ${
+                showAdvancedFilters ? 'bg-primary-soft text-primary border-primary/20' : 'bg-[var(--surface)] text-txt-2 border-border'
+              }`}
+            >
+              <SlidersHorizontal size={12} />
+              Filtres avancés
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showAdvancedFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden flex flex-col gap-3 pt-3 border-t border-border/40"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Channel Filter */}
+                  <div className="space-y-1.5">
+                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Canal de communication</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { k: 'ALL', l: 'Tous' },
+                        { k: 'CALL', l: '📞 Vocal' },
+                        { k: 'EMAIL', l: '✉️ Email' },
+                        { k: 'WEB', l: '🌐 Web' }
+                      ].map(ch => (
+                        <button
+                          key={ch.k}
+                          onClick={() => setChannelFilter(ch.k)}
+                          className={`chip font-semibold ${channelFilter === ch.k ? 'active' : ''}`}
+                        >
+                          {ch.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Priority Filter */}
+                  <div className="space-y-1.5">
+                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Niveau de priorité</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { k: 'ALL', l: 'Toutes' },
+                        { k: 1, l: '🔴 Prio 1 (Urgent)' },
+                        { k: 2, l: '🟡 Prio 2 (Moyen)' },
+                        { k: 3, l: '🔵 Prio 3 (Faible)' }
+                      ].map(prio => (
+                        <button
+                          key={prio.k}
+                          onClick={() => setPriorityFilter(prio.k as number | 'ALL')}
+                          className={`chip font-semibold ${priorityFilter === prio.k ? 'active' : ''}`}
+                        >
+                          {prio.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom Sorting Options */}
+                  <div className="space-y-1.5">
+                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Ordre de tri</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e: any) => setSortBy(e.target.value)}
+                      className="aurora-select"
+                    >
+                      <option value="PRIO_SLA">Priorité & SLA (Urgent + FIFO)</option>
+                      <option value="NEWEST">Plus récents d'abord</option>
+                      <option value="OLDEST">Plus anciens d'abord</option>
+                    </select>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="divide-y divide-border/60">
           <AnimatePresence mode="popLayout">
-            {loading && items.length === 0 ? (
+            {loading && filteredItems.length === 0 ? (
               <div className="p-5 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                 ))}
               </div>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -260,12 +466,12 @@ export default function QueuePage() {
                   title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
                   subtitle={filter === 'QUEUE'
                     ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
-                    : `Aucun ticket correspondant au filtre "${filters.find(f => f.key === filter)?.label}".`
+                    : 'Aucun ticket ne correspond à vos critères de recherche ou filtres avancés.'
                   }
                 />
               </motion.div>
             ) : (
-              items.map((t, idx) => {
+              filteredItems.map((t, idx) => {
                 const c = canalIcon(t.canal);
                 const wait = timeSince(t.createdAt);
                 const isUrgent = t.priorite === 1;

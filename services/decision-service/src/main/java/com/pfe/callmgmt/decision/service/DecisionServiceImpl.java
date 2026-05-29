@@ -54,6 +54,9 @@ public class DecisionServiceImpl {
     @Value("${letters.storage-path:/tmp/letters}")
     private String storagePath;
 
+    @Value("${decision.rules.confidence-threshold:60.0}")
+    private double rulesConfidenceThreshold;
+
     @Value("${openai.api-key:}")
     private String openaiApiKey;
 
@@ -140,9 +143,18 @@ public class DecisionServiceImpl {
                     .build();
         }
 
-        // If rules gave a clear answer (not ambiguous, score >= 60)
-        if (!Boolean.TRUE.equals(rulesResult.getAmbiguous()) && rulesResult.getScore() != null
-                && rulesResult.getScore() >= 60.0) {
+        // If rules gave a clear answer (not ambiguous, and score matches decision threshold)
+        boolean isClearFavorable = DECISION_FAVORABLE.equals(rulesResult.getDecision())
+                && !Boolean.TRUE.equals(rulesResult.getAmbiguous())
+                && rulesResult.getScore() != null
+                && rulesResult.getScore() >= rulesConfidenceThreshold;
+
+        boolean isClearDefavorable = DECISION_DEFAVORABLE.equals(rulesResult.getDecision())
+                && !Boolean.TRUE.equals(rulesResult.getAmbiguous())
+                && rulesResult.getScore() != null
+                && rulesResult.getScore() < rulesConfidenceThreshold;
+
+        if (isClearFavorable || isClearDefavorable) {
             Decision decision = saveToDB(request.getTicketId(), rulesResult.getDecision(),
                     BigDecimal.valueOf(rulesResult.getScore()), rulesResult.getMotif(),
                     "RULES", rulesResult.getRulesApplied());
@@ -320,7 +332,9 @@ public class DecisionServiceImpl {
 
     private String buildCacheKey(DecisionRequest req) {
         String raw = req.getTypePiece() + "|" + req.getAgeVehiculeAns() + "|" +
-                req.getKilometrage() + "|" + req.getCategorieClient() + "|" + req.getTypeSinistre();
+                req.getKilometrage() + "|" + req.getCategorieClient() + "|" + req.getTypeSinistre() + "|" +
+                (req.getPieceReference() != null ? req.getPieceReference() : "") + "|" +
+                (req.getTranscriptionText() != null ? req.getTranscriptionText() : "");
         try {
             // SonarCloud B1 fix — SHA-256 instead of MD5 (S4790 security hotspot)
             MessageDigest md = MessageDigest.getInstance("SHA-256");

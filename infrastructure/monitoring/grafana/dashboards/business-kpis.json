@@ -1,0 +1,332 @@
+{
+  "annotations": { "list": [] },
+  "title": "AutoAssist — Business KPIs & Operations",
+  "uid": "autoassist-business-kpis",
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "tags": ["business", "kpi", "ops", "tickets", "decisions"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "Prometheus",
+          "text": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "📞 ACQUISITION DES CANAUX (COMMUNICATIONS)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Incoming Voice Calls Rate",
+      "description": "Nombre d'appels reçus par seconde via le canal voix (Twilio)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/call\"}[5m]))", "legendFormat": "Appels/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#5794F2" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Incoming Emails Rate",
+      "description": "Nombre d'emails reçus par seconde pour traitement",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/email\"}[5m]))", "legendFormat": "Emails/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#FFB347" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Web Portal Submissions Rate",
+      "description": "Nombre de formulaires soumis par seconde sur l'interface Web",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/web\"}[5m]))", "legendFormat": "Web/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#73BF69" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Channels Ingestion Activity",
+      "description": "Activité d'ingestion par canal d'entrée",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": "${datasource}",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/call\"}[5m]))", "legendFormat": "🎤 Voice Calls" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/email\"}[5m]))", "legendFormat": "📧 Emails Ingested" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/channels/web\"}[5m]))", "legendFormat": "💻 Web Portal" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth"
+          }
+        }
+      }
+    },
+    {
+      "title": "🎫 GESTION DES TICKETS & CONFORMITÉ",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "collapsed": false
+    },
+    {
+      "title": "Ticket Creation Rate",
+      "description": "Débit de création de nouveaux tickets d'assistance",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 15 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets\", method=\"POST\"}[5m]))", "legendFormat": "Tickets/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#8AB8FF", "value": null },
+              { "color": "#73BF69", "value": 0.1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "GDPR Right to be Forgotten (Anonymizations)",
+      "description": "Demandes d'anonymisation RGPD traitées par seconde",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 15 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/anonymize\", method=\"POST\"}[5m]))", "legendFormat": "Anonymisations/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#9966FF" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Ticket Management Operations",
+      "description": "Volume des opérations d'administration des tickets",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": "${datasource}",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets\", method=\"POST\"}[5m]))", "legendFormat": "🎫 New Tickets Created" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/statut\", method=\"PATCH\"}[5m]))", "legendFormat": "🔄 Status Transitions" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/assign\", method=\"PATCH\"}[5m]))", "legendFormat": "👤 Operator Assignments" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"ticket-service\", uri=\"/api/tickets/{id}/anonymize\", method=\"POST\"}[5m]))", "legendFormat": "🛡️ GDPR Anonymizations" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth"
+          }
+        }
+      }
+    },
+    {
+      "title": "⚖️ AIDE À LA DÉCISION (IA & RÈGLES)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "collapsed": false
+    },
+    {
+      "title": "Decision Analysis Throughput",
+      "description": "Requêtes d'évaluation envoyées au moteur de décision (IA/Règles)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 29 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/analyze\", method=\"POST\"}[5m]))", "legendFormat": "Analyses/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#00C0EF" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Decision Analysis Latency P95 (ms)",
+      "description": "Latence au 95ème percentile du processus complet de décision (RAG + Règles + LLM)",
+      "type": "timeseries",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 29 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"decision-service\", uri=\"/api/decisions/analyze\"}[5m])) by (le)) * 1000", "legendFormat": "P95 Latency" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "title": "🙋‍♀️ ACTIVITÉ DES OPÉRATEURS & RAPPORTS",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "collapsed": false
+    },
+    {
+      "title": "LLM Recommendations Accepted",
+      "description": "Validation directe de la recommandation de l'IA par l'opérateur",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 35 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/accept\", method=\"POST\"}[5m]))", "legendFormat": "Accords/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#73BF69" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "LLM Recommendations Overridden (Rejected)",
+      "description": "Rejet de la recommandation de l'IA et override manuel par l'opérateur",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 35 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/reject\", method=\"POST\"}[5m]))", "legendFormat": "Overrides/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#F2495C" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "PDF Decision Letters Generated",
+      "description": "Nombre de courriers de décisions officiels générés en PDF",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 35 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/letter\", method=\"GET\"}[5m]))", "legendFormat": "Courriers/s" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "#9966FF" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Operator Overrides Activity",
+      "description": "Suivi des validations vs overrides par les opérateurs",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+      "datasource": "${datasource}",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/accept\", method=\"POST\"}[5m]))", "legendFormat": "✅ Validate LLM Recomm." },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/reject\", method=\"POST\"}[5m]))", "legendFormat": "⚠️ Override LLM Recomm. (Reject)" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"decision-service\", uri=\"/api/decisions/{id}/letter\", method=\"GET\"}[5m]))", "legendFormat": "📄 PDF Letters Downloaded" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Validate.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Override.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }]
+          }
+        ]
+      }
+    }
+  ],
+  "schemaVersion": 39
+}

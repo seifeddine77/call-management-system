@@ -1,62 +1,154 @@
 {
   "title": "AutoAssist — Infrastructure",
   "uid": "autoassist-infra",
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-1h", "to": "now" },
   "refresh": "15s",
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "Prometheus",
+          "text": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
   "panels": [
+    {
+      "title": "💾 BASES DE DONNÉES (POSTGRESQL)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
     {
       "title": "PostgreSQL — Active Connections",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "pg_stat_activity_count", "legendFormat": "{{datname}}" }],
       "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
     },
     {
       "title": "PostgreSQL — DB Size",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "pg_database_size_bytes", "legendFormat": "{{datname}}" }],
       "fieldConfig": { "defaults": { "unit": "bytes" } }
     },
     {
+      "title": "⚡ CACHE & BROKER (REDIS & RABBITMQ)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false
+    },
+    {
       "title": "Redis — Commands/sec",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "rate(redis_commands_processed_total[5m])", "legendFormat": "cmd/s" }],
       "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
     },
     {
       "title": "Redis — Memory Usage",
       "type": "gauge",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "redis_memory_used_bytes", "legendFormat": "Used" }],
       "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 500000000 }] } } }
     },
     {
       "title": "Redis — Hit Rate",
       "type": "gauge",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)", "legendFormat": "Hit Rate" }],
       "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "green", "value": 0.9 }] } } }
     },
     {
       "title": "RabbitMQ — Queue Messages",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "rabbitmq_queue_messages", "legendFormat": "{{queue}}" }]
+    },
+    {
+      "title": "RabbitMQ — Publish & Deliver Rates",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 10, "x": 8, "y": 18 },
+      "datasource": "${datasource}",
+      "targets": [
+        { "expr": "sum(rate(rabbitmq_queue_messages_published_total[5m])) by (queue)", "legendFormat": "Pub {{queue}}" },
+        { "expr": "sum(rate(rabbitmq_queue_messages_delivered_total[5m])) by (queue)", "legendFormat": "Deliv {{queue}}" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "title": "RabbitMQ — Consumers Active",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 18 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "rabbitmq_queue_consumers", "legendFormat": "{{queue}}" }]
+    },
+    {
+      "title": "🌐 SERVEUR WEB GATEWAY (NGINX)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "title": "Nginx Gateway — Active Connections",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "nginx_connections_active", "legendFormat": "Active" }],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "title": "Nginx Gateway — Request Rate (accepted/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "datasource": "${datasource}",
+      "targets": [{ "expr": "rate(nginx_connections_accepted[5m])", "legendFormat": "Accepted/s" }],
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "title": "🐳 CONTENEURS & SERVEUR HÔTE",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "collapsed": false
     },
     {
       "title": "Container CPU Usage",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "rate(container_cpu_usage_seconds_total{name=~\"callmgmt.*\"}[5m])", "legendFormat": "{{name}}" }],
       "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "lineWidth": 2 } } }
     },
     {
       "title": "Container Memory Usage",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "datasource": "${datasource}",
       "targets": [{ "expr": "container_memory_usage_bytes{name=~\"callmgmt.*\"}", "legendFormat": "{{name}}" }],
       "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } } }
     }

@@ -27,6 +27,9 @@ public class CallChannelRequest {
     /** URL de l'enregistrement audio (optionnel, fourni par Asterisk/Twilio) */
     private String audioUrl;
 
+    /** Email de l'appelant (optionnel, pour envoi de notifications) */
+    private String callerEmail;
+
     private String description;
 
     /** Priorité (1=urgente, 5=basse). Par défaut 3. */

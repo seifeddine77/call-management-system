@@ -68,7 +68,7 @@ async def chat_endpoint(request: ChatRequest):
     4. Context + question → Gemma 4 (→ OpenAI fallback) → contextual answer
     5. Answer + metadata sent back
     """
-    logger.info(f"💬 Chat question: '{request.question[:80]}...' group='{request.group_name}'")
+    logger.info("💬 Chat question: '%.80s...' group='%s'", request.question, request.group_name)
 
     result = await rag_service.chat(request.question, request.group_name)
 
@@ -93,7 +93,7 @@ async def chat_test_endpoint(
 
     Same RAG pipeline as POST /chat/, but via GET for easy browser testing.
     """
-    logger.info(f"🧪 Test question: '{q[:80]}...'")
+    logger.info("🧪 Test question: '%.80s...'", q)
 
     result = await rag_service.chat(q, group_name="browser_test")
 

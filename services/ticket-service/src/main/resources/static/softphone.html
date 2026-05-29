@@ -235,6 +235,10 @@
             <input type="text" id="clientName" placeholder="Mohamed Ben Ali" value="Mohamed Ben Ali">
         </div>
         <div class="form-group">
+            <label>✉️ Adresse Email</label>
+            <input type="email" id="clientEmail" placeholder="mohamed.benali@example.com" value="mohamed.benali@gmail.com">
+        </div>
+        <div class="form-group">
             <label>📱 Téléphone</label>
             <input type="text" id="clientPhone" placeholder="+216 55 123 456" value="+21655123456">
         </div>
@@ -464,6 +468,7 @@
                 const callPayload = {
                     callerNumber: document.getElementById('clientPhone').value.trim(),
                     callerName: document.getElementById('clientName').value.trim(),
+                    callerEmail: document.getElementById('clientEmail').value.trim(),
                     agenceId: document.getElementById('agenceSelect').value,
                     description: `Appel client via Web Softphone (durée: ${duration}s)`,
                     priorite: 3,

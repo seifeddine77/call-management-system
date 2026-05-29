@@ -236,6 +236,10 @@ public class TwilioWebhookController {
         } catch (Exception e) {
             log.error("❌ [TWILIO] Erreur traitement enregistrement pour ticket {}: {}",
                     ticketId, e.getMessage(), e);
+            // SonarCloud S2142 — Preserve interrupt status if InterruptedException was caught
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
         } finally {
             // Nettoyer le cache
             callTicketMap.remove(callSid);

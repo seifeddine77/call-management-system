@@ -47,6 +47,9 @@ public class RuleVersion {
 
     private Short priorite;
 
+    @Column(name = "score_impact")
+    private Short scoreImpact;
+
     @Column(nullable = false)
     private Short version;
 

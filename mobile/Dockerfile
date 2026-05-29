@@ -12,7 +12,7 @@ WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
 
 # Get dependencies (cached layer)
-RUN flutter pub get
+RUN flutter pub get && flutter pub upgrade google_fonts
 
 # Copy the rest of the source code
 COPY . .

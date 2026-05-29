@@ -7,6 +7,7 @@ class Rule {
   final String action;
   final String actionMotif;
   final int priorite;
+  final int scoreImpact;
   final RuleConditions conditions;
   final bool actif;
   final int version;
@@ -18,6 +19,7 @@ class Rule {
     required this.action,
     required this.actionMotif,
     required this.priorite,
+    required this.scoreImpact,
     required this.conditions,
     required this.actif,
     required this.version,
@@ -31,6 +33,7 @@ class Rule {
       action: json['action'] ?? '',
       actionMotif: json['actionMotif'] ?? '',
       priorite: json['priorite'] ?? 10,
+      scoreImpact: json['scoreImpact'] ?? 0,
       conditions: RuleConditions.fromJson(json['conditions'] ?? {}),
       actif: json['actif'] ?? true,
       version: json['version'] ?? 1,
