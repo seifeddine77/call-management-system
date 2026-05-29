@@ -20,6 +20,7 @@ from app.core.crypto import AudioCrypto
 from app.core.database import get_db
 from app.models import AudioRecord
 from app.schemas import AudioRecordResponse, TranscribeResponse
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service.transcription")
 
@@ -112,7 +113,7 @@ async def transcribe_audio(
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
 
-    logger.info("Audio saved: %s (%d bytes)", file_path, len(content))
+    logger.info("Audio saved: %s (%d bytes)", sanitize_log(file_path), len(content))
 
     # ── Create DB record ────────────────────────────────────────
     record = AudioRecord(
@@ -190,7 +191,7 @@ async def transcribe_audio(
         db.commit()
 
         logger.info("Transcription done for ticket %s: %d chars, confidence=%s, duration=%ss",
-                     ticket_id, len(text), confidence, duration_seconds)
+                     sanitize_log(ticket_id), len(text), confidence, duration_seconds)
 
         return TranscribeResponse(
             ticket_id=ticket_id,
@@ -201,7 +202,7 @@ async def transcribe_audio(
         )
 
     except Exception as e:
-        logger.error(f"Whisper transcription failed for ticket {ticket_id}: {e}")
+        logger.error("Whisper transcription failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
         record.status = "FAILED"
         record.error_message = str(e)
         db.commit()
@@ -263,7 +264,7 @@ async def quick_transcribe(
         logger.info(f"Quick transcription: {len(text)} chars, {duration}s")
         return {"text": text, "duration_seconds": duration}
     except Exception as e:
-        logger.error(f"Quick transcription failed: {e}")
+        logger.error("Quick transcription failed: %s", sanitize_log(e))
         raise HTTPException(status_code=500, detail=f"Erreur: {e}")
     finally:
         # Cleanup temp file

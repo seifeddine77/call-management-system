@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import AnalysisResult
 from app.schemas import AnalysisRequest, AnalysisResponse, AnalysisResultResponse
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service.analysis")
 
@@ -187,10 +188,13 @@ def analyze_text(
     confidence = 0.9 if (piece_reference and type_sinistre != "INCONNU") else 0.6
 
     logger.info(
-        f"Analysis for ticket {ticket_id}: "
-        f"piece={piece_reference}, sinistre={type_sinistre}, "
-        f"sentiment={sentiment}, keywords={len(keywords)}, "
-        f"confidence={confidence}"
+        "Analysis for ticket %s: piece=%s, sinistre=%s, sentiment=%s, keywords=%s, confidence=%s",
+        sanitize_log(ticket_id),
+        sanitize_log(piece_reference),
+        sanitize_log(type_sinistre),
+        sanitize_log(sentiment),
+        len(keywords),
+        confidence
     )
 
     # Save to DB

@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.rag import rag_service
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service.chat")
 
@@ -68,7 +69,7 @@ async def chat_endpoint(request: ChatRequest):
     4. Context + question → Gemma 4 (→ OpenAI fallback) → contextual answer
     5. Answer + metadata sent back
     """
-    logger.info("💬 Chat question: '%.80s...' group='%s'", request.question, request.group_name)
+    logger.info("💬 Chat question: '%.80s...' group='%s'", sanitize_log(request.question), sanitize_log(request.group_name))
 
     result = await rag_service.chat(request.question, request.group_name)
 
@@ -93,7 +94,7 @@ async def chat_test_endpoint(
 
     Same RAG pipeline as POST /chat/, but via GET for easy browser testing.
     """
-    logger.info("🧪 Test question: '%.80s...'", q)
+    logger.info("🧪 Test question: '%.80s...'", sanitize_log(q))
 
     result = await rag_service.chat(q, group_name="browser_test")
 

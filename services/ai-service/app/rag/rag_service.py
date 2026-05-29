@@ -25,6 +25,7 @@ from chromadb.utils import embedding_functions
 
 from app.core.config import settings
 from app.rag.knowledge_base import KNOWLEDGE_DOCUMENTS
+from app.core.logging_utils import sanitize_log
 
 _CONTENT_TYPE_JSON = "application/json"
 
@@ -80,7 +81,7 @@ def _get_cached_response(question: str) -> Optional[dict]:
         cached = _response_cache[key]
         age = time.time() - cached["timestamp"]
         if age < CACHE_TTL_SECONDS:
-            logger.info(f"⚡ Cache HIT for '{question[:40]}...' (age: {age:.0f}s)")
+            logger.info("⚡ Cache HIT for '%s...' (age: %.0fs)", sanitize_log(question[:40]), age)
             _stats["cache_hits"] += 1
             return cached["response"]
         else:
@@ -216,7 +217,7 @@ def rewrite_query(question: str) -> str:
     result = re.sub(r'\s+', ' ', result).strip()
 
     if result != question:
-        logger.info(f"📝 Query rewritten: '{question[:60]}' → '{result[:60]}'")
+        logger.info("📝 Query rewritten: '%s' → '%s'", sanitize_log(question[:60]), sanitize_log(result[:60]))
 
     return result
 
@@ -692,7 +693,7 @@ def _resolve_followup(question: str, group_name: str) -> str:
 
         # Extract key topic from last exchange
         enriched = f"{question} (contexte: {last_question})"
-        logger.info(f"🔗 Follow-up resolved: '{question[:40]}' → '{enriched[:60]}'")
+        logger.info("🔗 Follow-up resolved: '%s' → '%s'", sanitize_log(question[:40]), sanitize_log(enriched[:60]))
         return enriched
 
     return question
@@ -943,7 +944,7 @@ async def _fetch_live_context(question: str) -> str:
                         except Exception:
                             pass
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch ticket {ticket_ref}: {e}")
+            logger.warning("⚠️ Could not fetch ticket %s: %s", sanitize_log(ticket_ref), sanitize_log(e))
 
     # ── Rules list ──
     if any(p in lower for p in _RULES_PATTERNS):

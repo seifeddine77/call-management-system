@@ -22,6 +22,7 @@ import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service.streaming")
 
@@ -42,7 +43,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     The server accumulates them and periodically transcribes with Whisper.
     """
     await websocket.accept()
-    logger.info("🎙️ [STREAM] WebSocket connected for ticket %s", ticket_id)
+    logger.info("🎙️ [STREAM] WebSocket connected for ticket %s", sanitize_log(ticket_id))
 
     whisper_model = websocket.app.state.whisper_model
     if whisper_model is None:
@@ -70,7 +71,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
             if "text" in message:
                 text_data = message["text"]
                 if text_data.strip().upper() == "STOP":
-                    logger.info("🛑 [STREAM] STOP received for ticket %s", ticket_id)
+                    logger.info("🛑 [STREAM] STOP received for ticket %s", sanitize_log(ticket_id))
                     break
                 continue
 
@@ -105,9 +106,9 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                     audio_buffer = bytearray()
 
     except WebSocketDisconnect:
-        logger.info("🔌 [STREAM] Client disconnected for ticket %s", ticket_id)
+        logger.info("🔌 [STREAM] Client disconnected for ticket %s", sanitize_log(ticket_id))
     except Exception as e:
-        logger.error("❌ [STREAM] Error for ticket %s: %s", ticket_id, e)
+        logger.error("❌ [STREAM] Error for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
         try:
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json({"type": "error", "detail": str(e)})
@@ -126,7 +127,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
 
     logger.info(
         "✅ [STREAM] Session complete for ticket %s: %d chars, %ss, %d chunks",
-        ticket_id, len(full_text), duration, chunk_count
+        sanitize_log(ticket_id), len(full_text), duration, chunk_count
     )
 
     # Send final result
@@ -170,11 +171,11 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
                     db.add(record)
 
                 db.commit()
-                logger.info(f"💾 [STREAM] Transcription saved for ticket {ticket_id}")
+                logger.info("💾 [STREAM] Transcription saved for ticket %s", sanitize_log(ticket_id))
             finally:
                 db.close()
         except Exception as e:
-            logger.error(f"❌ [STREAM] DB save failed for ticket {ticket_id}: {e}")
+            logger.error("❌ [STREAM] DB save failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
 
     # Clean close
     try:
@@ -203,12 +204,12 @@ def _transcribe_buffer(whisper_model, audio_bytes: bytes, ticket_id: str) -> str
         text = result.get("text", "").strip()
 
         if text:
-            logger.debug(f"🗣️ [STREAM] Partial for {ticket_id}: {text[:80]}...")
+            logger.debug("🗣️ [STREAM] Partial for %s: %s...", sanitize_log(ticket_id), sanitize_log(text[:80]))
 
         return text
 
     except Exception as e:
-        logger.warning(f"⚠️ [STREAM] Transcription chunk failed for {ticket_id}: {e}")
+        logger.warning("⚠️ [STREAM] Transcription chunk failed for %s: %s", sanitize_log(ticket_id), sanitize_log(e))
         return ""
 
     finally:
