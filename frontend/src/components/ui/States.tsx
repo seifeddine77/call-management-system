@@ -5,7 +5,7 @@ export function CardSkeleton({ rows = 3 }: Readonly<{ rows?: number }>) {
     <div className="card-aurora rounded-[14px] p-5 animate-pulse space-y-3">
       <div className="h-3 w-24 bg-[var(--muted)] rounded" />
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-2.5 bg-[var(--muted)] rounded" style={{ width: `${75 - i * 12}%` }} />
+        <div key={`card-row-${i}`} className="h-2.5 bg-[var(--muted)] rounded" style={{ width: `${75 - i * 12}%` }} />
       ))}
     </div>
   );
@@ -18,9 +18,9 @@ export function TableSkeleton({ rows = 5, cols = 4 }: Readonly<{ rows?: number; 
         <div className="h-3 w-32 bg-[var(--muted)] rounded" />
       </div>
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex items-center gap-4 px-5 py-3 border-b border-border">
+        <div key={`table-row-${r}`} className="flex items-center gap-4 px-5 py-3 border-b border-border">
           {Array.from({ length: cols }).map((_, c) => (
-            <div key={c} className="h-2.5 bg-[var(--muted)] rounded flex-1" style={{ maxWidth: c === 0 ? 60 : undefined }} />
+            <div key={`table-col-${c}`} className="h-2.5 bg-[var(--muted)] rounded flex-1" style={{ maxWidth: c === 0 ? 60 : undefined }} />
           ))}
         </div>
       ))}

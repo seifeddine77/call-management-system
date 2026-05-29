@@ -31,6 +31,8 @@ import java.util.UUID;
 public class TicketServiceImpl implements TicketService {
 
     private static final String ROLE_OPERATOR = "OPERATOR";
+    private static final String SYSTEM_USER_NAME = "SYSTEM";
+    private static final String SYSTEM_USER_UUID = "00000000-0000-0000-0000-000000000000";
 
     private final TicketRepository ticketRepository;
     private final TicketActionRepository actionRepository;
@@ -83,8 +85,8 @@ public class TicketServiceImpl implements TicketService {
 
         // Log action (use SYSTEM UUID for channel-originated tickets without operator)
         UUID actionUserId = operateurId != null ? operateurId
-                : UUID.fromString("00000000-0000-0000-0000-000000000000");
-        String actionUserName = operateurName != null ? operateurName : "SYSTEM";
+                : UUID.fromString(SYSTEM_USER_UUID);
+        String actionUserName = operateurName != null ? operateurName : SYSTEM_USER_NAME;
         logAction(ticket, actionUserId, actionUserName, "CREE", null, ticket.getStatut().name(), null);
 
         // Publish RabbitMQ event
@@ -269,8 +271,8 @@ public class TicketServiceImpl implements TicketService {
         ticketRepository.save(ticket);
         log.info("Audio transcription updated for ticket: {}", ticket.getNumero());
 
-        logAction(ticket, UUID.fromString("00000000-0000-0000-0000-000000000000"),
-                "SYSTEM", "TRANSCRIPTION_AJOUTEE", null, null, "Transcription audio ajoutée");
+        logAction(ticket, UUID.fromString(SYSTEM_USER_UUID),
+                SYSTEM_USER_NAME, "TRANSCRIPTION_AJOUTEE", null, null, "Transcription audio ajoutée");
     }
 
     @Override
@@ -280,8 +282,8 @@ public class TicketServiceImpl implements TicketService {
         ticketRepository.save(ticket);
         log.info("📸 Photos mises à jour pour ticket: {}", ticket.getNumero());
 
-        logAction(ticket, UUID.fromString("00000000-0000-0000-0000-000000000000"),
-                "SYSTEM", "PHOTOS_AJOUTEES", null, null, "Photos sinistre ajoutées");
+        logAction(ticket, UUID.fromString(SYSTEM_USER_UUID),
+                SYSTEM_USER_NAME, "PHOTOS_AJOUTEES", null, null, "Photos sinistre ajoutées");
     }
 
     @Override
