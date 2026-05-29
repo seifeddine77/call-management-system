@@ -160,3 +160,24 @@ EXPLICATION_MOTEUR_REGLES.md
 trace_data_decision_scoring.md
 dashboard-admin.yaml
 autoassist_logo.png
+
+# ========================
+# General Document & Report Exclusions
+# ========================
+*.pdf
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pptx
+*.ppt
+*.odp
+*.md
+!README.md
+!**/README.md
+
