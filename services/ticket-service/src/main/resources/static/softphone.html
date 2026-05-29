@@ -517,14 +517,7 @@
                 const transcription = pipelineResult.transcription || '';
                 const keywords = pipelineResult.transcriptionKeywords || '';
 
-                // Parse NLP results
-                let piece = 'N/A', sinistre = 'N/A', sentiment = 'N/A';
-                try {
-                    if (keywords) {
-                        const kw = JSON.parse(keywords);
-                        // keywords can be array or object
-                    }
-                } catch { /* JSON parse failure — keywords format varies, safe to ignore */ }
+
 
                 updateLastStep('🧠', `Pipeline complet ! Transcription sauvegardée (${transcription.length || 0} chars)`);
 

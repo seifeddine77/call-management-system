@@ -100,9 +100,7 @@ def _cache_response(question: str, response: dict):
         del _response_cache[oldest_key]
 
 
-# ═══════════════════════════════════════════════════════════════
 # INTENT CLASSIFICATION — Route questions optimally
-# ═══════════════════════════════════════════════════════════════
 
 def classify_intent(question: str) -> str:
     """
@@ -146,9 +144,7 @@ def classify_intent(question: str) -> str:
     return 'KNOWLEDGE_QUERY'
 
 
-# ═══════════════════════════════════════════════════════════════
 # LANGUAGE DETECTION — Auto-detect FR/AR/EN
-# ═══════════════════════════════════════════════════════════════
 
 def detect_language(text: str) -> str:
     """
@@ -180,9 +176,7 @@ def detect_language(text: str) -> str:
     return 'fr'
 
 
-# ═══════════════════════════════════════════════════════════════
 # QUERY REWRITING — Fix poorly transcribed voice messages
-# ═══════════════════════════════════════════════════════════════
 
 # Common Whisper transcription errors (French)
 _WHISPER_FIXES = {
@@ -227,9 +221,7 @@ def rewrite_query(question: str) -> str:
     return result
 
 
-# ═══════════════════════════════════════════════════════════════
 # Amélioration #6 : CHUNKING — Découper les documents longs
-# ═══════════════════════════════════════════════════════════════
 
 def _chunk_document(doc: dict) -> list[dict]:
     """
@@ -271,9 +263,7 @@ def _chunk_document(doc: dict) -> list[dict]:
     return chunks
 
 
-# ═══════════════════════════════════════════════════════════════
 # Amélioration #1 : SYNC DYNAMIQUE — Règles depuis rules-service
-# ═══════════════════════════════════════════════════════════════
 
 def _fetch_rules_from_service() -> list[dict]:
     """Fetch real business rules from rules-service API."""
@@ -373,9 +363,7 @@ def _format_conditions(conditions: dict) -> str:
     return f" {operator} ".join(parts)
 
 
-# ═══════════════════════════════════════════════════════════════
 # INIT + Amélioration #2 : EMBEDDINGS MULTILINGUES
-# ═══════════════════════════════════════════════════════════════
 
 def init_rag():
     """Initialize ChromaDB with multilingual embeddings and index all sources."""
@@ -454,9 +442,7 @@ def _index_all_sources():
     )
 
 
-# ═══════════════════════════════════════════════════════════════
 # Amélioration #8 : AUTO-REFRESH — Re-indexation à chaud
-# ═══════════════════════════════════════════════════════════════
 
 def refresh_knowledge_base() -> dict:
     """
@@ -489,9 +475,7 @@ def refresh_knowledge_base() -> dict:
     }
 
 
-# ═══════════════════════════════════════════════════════════════
 # Améliorations #4 + #5 : HYBRID SEARCH + RE-RANKING
-# ═══════════════════════════════════════════════════════════════
 
 def _keyword_score(query: str, document: str) -> float:
     """
@@ -568,9 +552,7 @@ def retrieve(query: str, n_results: int = 6) -> list[dict]:
     return docs[:4]
 
 
-# ═══════════════════════════════════════════════════════════════
 # Amélioration #7 : FEEDBACK LOOP — Notation des réponses
-# ═══════════════════════════════════════════════════════════════
 
 def record_feedback(question: str, answer: str, rating: str, group_name: str = "") -> dict:
     """
@@ -656,9 +638,7 @@ def get_feedback_stats() -> dict:
     }
 
 
-# ═══════════════════════════════════════════════════════════════
 # Amélioration #3 : MÉMOIRE DE CONVERSATION
-# ═══════════════════════════════════════════════════════════════
 
 def _get_conversation_context(group_name: str) -> str:
     """
@@ -840,10 +820,8 @@ async def warmup_llm():
         logger.warning(f"⚠️ Warmup failed (Gemma may be slow on first query): {e}")
 
 
-# ═══════════════════════════════════════════════════════════════
 # SMART DATA ROUTER — Détecte les questions sur données live
 # et enrichit le contexte RAG avec les données temps réel
-# ═══════════════════════════════════════════════════════════════
 
 TICKET_SERVICE_URL = "http://ticket-service:8083"
 DECISION_SERVICE_URL = "http://decision-service:8085"
@@ -1100,9 +1078,7 @@ async def _fetch_live_context(question: str) -> str:
     return "\n".join(live_parts)
 
 
-# ═══════════════════════════════════════════════════════════════
 # MAIN CHAT — Pipeline RAG complet avec toutes les améliorations
-# ═══════════════════════════════════════════════════════════════
 
 async def chat(question: str, group_name: str = "") -> dict:
     """

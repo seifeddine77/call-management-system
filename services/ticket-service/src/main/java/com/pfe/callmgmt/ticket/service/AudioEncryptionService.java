@@ -89,7 +89,7 @@ public class AudioEncryptionService {
             return buffer.array();
         } catch (Exception e) {
             log.error("❌ Audio encryption failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Échec du chiffrement audio", e);
+            throw new IllegalStateException("Échec du chiffrement audio", e);
         }
     }
 
@@ -123,7 +123,7 @@ public class AudioEncryptionService {
             return plainData;
         } catch (Exception e) {
             log.error("❌ Audio decryption failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Échec du déchiffrement audio", e);
+            throw new IllegalStateException("Échec du déchiffrement audio", e);
         }
     }
 }
