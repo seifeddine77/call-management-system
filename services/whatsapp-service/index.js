@@ -11,9 +11,9 @@ const SESSION_DIR = '/app/.wwebjs_auth/session';
 ['SingletonLock', 'SingletonSocket', 'SingletonCookiesLock'].forEach(f => {
     [SESSION_DIR, `${SESSION_DIR}/Default`].forEach(dir => {
         const p = path.join(dir, f);
-        try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`🧹 Removed lock: ${p}`); } } catch(e) { /* Lock file may not exist — safe to ignore */ }
+        try { if (fs.existsSync(p)) { fs.unlinkSync(p); console.log(`🧹 Removed lock: ${p}`); } } catch(e) { console.debug(`Lock file removal skipped for ${p}: ${e.message}`); }
         // Also remove symlinks
-        try { fs.unlinkSync(p); } catch(e) { /* Symlink may not exist — safe to ignore */ }
+        try { fs.unlinkSync(p); } catch(e) { console.debug(`Symlink removal skipped for ${p}: ${e.message}`); }
     });
 });
 

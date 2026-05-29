@@ -15,7 +15,7 @@ RUN apt-get update && \
 
 # Pin pip<24 to keep pkg_resources working
 # NOSONAR — pip/setuptools/wheel cannot use --only-binary (they are build tools)
-RUN pip install --no-cache-dir "pip<24" "setuptools>=69,<70" wheel
+RUN pip install --no-cache-dir --only-binary :all: "pip==23.3.2" "setuptools==69.1.1" "wheel==0.43.0"
 
 # Torch CPU-only (separate layer for Docker cache — 187MB)
 # Extended timeout + retries to handle slow/unstable networks during CI builds
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir --only-binary :all: \
 
 # openai-whisper from GitHub (PyPI sdist is broken, GitHub uses pyproject.toml)
 # NOSONAR — whisper has C extensions, --only-binary not applicable for git source
-RUN pip install --no-cache-dir --no-deps "openai-whisper @ git+https://github.com/openai/whisper.git@main"
+RUN pip install --no-cache-dir --no-deps "openai-whisper @ git+https://github.com/openai/whisper.git@v20231117"
 
 # spaCy + French model (pinned versions — S8544)
 RUN pip install --no-cache-dir --only-binary :all: "spacy==3.7.4" && \

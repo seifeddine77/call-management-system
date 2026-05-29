@@ -1772,7 +1772,11 @@ export default function TicketDetailPage() {
             >
               ✕ Fermer
             </button>
-            <div className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+            <div 
+              className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" 
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+            >
               {(() => {
                 const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${existingPhotos[lightboxIndex]}`;
                 return (

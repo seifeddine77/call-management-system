@@ -1046,7 +1046,13 @@ export default function RulesPage() {
                         <span className="text-xs font-semibold flex-1">{item.label}</span>
                         {item.description && <span className="text-[10px] text-txt-3 flex-1 truncate">{item.description}</span>}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <div onClick={() => handleToggleRef(item.id)} className={`toggle-switch cursor-pointer ${item.actif ? 'on' : ''}`} style={{ transform: 'scale(0.8)' }} />
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRef(item.id)}
+                            className={`toggle-switch cursor-pointer ${item.actif ? 'on' : ''}`}
+                            style={{ transform: 'scale(0.8)', border: 'none', background: 'none', padding: 0 }}
+                            aria-label="Activer ou désactiver l'élément"
+                          />
                           <button onClick={() => handleDeleteRef(item.id)} className="w-6 h-6 rounded flex items-center justify-center text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"><Trash2 size={12} /></button>
                         </div>
                       </div>
