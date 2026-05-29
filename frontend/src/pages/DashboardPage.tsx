@@ -27,6 +27,24 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
+const getPerformanceLabel = (taux: number): string => {
+  if (taux >= 90) return 'excellente';
+  if (taux >= 70) return 'bonne';
+  return 'à améliorer';
+};
+
+const getGreeting = (hour: number): string => {
+  if (hour < 12) return 'Bonjour';
+  if (hour < 18) return 'Bon après-midi';
+  return 'Bonsoir';
+};
+
+const getTauxColor = (taux: number): string => {
+  if (taux >= 80) return 'var(--success)';
+  if (taux >= 50) return 'var(--warning)';
+  return 'var(--danger)';
+};
+
 export default function DashboardPage() {
   const { user, isSupervisor } = useAuth();
   const navigate = useNavigate();
@@ -81,12 +99,12 @@ export default function DashboardPage() {
 
   // AI Insight (generated from KPIs)
   const aiInsight = kpis ? (() => {
-    const perf = kpis.tauxResolution >= 90 ? 'excellente' : kpis.tauxResolution >= 70 ? 'bonne' : 'à améliorer';
+    const perf = getPerformanceLabel(kpis.tauxResolution);
     return `${kpis.totalTickets.toLocaleString('fr-FR')} tickets traités · ${kpis.tauxResolution.toFixed(1)}% résolution · ${kpis.tempsMoyenMinutes.toFixed(0)}min temps moyen · Performance ${perf}`;
   })() : null;
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const greeting = getGreeting(hour);
   const firstName = user?.prenom || 'Utilisateur';
 
   return (
@@ -488,7 +506,7 @@ export default function DashboardPage() {
                   { label: 'Tickets traités', value: myPerf.ticketsTraites, color: 'var(--primary)', icon: <ClipboardList size={16} style={{ color: 'var(--primary)' }} /> },
                   { label: 'Résolus', value: myPerf.ticketsResolu, color: 'var(--success)', icon: <CheckCircle2 size={16} style={{ color: 'var(--success)' }} /> },
                   { label: 'En cours', value: myPerf.ticketsEnCours, color: 'var(--warning)', icon: <Clock size={16} style={{ color: 'var(--warning)' }} /> },
-                  { label: 'Taux résolution', value: `${myPerf.tauxResolution}%`, color: myPerf.tauxResolution >= 80 ? 'var(--success)' : myPerf.tauxResolution >= 50 ? 'var(--warning)' : 'var(--danger)', icon: <BarChart3 size={16} style={{ color: myPerf.tauxResolution >= 80 ? 'var(--success)' : myPerf.tauxResolution >= 50 ? 'var(--warning)' : 'var(--danger)' }} /> },
+                  { label: 'Taux résolution', value: `${myPerf.tauxResolution}%`, color: getTauxColor(myPerf.tauxResolution), icon: <BarChart3 size={16} style={{ color: getTauxColor(myPerf.tauxResolution) }} /> },
                 ].map(stat => (
                   <div key={stat.label} className="rounded-xl p-3 flex flex-col justify-between hover:scale-[1.02] transition-transform duration-200" style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
                     <span className="flex items-center">{stat.icon}</span>

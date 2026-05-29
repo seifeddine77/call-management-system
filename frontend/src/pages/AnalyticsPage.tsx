@@ -66,6 +66,44 @@ export default function AnalyticsPage() {
   const prevTotalDec = comparison ? comparison.previous.decisionsAiFavorable + comparison.previous.decisionsAiDefavorable + comparison.previous.decisionsAiEtude : 0;
   const prevScore = prevTotalDec > 0 ? Math.round((comparison!.previous.decisionsAiFavorable / prevTotalDec) * 100) : 0;
 
+  const getTrendDirection = (value: number): boolean | null => {
+    if (value > 0) return true;
+    if (value < 0) return false;
+    return null;
+  };
+
+  const getScoreTrendDirection = (score: number): boolean | null => {
+    if (score >= 60) return true;
+    if (score < 40) return false;
+    return null;
+  };
+
+  const getScoreSubtitle = (score: number): string => {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Bon';
+    if (score >= 40) return 'Moyen';
+    return 'Faible';
+  };
+
+  const renderKpiTrend = (trendUp: boolean | null | undefined, trend?: string) => {
+    if (trendUp === undefined) return null;
+    if (trendUp === null) {
+      return (
+        <span className="flex items-center gap-0.5 font-mono text-[10px] text-[var(--text-3)]">
+          <Minus size={10} /> {trend || 'Stable'}
+        </span>
+      );
+    }
+    return (
+      <span className={`flex items-center gap-0.5 font-mono text-[10px] ${trendUp ? 'text-emerald-400' : 'text-[var(--danger)]'}`}>
+        {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {trend || ''}
+      </span>
+    );
+  };
+
+  const scoreDiff = scoreMoyen - prevScore;
+  const scoreTrendText = prevScore > 0 ? `${scoreDiff >= 0 ? '+' : ''}${scoreDiff}pts` : undefined;
+
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
       {/* Header */}
@@ -93,27 +131,27 @@ export default function AnalyticsPage() {
           </button>
         </div>
       </motion.div>
-
+ 
       {/* KPI Row — 5 cards */}
       {loading ? <KpiSkeleton /> : kpis && comparison && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: 'Total tickets', value: kpis.totalTickets, icon: <BarChart3 size={14} />,
               trend: `${comparison.deltaTickets >= 0 ? '+' : ''}${comparison.deltaTickets}%`,
-              trendUp: comparison.deltaTickets > 0 ? true : comparison.deltaTickets < 0 ? false : null },
+              trendUp: getTrendDirection(comparison.deltaTickets) },
             { label: 'Résolution', value: kpis.tauxResolution, suffix: '%', decimals: 1, icon: <CheckCircle2 size={14} />,
               trend: `${comparison.deltaResolution >= 0 ? '+' : ''}${comparison.deltaResolution}%`,
-              trendUp: comparison.deltaResolution > 0 ? true : comparison.deltaResolution < 0 ? false : null },
+              trendUp: getTrendDirection(comparison.deltaResolution) },
             { label: 'Temps moyen', value: kpis.tempsMoyenMinutes, suffix: 'min', icon: <Clock size={14} />,
               trend: comparison.deltaTempsMoyen !== 0 ? `${comparison.deltaTempsMoyen >= 0 ? '+' : ''}${comparison.deltaTempsMoyen}%` : undefined,
-              trendUp: comparison.deltaTempsMoyen < 0 ? true : comparison.deltaTempsMoyen > 0 ? false : null },
+              trendUp: getTrendDirection(-comparison.deltaTempsMoyen) }, // lower temps moyen is good, so reverse direction
             { label: 'Décisions IA', value: totalDecisions, icon: <Bot size={14} />,
               trend: `${comparison.deltaDecisions >= 0 ? '+' : ''}${comparison.deltaDecisions}%`,
-              trendUp: comparison.deltaDecisions > 0 ? true : comparison.deltaDecisions < 0 ? false : null },
+              trendUp: getTrendDirection(comparison.deltaDecisions) },
             { label: 'Score favorable', value: scoreMoyen, suffix: '%', icon: <Target size={14} />,
-              trendUp: scoreMoyen >= 60 ? true : scoreMoyen < 40 ? false : null,
-              subtitle: scoreMoyen >= 80 ? 'Excellent' : scoreMoyen >= 60 ? 'Bon' : scoreMoyen >= 40 ? 'Moyen' : 'Faible',
-              trend: prevScore > 0 ? `${scoreMoyen >= prevScore ? '+' : ''}${scoreMoyen - prevScore}pts` : undefined },
+              trendUp: getScoreTrendDirection(scoreMoyen),
+              subtitle: getScoreSubtitle(scoreMoyen),
+              trend: scoreTrendText },
           ].map((kpi, i) => (
             <motion.div key={i} variants={item} className="card-aurora rounded-2xl p-4 group hover:-translate-y-0.5 transition-all duration-150 relative overflow-hidden">
               <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-[var(--primary)] opacity-[0.04] group-hover:opacity-[0.08] transition-opacity blur-xl" />
@@ -124,15 +162,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex items-baseline gap-2">
                   <AnimatedCounter value={kpi.value} suffix={kpi.suffix} decimals={kpi.decimals} className="text-xl font-extrabold tracking-tighter" />
-                  {kpi.trendUp !== undefined && kpi.trendUp !== null ? (
-                    <span className={`flex items-center gap-0.5 font-mono text-[10px] ${kpi.trendUp ? 'text-emerald-400' : 'text-[var(--danger)]'}`}>
-                      {kpi.trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {kpi.trend || ''}
-                    </span>
-                  ) : kpi.trendUp === null ? (
-                    <span className="flex items-center gap-0.5 font-mono text-[10px] text-[var(--text-3)]">
-                      <Minus size={10} /> {kpi.trend || 'Stable'}
-                    </span>
-                  ) : null}
+                  {renderKpiTrend(kpi.trendUp, kpi.trend)}
                 </div>
                 {kpi.subtitle && (
                   <p className="font-mono text-[8px] text-[var(--text-3)] mt-1">{kpi.subtitle}</p>

@@ -266,7 +266,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void changePassword(UUID userId, String oldPassword, String newPassword) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + userId));
 
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("Ancien mot de passe incorrect");
@@ -281,7 +281,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void updateLastLogin(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + userId));
         user.setLastLogin(java.time.LocalDateTime.now());
         userRepository.save(user);
         log.info("Last login updated for user: {}", userId);

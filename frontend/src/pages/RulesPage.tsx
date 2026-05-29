@@ -9,6 +9,43 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// ─── CSS Badge/Text Styling Utility Helpers to eliminate nested ternaries ───
+const getActionBadgeClass = (action: string) => {
+  if (action === 'FAVORABLE') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  if (action === 'DEFAVORABLE') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+  return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+};
+
+const getScoreImpactClass = (impact: number) => {
+  if (impact > 0) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  if (impact < 0) return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+  return 'bg-txt-3/10 text-txt-3 border-txt-3/20';
+};
+
+const getScoreImpactTextClass = (impact: number) => {
+  if (impact > 0) return 'text-emerald-400';
+  if (impact < 0) return 'text-rose-400';
+  return 'text-txt-2';
+};
+
+const getScoreImpactHistoryClass = (impact: number) => {
+  if (impact > 0) return 'text-emerald-400';
+  if (impact < 0) return 'text-rose-400';
+  return 'text-txt-3';
+};
+
+const getTestDecisionBgClass = (decision: string) => {
+  if (decision === 'FAVORABLE') return 'bg-emerald-500/10 border-emerald-500/20';
+  if (decision === 'DEFAVORABLE') return 'bg-rose-500/10 border-rose-500/20';
+  return 'bg-amber-500/10 border-amber-500/20';
+};
+
+const getTestDecisionTextClass = (decision: string) => {
+  if (decision === 'FAVORABLE') return 'text-emerald-400';
+  if (decision === 'DEFAVORABLE') return 'text-rose-400';
+  return 'text-amber-400';
+};
+
 // ─── Sortable Condition Row ───
 function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: Readonly<{
   id: string; cond: RuleCondition; index: number; refs: ReferenceData | null;
@@ -847,10 +884,10 @@ export default function RulesPage() {
                     </div>
                     <div className="text-xs text-txt-2 line-clamp-1">{rule.description}</div>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={`badge border text-[9px] ${rule.action === 'FAVORABLE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : rule.action === 'DEFAVORABLE' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                      <span className={`badge border text-[9px] ${getActionBadgeClass(rule.action)}`}>
                         {rule.action}
                       </span>
-                      <span className={`badge font-mono text-[9px] ${rule.scoreImpact > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : rule.scoreImpact < 0 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-txt-3/10 text-txt-3 border-txt-3/20'}`}>
+                      <span className={`badge font-mono text-[9px] ${getScoreImpactClass(rule.scoreImpact)}`}>
                         Impact: {rule.scoreImpact > 0 ? `+${rule.scoreImpact}` : rule.scoreImpact}
                       </span>
                       <span className="font-mono text-[9px] text-txt-3">P{rule.priorite}</span>
@@ -900,8 +937,8 @@ export default function RulesPage() {
               {testing ? '⏳ Evaluation...' : '▶ Évaluer'}
             </button>
             {testResult && (
-              <div className={`p-3.5 rounded-xl border ${testResult.decision === 'FAVORABLE' ? 'bg-emerald-500/10 border-emerald-500/20' : testResult.decision === 'DEFAVORABLE' ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
-                <div className={`text-sm font-bold ${testResult.decision === 'FAVORABLE' ? 'text-emerald-400' : testResult.decision === 'DEFAVORABLE' ? 'text-rose-400' : 'text-amber-400'}`}>
+              <div className={`p-3.5 rounded-xl border ${getTestDecisionBgClass(testResult.decision)}`}>
+                <div className={`text-sm font-bold ${getTestDecisionTextClass(testResult.decision)}`}>
                   {testResult.decision} — Score: {Math.round(testResult.score)}%
                 </div>
                 {testResult.motif && (
@@ -935,7 +972,7 @@ export default function RulesPage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] text-txt-3 font-mono uppercase">Impact Score</span>
-                    <span className={`text-xs font-bold ${selectedRule.scoreImpact > 0 ? 'text-emerald-400' : selectedRule.scoreImpact < 0 ? 'text-rose-400' : 'text-txt-2'}`}>
+                    <span className={`text-xs font-bold ${getScoreImpactTextClass(selectedRule.scoreImpact)}`}>
                       {selectedRule.scoreImpact > 0 ? `+${selectedRule.scoreImpact}` : selectedRule.scoreImpact}
                     </span>
                   </div>
@@ -959,7 +996,7 @@ export default function RulesPage() {
                     </div>
                   ))}
                   <div className="p-2.5 bg-[var(--elevated)] border border-border rounded-lg">
-                    <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${selectedRule.action === 'FAVORABLE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : selectedRule.action === 'DEFAVORABLE' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>ALORS</span>
+                    <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${getActionBadgeClass(selectedRule.action)}`}>ALORS</span>
                     <span className="text-xs ml-2">{selectedRule.action}</span>
                     <div className="font-mono text-[10px] text-txt-3 mt-1">{selectedRule.actionMotif}</div>
                   </div>
@@ -981,7 +1018,7 @@ export default function RulesPage() {
                         <span className="flex-1 text-txt-2">
                           {h.action}
                           {h.scoreImpact !== undefined && h.scoreImpact !== null ? (
-                            <span className={`ml-2 text-[10px] font-mono ${h.scoreImpact > 0 ? 'text-emerald-400' : h.scoreImpact < 0 ? 'text-rose-400' : 'text-txt-3'}`}>
+                            <span className={`ml-2 text-[10px] font-mono ${getScoreImpactHistoryClass(h.scoreImpact)}`}>
                               ({h.scoreImpact > 0 ? `+${h.scoreImpact}` : h.scoreImpact})
                             </span>
                           ) : ''}

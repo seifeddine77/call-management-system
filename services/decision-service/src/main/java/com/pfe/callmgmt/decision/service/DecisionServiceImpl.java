@@ -254,7 +254,7 @@ public class DecisionServiceImpl {
                     .toString();
         } catch (Exception e) {
             log.error("❌ Failed to generate PDF letter for decision {}: {}", decision.getId(), e.getMessage(), e);
-            throw new RuntimeException("Erreur de génération du courrier PDF", e);
+            throw new IllegalStateException("Erreur de génération du courrier PDF", e);
         }
 
         // Publish event for notification-service
