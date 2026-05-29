@@ -8,7 +8,7 @@ global:
   smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: 'saifrezgui77@gmail.com'
   smtp_auth_username: 'saifrezgui77@gmail.com'
-  smtp_auth_password: 'dskrwxfgfitdxyxc'  
+  smtp_auth_password_file: '/etc/alertmanager/secrets/smtp_password'  
   smtp_require_tls: true
 
 route:

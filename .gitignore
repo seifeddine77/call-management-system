@@ -127,6 +127,7 @@ k8s/secrets/*.yml
 # ========================
 prometheus_data/
 grafana_data/
+infrastructure/monitoring/alertmanager/secrets/
 
 # Staging secrets - never commit
 .staging.env
