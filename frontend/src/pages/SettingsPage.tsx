@@ -224,14 +224,14 @@ export default function SettingsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-border/40">
                   <div>
-                    <label htmlFor="settings-role" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Habilitation Système</label>
+                    <span className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Habilitation Système</span>
                     <div className="aurora-input bg-[var(--surface)] text-indigo-400 font-mono text-[10.5px] font-bold border-indigo-500/10 flex items-center gap-1.5 select-none">
                       <Shield size={12} />
                       {user?.role || '—'}
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="settings-agence" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Agence Principale</label>
+                    <span className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Agence Principale</span>
                     <div className="aurora-input bg-[var(--surface)] text-txt-2 font-semibold flex items-center gap-1.5 select-none">
                       <Building size={12} className="text-txt-3" />
                       {myAgenceName}

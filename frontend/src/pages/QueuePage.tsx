@@ -480,12 +480,15 @@ export default function QueuePage() {
                 return (
                   <motion.div
                     key={t.ticketId}
+                    role="button"
+                    tabIndex={0}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2, delay: idx * 0.02 }}
                     className={`group flex flex-wrap md:flex-nowrap items-center justify-between gap-4 px-5 py-4 border-b border-border/50 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden`}
                     onClick={() => navigate(`/tickets/${t.ticketId}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/tickets/${t.ticketId}`); } }}
                   >
                     {/* Left boundary accent for high priority */}
                     {isUrgent && (

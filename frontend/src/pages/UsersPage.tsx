@@ -416,33 +416,33 @@ export default function UsersPage() {
           </div>
           {(showCreate || showEdit) && (
             <div>
-              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">{showCreate ? 'Mot de passe initial *' : 'Nouveau mot de passe (optionnel)'}</label>
-              <input className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
+              <label htmlFor="user-password" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">{showCreate ? 'Mot de passe initial *' : 'Nouveau mot de passe (optionnel)'}</label>
+              <input id="user-password" className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
               {formErrors.password && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.password}</span>}
             </div>
           )}
           
           <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Rôle d'accès</label>
-              <select className="aurora-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN' }))}>
+              <label htmlFor="user-role" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Rôle d'accès</label>
+              <select id="user-role" className="aurora-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN' }))}>
                 <option value="OPERATEUR">Opérateur</option>
                 <option value="SUPERVISEUR">Superviseur d'agence</option>
                 <option value="ADMIN">Administrateur</option>
               </select>
             </div>
             <div>
-              <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">N° Téléphone</label>
-              <input className="aurora-input" placeholder="Ex: 06 12 34 56 78" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} />
+              <label htmlFor="user-telephone" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">N° Téléphone</label>
+              <input id="user-telephone" className="aurora-input" placeholder="Ex: 06 12 34 56 78" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} />
             </div>
           </div>
 
           {/* CDC 1.A — Agence (obligatoire pour OPERATEUR/SUPERVISEUR) */}
           <div>
-            <label className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+            <label htmlFor="user-agenceId" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
               Agence de rattachement {(form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && <span className="text-rose-400">*</span>}
             </label>
-            <select className={`aurora-select ${formErrors.agenceId ? 'border-rose-500/60' : ''}`} value={form.agenceId || ''} onChange={e => { setForm(p => ({ ...p, agenceId: e.target.value })); setFormErrors(e2 => ({ ...e2, agenceId: undefined })); }}>
+            <select id="user-agenceId" className={`aurora-select ${formErrors.agenceId ? 'border-rose-500/60' : ''}`} value={form.agenceId || ''} onChange={e => { setForm(p => ({ ...p, agenceId: e.target.value })); setFormErrors(e2 => ({ ...e2, agenceId: undefined })); }}>
               <option value="">-- Aucune agence --</option>
               {agenceOptions.map(a => (
                 <option key={a.id} value={a.id}>{a.nom}</option>
@@ -453,9 +453,9 @@ export default function UsersPage() {
 
           {/* Planning weekly presets */}
           <div>
-            <label className="field-label block flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+            <span className="field-label block flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
               <CalendarDays size={12} className="text-indigo-400" /> Définition du planning
-            </label>
+            </span>
             <div className="flex gap-1.5 flex-wrap mb-2">
               {planningPresets.map(p => (
                 <button 

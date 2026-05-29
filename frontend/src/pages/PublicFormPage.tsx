@@ -333,20 +333,20 @@ export default function PublicFormPage() {
 
         /* ═══ FORM FIELDS ═══ */
         .cf-field { position: relative; margin-bottom: 20px; }
-        .cf-field label {
+        .cf-label {
           position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
           font-size: 14px; color: ${t.textSecondary}; pointer-events: none;
-          transition: all .2s cubic-bezier(.4,0,.2,1); font-weight: 500;
+          transition: all .25s cubic-bezier(.4,0,.2,1); font-weight: 500;
         }
-        .cf-field.active label, .cf-field:focus-within label {
+        .cf-field.active .cf-label, .cf-field:focus-within .cf-label {
           top: 8px; transform: translateY(0); font-size: 10px; font-weight: 600;
           color: ${t.accent}; letter-spacing: .04em;
         }
-        .cf-field.textarea-field label { top: 18px; transform: none; }
-        .cf-field.textarea-field.active label, .cf-field.textarea-field:focus-within label {
+        .cf-field.textarea-field .cf-label { top: 18px; transform: none; }
+        .cf-field.textarea-field.active .cf-label, .cf-field.textarea-field:focus-within .cf-label {
           top: 8px; font-size: 10px; color: ${t.accent};
         }
-        .cf-field.select-field label {
+        .cf-field.select-field .cf-label {
           top: 8px; transform: translateY(0); font-size: 10px; font-weight: 600;
           color: ${t.textSecondary}; letter-spacing: .04em;
         }
@@ -358,7 +358,7 @@ export default function PublicFormPage() {
           border-color: #ef4444 !important;
           box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
         }
-        .cf-field.has-error label {
+        .cf-field.has-error .cf-label {
           color: #ef4444 !important;
         }
         .cf-field.is-valid .cf-input,
@@ -367,7 +367,7 @@ export default function PublicFormPage() {
           border-color: #10b981 !important;
           box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
         }
-        .cf-field.is-valid label {
+        .cf-field.is-valid .cf-label {
           color: #10b981 !important;
         }
         .cf-validation-msg {
@@ -668,7 +668,7 @@ export default function PublicFormPage() {
 
                         {/* Nom */}
                         <div className={getFieldClassName('nom', getNomError())}>
-                          <label htmlFor="pf-nom">Nom complet <span className="cf-required">*</span></label>
+                          <label htmlFor="pf-nom" className="cf-label">Nom complet <span className="cf-required">*</span></label>
                           <input id="pf-nom" className="cf-input" type="text" value={form.nom}
                             onChange={e => { setForm(f => ({...f, nom: e.target.value})); setTouched(p => ({...p, nom: true})); }}
                             onFocus={() => setFocusedField('nom')} onBlur={() => handleBlur('nom')} required />
@@ -682,7 +682,7 @@ export default function PublicFormPage() {
 
                         {/* Téléphone */}
                         <div className={getFieldClassName('telephone', getTelError())}>
-                          <label htmlFor="pf-tel">Numéro de téléphone</label>
+                          <label htmlFor="pf-tel" className="cf-label">Numéro de téléphone</label>
                           <input id="pf-tel" className="cf-input" type="tel" value={form.telephone}
                             onChange={handleTelChange}
                             onFocus={() => setFocusedField('telephone')} onBlur={() => handleBlur('telephone')} />
@@ -696,7 +696,7 @@ export default function PublicFormPage() {
 
                         {/* Email */}
                         <div className={getFieldClassName('email', getEmailError())}>
-                          <label htmlFor="pf-email">Adresse e-mail</label>
+                          <label htmlFor="pf-email" className="cf-label">Adresse e-mail</label>
                           <input id="pf-email" className="cf-input" type="email" value={form.email}
                             onChange={e => { setForm(f => ({...f, email: e.target.value})); setTouched(p => ({...p, email: true})); }}
                             onFocus={() => setFocusedField('email')} onBlur={() => handleBlur('email')} />
@@ -733,7 +733,10 @@ export default function PublicFormPage() {
                           ].map(item => (
                             <div 
                               key={item.id}
+                              role="button"
+                              tabIndex={0}
                               onClick={() => handleTypeSelect(item.id as any)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTypeSelect(item.id as any); } }}
                               className={`cf-type-card ${selectedType === item.id ? 'selected' : ''}`}
                             >
                               <div className="cf-type-card-icon" style={{ backgroundColor: item.color }}>
@@ -746,7 +749,7 @@ export default function PublicFormPage() {
 
                         {/* Agence select dropdown */}
                         <div className={`cf-field select-field ${touched.agenceId ? (form.agenceId ? 'is-valid' : 'has-error') : ''}`}>
-                          <label htmlFor="pf-agence">Votre agence de référence <span className="cf-required">*</span></label>
+                          <label htmlFor="pf-agence" className="cf-label">Votre agence de référence <span className="cf-required">*</span></label>
                           <select id="pf-agence" className="cf-select" value={form.agenceId}
                             onChange={e => { setForm(f => ({...f, agenceId: e.target.value})); setTouched(p => ({...p, agenceId: true})); }} required>
                             <option value="">— Choisir l'agence —</option>
@@ -778,7 +781,7 @@ export default function PublicFormPage() {
 
                          {/* Description textarea */}
                         <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''} ${touched.description ? (getDescError() ? 'has-error' : 'is-valid') : ''}`}>
-                          <label htmlFor="pf-desc">Description des circonstances <span className="cf-required">*</span></label>
+                          <label htmlFor="pf-desc" className="cf-label">Description des circonstances <span className="cf-required">*</span></label>
                           <textarea id="pf-desc" className="cf-textarea" value={form.description}
                             onChange={e => { setForm(f => ({...f, description: e.target.value})); setTouched(p => ({...p, description: true})); }}
                             onFocus={() => setFocusedField('description')} onBlur={() => handleBlur('description')} required />
@@ -804,7 +807,10 @@ export default function PublicFormPage() {
                           </div>
                           
                           <div
+                            role="button"
+                            tabIndex={0}
                             onClick={() => photoInputRef.current?.click()}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInputRef.current?.click(); } }}
                             onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#8b5cf6'; }}
                             onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; }}
                             onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; handlePhotoSelect(e.dataTransfer.files); }}

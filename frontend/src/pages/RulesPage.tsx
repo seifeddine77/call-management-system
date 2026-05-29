@@ -128,7 +128,7 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
-        <label className="field-label">Conditions ({conditions.conditions.length}) *</label>
+        <span className="field-label">Conditions ({conditions.conditions.length}) *</span>
         <select className="aurora-select text-[10px] w-20 h-6" value={conditions.operator}
           onChange={e => onChange({ ...conditions, operator: e.target.value as 'AND' | 'OR' })}>
           <option value="AND">ET (AND)</option>
@@ -918,14 +918,14 @@ export default function RulesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-3">
               {(refs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => (
                 <div key={fd.field}>
-                  <label className="field-label block">{fd.label}</label>
+                  <label htmlFor={`test-field-${fd.field}`} className="field-label block">{fd.label}</label>
                   {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
-                    <select className="aurora-select" value={testForm[fd.field] || ''} onChange={e => setTestForm(p => ({ ...p, [fd.field]: e.target.value }))}>
+                    <select id={`test-field-${fd.field}`} className="aurora-select" value={testForm[fd.field] || ''} onChange={e => setTestForm(p => ({ ...p, [fd.field]: e.target.value }))}>
                       <option value="">Choisir…</option>
                       {fd.values.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   ) : (
-                    <input className="aurora-input" type={fd.type === 'number' ? 'number' : 'text'}
+                    <input id={`test-field-${fd.field}`} className="aurora-input" type={fd.type === 'number' ? 'number' : 'text'}
                       placeholder={fd.type === 'number' ? 'Ex: 5' : 'Valeur'}
                       value={testForm[fd.field] || ''}
                       onChange={e => setTestForm(p => ({ ...p, [fd.field]: e.target.value }))} />

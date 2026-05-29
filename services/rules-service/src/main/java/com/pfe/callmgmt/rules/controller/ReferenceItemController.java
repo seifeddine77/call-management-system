@@ -5,6 +5,7 @@ import com.pfe.callmgmt.rules.entity.ReferenceItem;
 import com.pfe.callmgmt.rules.repository.ReferenceItemRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,7 +90,7 @@ public class ReferenceItemController {
     public ResponseEntity<ReferenceItem> update(@PathVariable UUID id,
                                                  @Valid @RequestBody ReferenceItemRequest request) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_ITEM_NOT_FOUND + id));
 
         item.setLabel(request.getLabel());
         item.setDescription(request.getDescription());
@@ -108,7 +109,7 @@ public class ReferenceItemController {
     @Operation(summary = "Activer ou désactiver un élément de référence")
     public ResponseEntity<ReferenceItem> toggle(@PathVariable UUID id) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_ITEM_NOT_FOUND + id));
 
         item.setActif(!item.getActif());
         item = repository.save(item);
@@ -124,7 +125,7 @@ public class ReferenceItemController {
     @Operation(summary = "Supprimer un élément de référence")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         ReferenceItem item = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException(MSG_ITEM_NOT_FOUND + id));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_ITEM_NOT_FOUND + id));
         repository.delete(item);
         log.info("🗑️ Référence supprimée: {} / {}", item.getCategory(), item.getCode());
         return ResponseEntity.noContent().build();

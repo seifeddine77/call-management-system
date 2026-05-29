@@ -313,7 +313,14 @@ export default function TicketListPage() {
               </thead>
               <tbody>
                 {tickets.map(t => (
-                  <tr key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="cursor-pointer">
+                  <tr 
+                    key={t.id} 
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/tickets/${t.id}`)} 
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/tickets/${t.id}`); } }}
+                    className="cursor-pointer"
+                  >
                     <td className="font-mono text-xs font-semibold text-[var(--primary)]">{t.numero}</td>
                     <td>
                       <div className="text-xs font-medium">{t.clientNom}</div>

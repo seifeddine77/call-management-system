@@ -5,6 +5,7 @@ import com.pfe.callmgmt.rules.entity.Rule;
 import com.pfe.callmgmt.rules.entity.RuleVersion;
 import com.pfe.callmgmt.rules.repository.RuleRepository;
 import com.pfe.callmgmt.rules.repository.RuleVersionRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -146,7 +147,7 @@ public class RuleService {
         validateConditionsStructure(request.getConditions());
 
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RULE_NOT_FOUND + ruleId));
 
         // Sauvegarder l'ancienne version avant modification
         RuleVersion version = RuleVersion.builder()
@@ -192,7 +193,7 @@ public class RuleService {
     @Transactional
     public void deleteRule(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RULE_NOT_FOUND + ruleId));
         ruleRepository.delete(rule);
         log.info("🗑️ Règle '{}' supprimée (id={})", rule.getNom(), ruleId);
     }
@@ -202,7 +203,7 @@ public class RuleService {
      */
     public RuleResponse findById(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RULE_NOT_FOUND + ruleId));
         return toResponse(rule);
     }
 
@@ -222,7 +223,7 @@ public class RuleService {
     @Transactional
     public RuleResponse toggleRule(UUID ruleId) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RULE_NOT_FOUND + ruleId));
 
         rule.setActif(!rule.getActif());
         rule.setUpdatedAt(LocalDateTime.now());
@@ -238,7 +239,7 @@ public class RuleService {
     public List<RuleVersion> getHistory(UUID ruleId) {
         // Vérifier que la règle existe
         ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new RuntimeException(MSG_RULE_NOT_FOUND + ruleId));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_RULE_NOT_FOUND + ruleId));
         return ruleVersionRepository.findByRuleIdOrderByVersionDesc(ruleId);
     }
 

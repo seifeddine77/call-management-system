@@ -1,5 +1,6 @@
 package com.pfe.callmgmt.rules.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,5 +60,16 @@ public class GlobalExceptionHandler {
         body.put(KEY_ERROR, "Bad Request");
         body.put("message", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEntityNotFound(EntityNotFoundException ex) {
+        log.error("Ressource non trouvée: {}", ex.getMessage());
+        Map<String, Object> body = new HashMap<>();
+        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_STATUS, 404);
+        body.put(KEY_ERROR, "Not Found");
+        body.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 }

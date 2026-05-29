@@ -78,7 +78,9 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
           } else if (data.type === 'error') {
             toast.error(`Erreur STT: ${data.detail}`);
           }
-        } catch { /* ignore parse errors */ }
+        } catch (err) {
+          console.warn("Failed to parse WebSocket message", err);
+        }
       };
 
       ws.onerror = () => {
@@ -1033,12 +1035,13 @@ export default function TicketDetailPage() {
                   const isLocked = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
                   return (
                     <div key={fd.field} className="space-y-1">
-                      <label className="font-mono text-[9px] text-txt-2 uppercase tracking-wide flex items-center justify-between">
+                      <label htmlFor={`detail-field-${fd.field}`} className="font-mono text-[9px] text-txt-2 uppercase tracking-wide flex items-center justify-between">
                         <span>{fd.label}</span>
                         {isRequired && <span className="text-[8px] text-amber-500 font-bold bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">Requis</span>}
                       </label>
                       {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
                         <select 
+                          id={`detail-field-${fd.field}`}
                           value={formData[fd.field] || ''} 
                           onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))} 
                           disabled={isLocked} 
@@ -1050,6 +1053,7 @@ export default function TicketDetailPage() {
                       ) : (
                         <div className="relative">
                           <input 
+                            id={`detail-field-${fd.field}`}
                             type={fd.type === 'number' ? 'number' : 'text'}
                             placeholder={fd.type === 'number' ? 'Ex: 5' : 'Saisir une valeur...'}
                             value={formData[fd.field] || ''}
@@ -1775,8 +1779,11 @@ export default function TicketDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            role="button"
+            tabIndex={0}
             className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
             onClick={() => setLightboxIndex(null)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(null); } }}
           >
             <button 
               className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full border border-white/15 transition-all text-sm font-mono cursor-pointer"
