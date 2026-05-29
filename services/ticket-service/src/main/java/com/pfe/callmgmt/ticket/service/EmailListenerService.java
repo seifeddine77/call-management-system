@@ -92,108 +92,91 @@ public class EmailListenerService {
                             : "TOUS les emails (aucun filtre)");
         }
 
-        Store store = null;
-        Folder folder = null;
+        // Connexion IMAP SSL
+        Properties props = new Properties();
+        props.put("mail.store.protocol", "imaps");
+        props.put("mail.imaps.host", imapHost);
+        props.put("mail.imaps.port", String.valueOf(imapPort));
+        props.put("mail.imaps.ssl.enable", "true");
+        props.put("mail.imaps.ssl.trust", "*");
+        props.put("mail.imaps.timeout", "10000");
+        props.put("mail.imaps.connectiontimeout", "10000");
 
-        try {
-            // Connexion IMAP SSL
-            Properties props = new Properties();
-            props.put("mail.store.protocol", "imaps");
-            props.put("mail.imaps.host", imapHost);
-            props.put("mail.imaps.port", String.valueOf(imapPort));
-            props.put("mail.imaps.ssl.enable", "true");
-            props.put("mail.imaps.ssl.trust", "*");
-            props.put("mail.imaps.timeout", "10000");
-            props.put("mail.imaps.connectiontimeout", "10000");
-
-            Session session = Session.getInstance(props);
-            store = session.getStore("imaps");
+        Session session = Session.getInstance(props);
+        try (Store store = session.getStore("imaps")) {
             store.connect(imapHost, imapPort, username, password);
 
-            folder = store.getFolder(folderName);
-            folder.open(Folder.READ_WRITE);
+            try (Folder folder = store.getFolder(folderName)) {
+                folder.open(Folder.READ_WRITE);
 
-            // Recherche côté serveur IMAP : emails non lus ET reçus depuis le démarrage du
-            // service
-            // Le serveur Gmail filtre directement → performant même avec des milliers
-            // d'emails
-            jakarta.mail.search.SearchTerm searchTerm;
-            if (skipOldEmails && serviceStartTime != null) {
-                searchTerm = new jakarta.mail.search.AndTerm(
-                        new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false),
-                        new jakarta.mail.search.ReceivedDateTerm(jakarta.mail.search.ComparisonTerm.GE,
-                                serviceStartTime));
-            } else {
-                searchTerm = new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false);
-            }
+                // Recherche côté serveur IMAP : emails non lus ET reçus depuis le démarrage du service
+                jakarta.mail.search.SearchTerm searchTerm;
+                if (skipOldEmails && serviceStartTime != null) {
+                    searchTerm = new jakarta.mail.search.AndTerm(
+                            new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false),
+                            new jakarta.mail.search.ReceivedDateTerm(jakarta.mail.search.ComparisonTerm.GE,
+                                    serviceStartTime));
+                } else {
+                    searchTerm = new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false);
+                }
 
-            Message[] messages = folder.search(searchTerm);
+                Message[] messages = folder.search(searchTerm);
 
-            if (messages.length == 0) {
-                return; // Pas de nouveaux emails
-            }
+                if (messages.length == 0) {
+                    return; // Pas de nouveaux emails
+                }
 
-            log.info("📧 [IMAP] {} nouveaux emails détectés", messages.length);
+                log.info("📧 [IMAP] {} nouveaux emails détectés", messages.length);
 
-            int processed = 0;
-            int skipped = 0;
+                int processed = 0;
+                int skipped = 0;
 
-            for (Message message : messages) {
-                try {
-                    // Ignorer les emails reçus avant le démarrage du service
-                    if (skipOldEmails && message.getReceivedDate() != null
-                            && message.getReceivedDate().before(serviceStartTime)) {
-                        message.setFlag(Flags.Flag.SEEN, true); // Marquer comme lu
-                        skipped++;
-                        continue;
-                    }
+                for (Message message : messages) {
+                    try {
+                        // Ignorer les emails reçus avant le démarrage du service
+                        if (skipOldEmails && message.getReceivedDate() != null
+                                && message.getReceivedDate().before(serviceStartTime)) {
+                            message.setFlag(Flags.Flag.SEEN, true); // Marquer comme lu
+                            skipped++;
+                            continue;
+                        }
 
-                    // Anti-boucle : ignorer les emails de notification envoyés PAR notre système
-                    // (sujet type "Votre demande T-XXXXXXXX-XXXXX a été enregistrée/traitée")
-                    String subject = message.getSubject() != null ? message.getSubject() : "";
-                    if (subject.matches(".*Votre demande T-\\d{8}-\\d+.*")) {
-                        log.debug("📧 [IMAP] Email ignoré (notification système) : '{}'", subject);
+                        // Anti-boucle : ignorer les emails de notification envoyés PAR notre système
+                        String subject = message.getSubject() != null ? message.getSubject() : "";
+                        if (subject.matches(".*Votre demande T-\\d{8}-\\d+.*")) {
+                            log.debug("📧 [IMAP] Email ignoré (notification système) : '{}'", subject);
+                            message.setFlag(Flags.Flag.SEEN, true);
+                            skipped++;
+                            continue;
+                        }
+
+                        // Filtrer par mots-clés dans le sujet ET le corps
+                        String emailBody = extractTextContent(message);
+                        if (!matchesKeywords(message.getSubject(), emailBody)) {
+                            log.debug("📧 [IMAP] Email ignoré (hors filtre) : '{}'", message.getSubject());
+                            message.setFlag(Flags.Flag.SEEN, true);
+                            skipped++;
+                            continue;
+                        }
+
+                        processEmail(message);
                         message.setFlag(Flags.Flag.SEEN, true);
-                        skipped++;
-                        continue;
+                        processed++;
+                    } catch (Exception e) {
+                        log.error("❌ [IMAP] Erreur traitement email '{}': {}",
+                                message.getSubject(), e.getMessage());
                     }
+                }
 
-                    // Filtrer par mots-clés dans le sujet ET le corps
-                    String emailBody = extractTextContent(message);
-                    if (!matchesKeywords(message.getSubject(), emailBody)) {
-                        log.debug("📧 [IMAP] Email ignoré (hors filtre) : '{}'", message.getSubject());
-                        message.setFlag(Flags.Flag.SEEN, true);
-                        skipped++;
-                        continue;
-                    }
-
-                    processEmail(message);
-                    message.setFlag(Flags.Flag.SEEN, true);
-                    processed++;
-                } catch (Exception e) {
-                    log.error("❌ [IMAP] Erreur traitement email '{}': {}",
-                            message.getSubject(), e.getMessage());
+                if (processed > 0 || skipped > 0) {
+                    log.info("📧 [IMAP] Résultat : {} traités, {} ignorés sur {} total",
+                            processed, skipped, messages.length);
                 }
             }
-
-            if (processed > 0 || skipped > 0) {
-                log.info("📧 [IMAP] Résultat : {} traités, {} ignorés sur {} total",
-                        processed, skipped, messages.length);
-            }
-
         } catch (AuthenticationFailedException e) {
             log.error("❌ [IMAP] Authentification échouée — vérifiez username/password: {}", e.getMessage());
         } catch (Exception e) {
             log.error("❌ [IMAP] Erreur connexion IMAP: {}", e.getMessage());
-        } finally {
-            try {
-                if (folder != null && folder.isOpen())
-                    folder.close(false);
-                if (store != null && store.isConnected())
-                    store.close();
-            } catch (MessagingException e) {
-                log.warn("⚠️ [IMAP] Erreur fermeture connexion: {}", e.getMessage());
-            }
         }
     }
 

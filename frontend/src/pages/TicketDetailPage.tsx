@@ -445,7 +445,7 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
                 const active = barProgress <= progress;
                 return (
                   <div
-                    key={i}
+                    key={`waveform-bar-${i}`}
                     className="flex-1 rounded-full transition-all duration-150"
                     style={{
                       height: `${h}%`,
@@ -501,6 +501,13 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
     </div>
   );
 }
+
+const getDecisionSourceLabel = (source: string): string => {
+  if (source === 'AI') return '🤖 Algorithmique IA';
+  if (source === 'RULES') return '📏 Moteur de règles';
+  if (source === 'HYBRID') return '🔄 Hybride (Règles + IA)';
+  return '⚡ Disjoncteur Fallback';
+};
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -659,7 +666,12 @@ export default function TicketDetailPage() {
         transcriptionText: ticket?.transcription || undefined,
       });
       setDecision(result);
-      const emoji = result.decision === 'FAVORABLE' ? '🟢' : result.decision === 'DEFAVORABLE' ? '🔴' : '🟡';
+      let emoji = '🟡';
+      if (result.decision === 'FAVORABLE') {
+        emoji = '🟢';
+      } else if (result.decision === 'DEFAVORABLE') {
+        emoji = '🔴';
+      }
       toast.success(`${emoji} ${result.decision} — Score: ${result.score}%`);
     } catch {
       toast.error('Erreur d\'analyse IA');
@@ -1077,7 +1089,7 @@ export default function TicketDetailPage() {
                       const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
                       return (
                         <div 
-                          key={i} 
+                          key={`sinistre-photo-${i}`} 
                           role="button"
                           tabIndex={0}
                           className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
@@ -1138,7 +1150,7 @@ export default function TicketDetailPage() {
                   <span className="font-mono text-[8px] text-txt-3 uppercase block tracking-wide">Fichiers en attente d'envoi :</span>
                   <div className="flex flex-wrap gap-2">
                     {photoPreviews.map((src, i) => (
-                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border shadow">
+                      <div key={`upload-preview-${i}`} className="relative group rounded-lg overflow-hidden border border-border shadow">
                         <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
                         <button
                           onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
@@ -1365,12 +1377,12 @@ export default function TicketDetailPage() {
                             const frags = t.split(pattern);
                             return frags.map((frag, i) =>
                               keywords.some(k => k.toLowerCase() === frag.toLowerCase())
-                                ? <mark key={i} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">{frag}</mark>
-                                : <span key={i}>{frag}</span>
+                                ? <mark key={`frag-${i}`} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">{frag}</mark>
+                                : <span key={`frag-${i}`}>{frag}</span>
                             );
                           };
                           return parts.map((seg, i) => (
-                            <div key={i} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
+                            <div key={`part-${i}`} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
                               <span className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-md px-2 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-default">
                                 {seg.time}
                               </span>
@@ -1608,7 +1620,7 @@ export default function TicketDetailPage() {
                     <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
                       <span>Source d'évaluation</span>
                       <span className="text-txt-2 font-semibold">
-                        {decision.source === 'AI' ? '🤖 Algorithmique IA' : decision.source === 'RULES' ? '📏 Moteur de règles' : decision.source === 'HYBRID' ? '🔄 Hybride (Règles + IA)' : '⚡ Disjoncteur Fallback'}
+                        {getDecisionSourceLabel(decision.source)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-b border-border/40 pb-1.5">

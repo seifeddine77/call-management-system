@@ -233,13 +233,13 @@ public class TwilioWebhookController {
                         analysisResult.get("type_sinistre"),
                         analysisResult.get("sentiment"));
             }
+        } catch (InterruptedException e) {
+            log.error("❌ [TWILIO] Thread interrompu lors du traitement de l'enregistrement pour le ticket {}: {}",
+                    ticketId, e.getMessage(), e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.error("❌ [TWILIO] Erreur traitement enregistrement pour ticket {}: {}",
                     ticketId, e.getMessage(), e);
-            // SonarCloud S2142 — Preserve interrupt status if InterruptedException was caught
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
         } finally {
             // Nettoyer le cache
             callTicketMap.remove(callSid);

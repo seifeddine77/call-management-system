@@ -53,10 +53,10 @@ public class LetterGenerationService {
                 String ref = decision.getTicketId().toString().substring(0, 8).toUpperCase();
 
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(baos);
-                PdfDocument pdf = new PdfDocument(writer);
-                Document doc = new Document(pdf);
-                doc.setMargins(40f, 50f, 40f, 50f);
+                try (PdfWriter writer = new PdfWriter(baos);
+                     PdfDocument pdf = new PdfDocument(writer);
+                     Document doc = new Document(pdf)) {
+                        doc.setMargins(40f, 50f, 40f, 50f);
 
                 // ── 1. TOP ACCENT BAR ──
                 com.itextpdf.layout.element.Table accentBar = new com.itextpdf.layout.element.Table(com.itextpdf.layout.properties.UnitValue.createPercentArray(new float[]{100}))
@@ -211,8 +211,7 @@ public class LetterGenerationService {
                                 .setFontSize(7.5f)
                                 .setFontColor(TEXT_MUTED)
                                 .setMarginTop(5f));
-
-                doc.close();
+                }
                 byte[] pdfBytes = baos.toByteArray();
 
                 // Save to file system
