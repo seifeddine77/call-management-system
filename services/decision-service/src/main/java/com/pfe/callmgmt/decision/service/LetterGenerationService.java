@@ -52,8 +52,9 @@ public class LetterGenerationService {
                 boolean isFavorable = "FAVORABLE".equals(type);
                 String ref = decision.getTicketId().toString().substring(0, 8).toUpperCase();
 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                try (PdfWriter writer = new PdfWriter(baos);
+                byte[] pdfBytes;
+                try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                     PdfWriter writer = new PdfWriter(baos);
                      PdfDocument pdf = new PdfDocument(writer);
                      Document doc = new Document(pdf)) {
                         doc.setMargins(40f, 50f, 40f, 50f);
@@ -211,8 +212,8 @@ public class LetterGenerationService {
                                 .setFontSize(7.5f)
                                 .setFontColor(TEXT_MUTED)
                                 .setMarginTop(5f));
+                        pdfBytes = baos.toByteArray();
                 }
-                byte[] pdfBytes = baos.toByteArray();
 
                 // Save to file system
                 Path dirPath = Paths.get(storagePath);

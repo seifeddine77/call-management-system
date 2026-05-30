@@ -107,9 +107,9 @@ async def transcribe_audio(
     if audio_crypto.is_enabled() and not is_encrypted:
         try:
             content = audio_crypto.encrypt(content)
-            logger.info(f"Plaintext audio file encrypted before saving on disk ({len(content)} bytes).")
+            logger.info("Plaintext audio file encrypted before saving on disk (%d bytes).", len(content))
         except Exception as e:
-            logger.error(f"Failed to encrypt file on save: {e}")
+            logger.error("Failed to encrypt file on save: %s", sanitize_log(str(e)))
             raise HTTPException(status_code=500, detail=f"Erreur de chiffrement: {e}")
 
     async with aiofiles.open(file_path, "wb") as f:
@@ -216,9 +216,10 @@ async def transcribe_audio(
         if temp_path and os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-                logger.info(f"Temporary decrypted file securely deleted: {temp_path}")
+                logger.info("Temporary decrypted file securely deleted: %s", sanitize_log(str(temp_path)))
             except OSError as cleanup_err:
-                logger.warning(f"Failed to delete temporary decrypted file {temp_path}: {cleanup_err}")
+                logger.warning("Failed to delete temporary decrypted file %s: %s",
+                               sanitize_log(str(temp_path)), sanitize_log(str(cleanup_err)))
 
 
 
@@ -264,7 +265,7 @@ async def quick_transcribe(
         text = result.get("text", "").strip()
         duration = round(result.get("segments", [{}])[-1].get("end", 0), 2) if result.get("segments") else 0
 
-        logger.info(f"Quick transcription: {len(text)} chars, {duration}s")
+        logger.info("Quick transcription: %d chars, %ss", len(text), duration)
         return {"text": text, "duration_seconds": duration}
     except Exception as e:
         logger.error("Quick transcription failed: %s", sanitize_log(e))

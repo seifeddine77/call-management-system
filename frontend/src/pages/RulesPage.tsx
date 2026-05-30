@@ -200,6 +200,49 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
   );
 }
 
+// ─── Rule Form Fields Component (extracted to reduce cognitive complexity) ───
+interface RuleFormFieldsProps {
+  form: CreateRuleRequest;
+  setForm: React.Dispatch<React.SetStateAction<CreateRuleRequest>>;
+  formErrors: FormErrors;
+  setFormErrors: React.Dispatch<React.SetStateAction<FormErrors>>;
+  refs: ReferenceData | null;
+}
+
+function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, refs }: Readonly<RuleFormFieldsProps>) {
+  return (
+    <div className="space-y-3.5">
+      <div>
+        <label htmlFor="rule-nom" className="field-label block">Nom *</label>
+        <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
+        {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
+        <div>
+          <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
+          <span className="text-[9px] text-txt-3 font-mono block mb-1">Plage : -50 à +50</span>
+          <input id="rule-scoreImpact" className="aurora-input" type="number" min={-50} max={50} value={f.scoreImpact ?? 0} onChange={e => setF(p => ({ ...p, scoreImpact: Math.max(-50, Math.min(50, parseInt(e.target.value) || 0)) }))} placeholder="Ex: -15 ou +10" />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="rule-desc" className="field-label block">Description *</label>
+        <input id="rule-desc" className={`aurora-input ${formErrors.description ? 'border-rose-500/60' : ''}`} value={f.description} onChange={e => { setF(p => ({ ...p, description: e.target.value })); setFormErrors(e2 => ({ ...e2, description: undefined })); }} />
+        {formErrors.description && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.description}</span>}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label htmlFor="rule-action" className="field-label block">Action</label>
+          <select id="rule-action" className="aurora-select" value={f.action} onChange={e => setF(p => ({ ...p, action: e.target.value as 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE' }))}>
+            <option value="FAVORABLE">Favorable</option><option value="DEFAVORABLE">Défavorable</option><option value="ETUDE">Étude</option>
+          </select>
+        </div>
+        <div><label htmlFor="rule-motif" className="field-label block">Motif action</label><input id="rule-motif" className="aurora-input" value={f.actionMotif} onChange={e => setF(p => ({ ...p, actionMotif: e.target.value }))} /></div>
+      </div>
+      <ConditionsEditor conditions={f.conditions} onChange={c => setF(p => ({ ...p, conditions: c }))} refs={refs} formErrors={formErrors} />
+    </div>
+  );
+}
+
 // ─── Form Errors ───
 interface FormErrors { nom?: string; description?: string; conditions?: string; }
 
@@ -250,6 +293,21 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
     const dx = Math.abs(x2 - x1) * 0.5;
     return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
   };
+
+  // Pre-compute AND chain last-segment stroke props (avoids IIFE in JSX)
+  const andAllTrue = evaluatedConds.every(v => v === true);
+  const andHasFalse = evaluatedConds.some(v => v === false);
+  let andLastStroke = 'var(--border)';
+  let andLastAnimated = false;
+  let andLastFilter = '';
+  if (andAllTrue) {
+    andLastStroke = 'rgba(16, 185, 129, 0.8)';
+    andLastAnimated = true;
+    andLastFilter = 'url(#glow-green)';
+  } else if (andHasFalse) {
+    andLastStroke = 'rgba(239, 68, 68, 0.8)';
+    andLastFilter = 'url(#glow-red)';
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -494,38 +552,18 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
               })}
 
               {/* Connection Last Cond -> ACTION */}
-              {(() => {
-                const allTrue = evaluatedConds.every(v => v === true);
-                const hasFalse = evaluatedConds.some(v => v === false);
-
-                let strokeColor = 'var(--border)';
-                let isAnimated = false;
-                let strokeFilter = '';
-
-                if (allTrue) {
-                  strokeColor = 'rgba(16, 185, 129, 0.8)';
-                  isAnimated = true;
-                  strokeFilter = 'url(#glow-green)';
-                } else if (hasFalse) {
-                  strokeColor = 'rgba(239, 68, 68, 0.8)';
-                  strokeFilter = 'url(#glow-red)';
-                }
-
-                return (
-                  <line
-                    x1={170}
-                    y1={numConds * 85 + 60}
-                    x2={170}
-                    y2={(numConds + 1) * 85}
-                    stroke={strokeColor}
-                    strokeWidth={isAnimated ? 2.5 : 1.5}
-                    filter={strokeFilter}
-                    className={isAnimated ? 'animate-dash' : ''}
-                    strokeDasharray={isAnimated ? '4,4' : undefined}
-                    style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
-                  />
-                );
-              })()}
+              <line
+                x1={170}
+                y1={numConds * 85 + 60}
+                x2={170}
+                y2={(numConds + 1) * 85}
+                stroke={andLastStroke}
+                strokeWidth={andLastAnimated ? 2.5 : 1.5}
+                filter={andLastFilter}
+                className={andLastAnimated ? 'animate-dash' : ''}
+                strokeDasharray={andLastAnimated ? '4,4' : undefined}
+                style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
+              />
 
               {/* Start Node */}
               <foreignObject
@@ -814,39 +852,6 @@ export default function RulesPage() {
 
   if (error) return <ErrorState message={error} onRetry={fetchRules} />;
 
-  // ── Rule form fields (shared between create & edit) ──
-  const renderFormFields = (f: CreateRuleRequest, setF: React.Dispatch<React.SetStateAction<CreateRuleRequest>>) => (
-    <div className="space-y-3.5">
-      <div>
-        <label htmlFor="rule-nom" className="field-label block">Nom *</label>
-        <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
-        {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
-        <div>
-          <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
-          <span className="text-[9px] text-txt-3 font-mono block mb-1">Plage : -50 à +50</span>
-          <input id="rule-scoreImpact" className="aurora-input" type="number" min={-50} max={50} value={f.scoreImpact ?? 0} onChange={e => setF(p => ({ ...p, scoreImpact: Math.max(-50, Math.min(50, parseInt(e.target.value) || 0)) }))} placeholder="Ex: -15 ou +10" />
-        </div>
-      </div>
-      <div>
-        <label htmlFor="rule-desc" className="field-label block">Description *</label>
-        <input id="rule-desc" className={`aurora-input ${formErrors.description ? 'border-rose-500/60' : ''}`} value={f.description} onChange={e => { setF(p => ({ ...p, description: e.target.value })); setFormErrors(e2 => ({ ...e2, description: undefined })); }} />
-        {formErrors.description && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.description}</span>}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="rule-action" className="field-label block">Action</label>
-          <select id="rule-action" className="aurora-select" value={f.action} onChange={e => setF(p => ({ ...p, action: e.target.value as 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE' }))}>
-            <option value="FAVORABLE">Favorable</option><option value="DEFAVORABLE">Défavorable</option><option value="ETUDE">Étude</option>
-          </select>
-        </div>
-        <div><label htmlFor="rule-motif" className="field-label block">Motif action</label><input id="rule-motif" className="aurora-input" value={f.actionMotif} onChange={e => setF(p => ({ ...p, actionMotif: e.target.value }))} /></div>
-      </div>
-      <ConditionsEditor conditions={f.conditions} onChange={c => setF(p => ({ ...p, conditions: c }))} refs={refs} formErrors={formErrors} />
-    </div>
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -1112,7 +1117,7 @@ export default function RulesPage() {
 
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); setFormErrors({}); }} title="Nouvelle règle" size="lg">
-        {renderFormFields(form, setForm)}
+        <RuleFormFields form={form} setForm={setForm} formErrors={formErrors} setFormErrors={setFormErrors} refs={refs} />
         <div className="flex justify-end gap-2 pt-2 border-t border-border mt-4">
           <button onClick={() => { setShowCreate(false); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-lg text-xs cursor-pointer">Annuler</button>
           <button onClick={handleCreate} disabled={creating} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">{creating ? 'Création...' : 'Créer la règle'}</button>
@@ -1121,7 +1126,7 @@ export default function RulesPage() {
 
       {/* Edit Modal */}
       <Modal open={showEdit} onClose={() => { setShowEdit(false); setEditingRule(null); setFormErrors({}); }} title={`Modifier — ${editingRule?.nom ?? ''}`} size="lg">
-        {renderFormFields(editForm, setEditForm)}
+        <RuleFormFields form={editForm} setForm={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} refs={refs} />
         <div className="flex justify-end gap-2 pt-2 border-t border-border mt-4">
           <button onClick={() => { setShowEdit(false); setEditingRule(null); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-lg text-xs cursor-pointer">Annuler</button>
           <button onClick={handleUpdate} disabled={saving} className="btn-cta h-9 px-4 rounded-lg text-xs text-white cursor-pointer disabled:opacity-50">{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</button>

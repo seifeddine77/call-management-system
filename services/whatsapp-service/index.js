@@ -413,102 +413,117 @@ function stripFormatting(text) {
                .trim();
 }
 
+function shouldSkipMessage(msg, body) {
+    if (!body) return true;
+    if (msg.fromMe) {
+        const botPatterns = ['📊', '🔍', '📋', '🏢', '⚖️', '🤖', '⚠️', '✅', '🎫', '❌', '📚', '⏱️', '🎙️', '⏳', '👋', '_Réagissez'];
+        const startsWithBot = botPatterns.some(p => msg.body.includes(p));
+        if (startsWithBot) {
+            console.log(`🔇 Anti-loop: skipped own bot message`);
+            return true;
+        }
+        if (msg.body.length > 150) {
+            console.log(`🔇 Anti-loop: skipped long fromMe (${msg.body.length} chars)`);
+            return true;
+        }
+        console.log(`📱 Processing fromMe message: "${body.substring(0, 60)}"`);
+    }
+    return false;
+}
+
+async function handleSlashCommand(chat, body, lower) {
+    if (lower === '/stats' || lower === '/stat') {
+        await chat.sendStateTyping();
+        await handleStats(chat);
+        return true;
+    }
+    if (lower.startsWith('/ticket ')) {
+        await chat.sendStateTyping();
+        await handleTicket(chat, body.substring(8).trim());
+        return true;
+    }
+    if (lower === '/queue' || lower === '/file') {
+        await chat.sendStateTyping();
+        await handleQueue(chat, chat.name);
+        return true;
+    }
+    if (lower.startsWith('/decision ')) {
+        await chat.sendStateTyping();
+        await handleDecision(chat, body.substring(10).trim());
+        return true;
+    }
+    if (lower === '/agence') {
+        await chat.sendStateTyping();
+        await handleAgence(chat, chat.name);
+        return true;
+    }
+    if (lower === '/aide' || lower === '/help') {
+        await chat.sendMessage(HELP_MESSAGE);
+        return true;
+    }
+    return false;
+}
+
+async function handleGreeting(chat, lower) {
+    const greetings = ['bonjour', 'bonsoir', 'salut', 'hello', 'hi', 'hey', 'salam', 'مرحبا', 'اهلا', 'yo'];
+    const cleanLower = lower.replace(/[!?.,:;]+/g, '').trim();
+    if (greetings.includes(cleanLower) || cleanLower.startsWith('bonjour ') || cleanLower.startsWith('salut ')) {
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+        console.log(`👋 Sending greeting to [${chat.name}]...`);
+        try {
+            await chat.sendMessage(
+                `👋 *${greeting} !*\n\n` +
+                `Je suis *AutoAssist*, votre assistant IA pour la gestion des réclamations pièces auto. 🚗\n\n` +
+                `💡 Je peux vous aider avec :\n` +
+                `• 📊 Les statistiques → tapez */stats*\n` +
+                `• 🎫 Un ticket → tapez */ticket T-xxx*\n` +
+                `• 📋 La file d'attente → tapez */queue*\n` +
+                `• ❓ Toute question → posez-la en langage naturel !\n\n` +
+                `_Propulsé par RAG + Gemma 4 IA_ 🧠`
+            );
+            console.log(`✅ Greeting sent to [${chat.name}]`);
+        } catch (greetErr) {
+            console.error(`❌ Greeting send failed:`, greetErr.message);
+        }
+        return true;
+    }
+    return false;
+}
+
 client.on('message_create', async (msg) => {
     try {
-
         const chat = await msg.getChat();
         if (!chat.isGroup || !chat.name?.startsWith(GROUP_PREFIX)) return;
 
         // ── VOICE MESSAGE DETECTION ──
-        // Handle voice notes (ptt) and audio messages → Whisper + RAG
-        // Note: fromMe is allowed here because the bot NEVER sends audio messages
         if ((msg.type === 'ptt' || msg.type === 'audio') && msg.hasMedia) {
             return await handleVoiceMessage(chat, msg);
         }
 
-        // Strip WhatsApp formatting from the body
         const rawBody = msg.body.trim();
-        if (!rawBody) return;
         const body = stripFormatting(rawBody);
-        if (!body) return;
 
-        // ── ANTI-LOOP: Skip bot's own responses (not admin messages) ──
-        // Bot responses always contain specific emoji patterns at the start
-        if (msg.fromMe) {
-            const botPatterns = ['📊', '🔍', '📋', '🏢', '⚖️', '🤖', '⚠️', '✅', '🎫', '❌', '📚', '⏱️', '🎙️', '⏳', '👋', '_Réagissez'];
-            const startsWithBot = botPatterns.some(p => msg.body.includes(p));
-            if (startsWithBot) {
-                console.log(`🔇 Anti-loop: skipped own bot message`);
-                return;
-            }
-            // Also skip very long fromMe messages (bot responses are verbose)
-            if (msg.body.length > 150) {
-                console.log(`🔇 Anti-loop: skipped long fromMe (${msg.body.length} chars)`);
-                return;
-            }
-            console.log(`📱 Processing fromMe message: "${body.substring(0, 60)}"`);
-        }
+        if (shouldSkipMessage(msg, body)) return;
 
         console.log(`💬 [${chat.name}] ${body.substring(0, 100)} (fromMe=${msg.fromMe})`);
 
-        // ── Slash commands (with typing indicator) ──
         const lower = body.toLowerCase();
         
+        // ── Slash commands ──
         try {
-            if (lower === '/stats' || lower === '/stat') {
-                await chat.sendStateTyping();
-                return await handleStats(chat);
-            }
-            if (lower.startsWith('/ticket ')) {
-                await chat.sendStateTyping();
-                return await handleTicket(chat, body.substring(8).trim());
-            }
-            if (lower === '/queue' || lower === '/file') {
-                await chat.sendStateTyping();
-                return await handleQueue(chat, chat.name);
-            }
-            if (lower.startsWith('/decision ')) {
-                await chat.sendStateTyping();
-                return await handleDecision(chat, body.substring(10).trim());
-            }
-            if (lower === '/agence') {
-                await chat.sendStateTyping();
-                return await handleAgence(chat, chat.name);
-            }
-            if (lower === '/aide' || lower === '/help') return await chat.sendMessage(HELP_MESSAGE);
+            const isCommand = await handleSlashCommand(chat, body, lower);
+            if (isCommand) return;
         } catch (cmdErr) {
             console.error(`❌ Command error (${lower}):`, cmdErr.message);
             await chat.sendMessage(`⚠️ Erreur lors de l'exécution de la commande. Réessayez.`);
             return;
         }
 
-        // ── Smart greeting handler (instant, no RAG needed) ──
-        const greetings = ['bonjour', 'bonsoir', 'salut', 'hello', 'hi', 'hey', 'salam', 'مرحبا', 'اهلا', 'yo'];
-        const cleanLower = lower.replace(/[!?.,:;]+/g, '').trim();
-        if (greetings.includes(cleanLower) || cleanLower.startsWith('bonjour ') || cleanLower.startsWith('salut ')) {
-            const hour = new Date().getHours();
-            const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
-            console.log(`👋 Sending greeting to [${chat.name}]...`);
-            try {
-                await chat.sendMessage(
-                    `👋 *${greeting} !*\n\n` +
-                    `Je suis *AutoAssist*, votre assistant IA pour la gestion des réclamations pièces auto. 🚗\n\n` +
-                    `💡 Je peux vous aider avec :\n` +
-                    `• 📊 Les statistiques → tapez */stats*\n` +
-                    `• 🎫 Un ticket → tapez */ticket T-xxx*\n` +
-                    `• 📋 La file d'attente → tapez */queue*\n` +
-                    `• ❓ Toute question → posez-la en langage naturel !\n\n` +
-                    `_Propulsé par RAG + Gemma 4 IA_ 🧠`
-                );
-                console.log(`✅ Greeting sent to [${chat.name}]`);
-            } catch (greetErr) {
-                console.error(`❌ Greeting send failed:`, greetErr.message);
-            }
-            return;
-        }
+        // ── Smart greeting handler ──
+        if (await handleGreeting(chat, lower)) return;
 
         // ── Natural language ticket extraction ──
-        // "statut de ticket T-xxx" or "ticket T-xxx" → auto /ticket
         const ticketMatch = body.match(/T-\d{8}-\d+/i);
         if (ticketMatch) {
             await chat.sendStateTyping();
@@ -516,14 +531,10 @@ client.on('message_create', async (msg) => {
             return await handleTicket(chat, ticketMatch[0]);
         }
 
-        // ── Natural language → RAG + Gemma 4 ──
-        // Send ALL non-command text messages to RAG (the AI decides relevance)
-        // Only skip very short messages (< 3 chars) that are likely typos
+        // ── Natural language → RAG ──
         if (body.length >= 3) {
             return await handleRAGChat(chat, body, chat.name);
         }
-
-        // Messages too short → ignore silently
     } catch (error) {
         console.error('❌ Message error:', error.message);
     }

@@ -74,10 +74,11 @@ async def chat_endpoint(request: ChatRequest):
     result = await rag_service.chat(request.question, request.group_name)
 
     logger.info(
-        f"✅ Response: {len(result['answer'])} chars, "
-        f"{result['documents_retrieved']} docs, "
-        f"{result['response_time_ms']}ms, "
-        f"llm={result.get('llm_used', 'N/A')}"
+        "✅ Response: %d chars, %d docs, %dms, llm=%s",
+        len(result['answer']),
+        result['documents_retrieved'],
+        result['response_time_ms'],
+        sanitize_log(result.get('llm_used', 'N/A')),
     )
 
     return ChatResponse(**result)
@@ -128,7 +129,7 @@ async def refresh_endpoint():
     """
     logger.info("🔄 Manual refresh triggered...")
     result = rag_service.refresh_knowledge_base()
-    logger.info(f"✅ Refresh complete: {result['documents_count']} documents")
+    logger.info("✅ Refresh complete: %d documents", result['documents_count'])
     return result
 
 

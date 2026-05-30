@@ -14,6 +14,7 @@ from fastapi.responses import Response
 
 from app.core.config import settings
 from app.core.crypto import AudioCrypto
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service.audio-stream")
 
@@ -57,11 +58,11 @@ def _read_and_decrypt(file_path: str) -> tuple[bytes, str]:
     if audio_crypto.is_enabled():
         try:
             decrypted = audio_crypto.decrypt(raw_bytes)
-            logger.debug(f"Audio file decrypted for streaming: {file_path}")
+            logger.debug("Audio file decrypted for streaming: %s", sanitize_log(file_path))
             return decrypted, mime_type
         except Exception:
             # Decryption failed — file is likely plaintext (backward compat)
-            logger.debug(f"File {file_path} is not encrypted, serving as-is")
+            logger.debug("File %s is not encrypted, serving as-is", sanitize_log(file_path))
             return raw_bytes, mime_type
 
     return raw_bytes, mime_type

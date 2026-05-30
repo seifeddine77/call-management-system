@@ -162,7 +162,7 @@ def detect_language(text: str) -> str:
     arabic_ratio = arabic_chars / total_alpha
 
     if arabic_ratio > 0.3:
-        logger.info(f"🌍 Language detected: ARABIC ({arabic_ratio:.0%})")
+        logger.info("🌍 Language detected: ARABIC (%.0f%%)", arabic_ratio * 100)
         return 'ar'
 
     # Simple English detection
@@ -171,7 +171,7 @@ def detect_language(text: str) -> str:
     lower = text.lower()
     en_count = sum(1 for w in en_words if f' {w} ' in f' {lower} ')
     if en_count >= 2:
-        logger.info(f"🌍 Language detected: ENGLISH")
+        logger.info("🌍 Language detected: ENGLISH")
         return 'en'
 
     return 'fr'
@@ -295,9 +295,9 @@ def _fetch_rules_from_service() -> list[dict]:
                 "content": doc_content,
             })
 
-        logger.info(f"📏 {len(docs)} règles récupérées depuis rules-service")
+        logger.info("📏 %d règles récupérées depuis rules-service", len(docs))
     except Exception as e:
-        logger.warning(f"⚠️ Impossible de récupérer les règles: {e}")
+        logger.warning("⚠️ Impossible de récupérer les règles: %s", sanitize_log(str(e)))
     return docs
 
 
@@ -334,9 +334,9 @@ def _fetch_reference_items() -> list[dict]:
                 "content": f"{cat_labels.get(cat, cat)}. Valeurs : {items_text}",
             })
 
-        logger.info(f"📋 {len(docs)} catégories de référence récupérées")
+        logger.info("📋 %d catégories de référence récupérées", len(docs))
     except Exception as e:
-        logger.warning(f"⚠️ Impossible de récupérer les référentiels: {e}")
+        logger.warning("⚠️ Impossible de récupérer les référentiels: %s", sanitize_log(str(e)))
     return docs
 
 
@@ -414,7 +414,7 @@ def _index_all_sources():
             metadatas.append({"category": chunk["category"], "title": chunk["title"]})
             static_chunks += 1
 
-    logger.info(f"📖 {len(KNOWLEDGE_DOCUMENTS)} docs statiques → {static_chunks} chunks")
+    logger.info("📖 %d docs statiques → %d chunks", len(KNOWLEDGE_DOCUMENTS), static_chunks)
 
     # ── Source 2: Dynamic rules ──
     dynamic_rules = _fetch_rules_from_service()
@@ -590,11 +590,13 @@ def record_feedback(question: str, answer: str, rating: str, group_name: str = "
             db.close()
             logger.info("💾 Feedback persisted to DB")
         except Exception as e:
-            logger.warning(f"⚠️ Could not persist feedback to DB: {e}")
+            logger.warning("⚠️ Could not persist feedback to DB: %s", sanitize_log(str(e)))
 
     logger.info(
-        f"{'👍' if rating == 'positive' else '👎'} Feedback: {rating} "
-        f"(satisfaction: {satisfaction:.0f}%)"
+        "%s Feedback: %s (satisfaction: %.0f%%)",
+        "👍" if rating == "positive" else "👎",
+        sanitize_log(rating),
+        satisfaction,
     )
 
     return {
@@ -725,7 +727,7 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
     async with _llm_lock:
         for attempt in range(3):
             try:
-                logger.info(f"🧠 Gemma 4 attempt {attempt + 1}/3...")
+                logger.info("🧠 Gemma 4 attempt %d/3...", attempt + 1)
                 async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
                     response = await client.post(
                         f"{settings.LLM_BASE_URL}/chat/completions",
@@ -744,22 +746,22 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
                     data = response.json()
                     raw = data["choices"][0]["message"]["content"]
                     finish = data["choices"][0].get("finish_reason", "unknown")
-                    logger.info(f"📨 Gemma raw: {len(raw)} chars, finish={finish}")
+                    logger.info("📨 Gemma raw: %d chars, finish=%s", len(raw), sanitize_log(str(finish)))
 
                     text = re.sub(r'```\w*\n?', '', raw).strip() or raw.strip()
                     if text:
-                        logger.info(f"✅ Gemma 4 responded ({len(text)} chars)")
+                        logger.info("✅ Gemma 4 responded (%d chars)", len(text))
                         return text, "gemma4"
 
                     # Empty response — wait and retry
-                    logger.warning(f"⚠️ Gemma 4 empty (finish={finish}), retry in 3s...")
+                    logger.warning("⚠️ Gemma 4 empty (finish=%s), retry in 3s...", sanitize_log(str(finish)))
                     await asyncio.sleep(3)
 
             except httpx.TimeoutException:
-                logger.warning(f"⏱️ Gemma 4 timeout after {settings.LLM_TIMEOUT}s")
+                logger.warning("⏱️ Gemma 4 timeout after %ss", settings.LLM_TIMEOUT)
                 break
             except Exception as e:
-                logger.warning(f"⚠️ Gemma 4 error: {e}")
+                logger.warning("⚠️ Gemma 4 error: %s", sanitize_log(str(e)))
                 break
 
     # ── Attempt 2: OpenAI Fallback (outside lock) ──
@@ -785,11 +787,11 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
                 raw = data["choices"][0]["message"]["content"]
                 text = re.sub(r'```\w*\n?', '', raw).strip() or raw.strip()
                 if text:
-                    logger.info(f"✅ OpenAI fallback responded ({len(text)} chars)")
+                    logger.info("✅ OpenAI fallback responded (%d chars)", len(text))
                     return text, "gpt-4o-mini"
 
         except Exception as e:
-            logger.error(f"❌ OpenAI fallback also failed: {e}")
+            logger.error("❌ OpenAI fallback also failed: %s", sanitize_log(str(e)))
 
     return "", "none"
 
@@ -818,7 +820,7 @@ async def warmup_llm():
             response.raise_for_status()
             logger.info("✅ Gemma 4 warmed up — model in RAM, ready for fast inference")
     except Exception as e:
-        logger.warning(f"⚠️ Warmup failed (Gemma may be slow on first query): {e}")
+        logger.warning("⚠️ Warmup failed (Gemma may be slow on first query): %s", sanitize_log(str(e)))
 
 
 # SMART DATA ROUTER — Détecte les questions sur données live
@@ -884,7 +886,7 @@ async def _fetch_live_context(question: str) -> str:
                         f"Fermé: {stats.get('ferme', 0)}, "
                         f"Total: {stats.get('total', 0)}"
                     )
-                    logger.info(f"📊 Live stats fetched: {stats.get('total', 0)} tickets")
+                    logger.info("📊 Live stats fetched: %d tickets", stats.get('total', 0))
 
                 # Also fetch canal distribution
                 r2 = await client.get(f"{TICKET_SERVICE_URL}/api/tickets?page=0&size=200")
@@ -925,7 +927,7 @@ async def _fetch_live_context(question: str) -> str:
                             f"Description: {(t.get('description', '') or '')[:200]}, "
                             f"Créé: {t.get('createdAt', 'N/A')}"
                         )
-                        logger.info(f"🎫 Live ticket fetched: {ticket_ref}")
+                        logger.info("🎫 Live ticket fetched: %s", sanitize_log(ticket_ref))
 
                         # Also fetch decision for this ticket
                         try:
@@ -977,9 +979,9 @@ async def _fetch_live_context(question: str) -> str:
                         live_parts.append(
                             f"[DONNÉES TEMPS RÉEL — {len(rules)} règles actives] {rules_text}"
                         )
-                        logger.info(f"📏 Live rules fetched: {len(rules)} rules")
+                        logger.info("📏 Live rules fetched: %d rules", len(rules))
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch live rules: {e}")
+            logger.warning("⚠️ Could not fetch live rules: %s", sanitize_log(str(e)))
 
     # ── Reference data (pièces, sinistres, catégories) ──
     if any(p in lower for p in _REFERENCE_PATTERNS):
@@ -1002,9 +1004,9 @@ async def _fetch_live_context(question: str) -> str:
                         live_parts.append(
                             f"[DONNÉES TEMPS RÉEL — {len(items)} items de référence] {ref_text}"
                         )
-                        logger.info(f"📦 Live reference data fetched: {len(items)} items")
+                        logger.info("📦 Live reference data fetched: %d items", len(items))
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch reference data: {e}")
+            logger.warning("⚠️ Could not fetch reference data: %s", sanitize_log(str(e)))
 
     # ── Agences ──
     if any(p in lower for p in _AGENCE_PATTERNS):
@@ -1024,9 +1026,9 @@ async def _fetch_live_context(question: str) -> str:
                     live_parts.append(
                         f"[DONNÉES TEMPS RÉEL — {len(agences)} agences] {agences_text}"
                     )
-                    logger.info(f"🏢 Live agences fetched: {len(agences)} agences")
+                    logger.info("🏢 Live agences fetched: %d agences", len(agences))
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch agences: {e}")
+            logger.warning("⚠️ Could not fetch agences: %s", sanitize_log(str(e)))
 
     # ── Decisions stats ──
     if any(p in lower for p in _DECISION_PATTERNS):
@@ -1050,9 +1052,9 @@ async def _fetch_live_context(question: str) -> str:
                             f"[DONNÉES TEMPS RÉEL — {len(decisions)} décisions] "
                             f"Répartition: {dec_text}. Sources: {src_text}"
                         )
-                        logger.info(f"⚖️ Live decisions fetched: {len(decisions)} decisions")
+                        logger.info("⚖️ Live decisions fetched: %d decisions", len(decisions))
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch decisions: {e}")
+            logger.warning("⚠️ Could not fetch decisions: %s", sanitize_log(str(e)))
 
     # ── Users / équipe ──
     if any(p in lower for p in _USER_PATTERNS):
@@ -1072,9 +1074,9 @@ async def _fetch_live_context(question: str) -> str:
                             f"[DONNÉES TEMPS RÉEL — {len(users)} utilisateurs] "
                             f"Répartition par rôle: {role_text}"
                         )
-                        logger.info(f"👥 Live users fetched: {len(users)} users")
+                        logger.info("👥 Live users fetched: %d users", len(users))
         except Exception as e:
-            logger.warning(f"⚠️ Could not fetch users: {e}")
+            logger.warning("⚠️ Could not fetch users: %s", sanitize_log(str(e)))
 
     return "\n".join(live_parts)
 

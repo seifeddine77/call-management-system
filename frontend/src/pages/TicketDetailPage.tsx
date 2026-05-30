@@ -103,6 +103,134 @@ function generateWaveformBars(channelData: Float32Array, barCount = 48): number[
   return bars.map(v => Math.round(15 + (v / max) * 85));
 }
 
+const CANAL_BADGE_MAP: Record<string, { l: string; c: string }> = {
+  CALL: { l: '☎ Appel', c: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+  EMAIL: { l: '✉ Email', c: 'bg-blue-400/10 text-blue-400 border-blue-400/20' },
+  WEB: { l: '⬡ Web', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }
+};
+
+function getCanalBadge(canal: string) {
+  return CANAL_BADGE_MAP[canal] || { l: canal, c: 'bg-[var(--muted)] text-txt-3' };
+}
+
+const STATUT_BADGE_MAP: Record<string, { l: string; c: string }> = {
+  NOUVEAU: { l: 'Nouveau', c: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  EN_COURS: { l: 'En cours', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  RESOLU: { l: 'Résolu', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  FERME: { l: 'Fermé', c: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' }
+};
+
+function getStatutBadge(statut: string) {
+  return STATUT_BADGE_MAP[statut] || { l: statut, c: '' };
+}
+
+const DECISION_BADGE_MAP: Record<string, { l: string; c: string }> = {
+  FAVORABLE: { l: '✓ Favorable', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  DEFAVORABLE: { l: '✕ Défavorable', c: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+  ETUDE: { l: '◷ Étude', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }
+};
+
+function getDecisionBadge(d: string) {
+  return DECISION_BADGE_MAP[d] || { l: d, c: '' };
+}
+
+interface DecisionStatusBadgeProps {
+  decision: string;
+  label: string;
+}
+
+function DecisionStatusBadge({ decision, label }: Readonly<DecisionStatusBadgeProps>) {
+  if (decision === 'FAVORABLE') {
+    return (
+      <span className="inline-flex items-center gap-1.5 border text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+        <CheckCircle2 size={10} className="text-emerald-400" />
+        Recommandation : {label}
+      </span>
+    );
+  }
+  if (decision === 'DEFAVORABLE') {
+    return (
+      <span className="inline-flex items-center gap-1.5 border text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border-rose-500/20">
+        <XCircle size={10} className="text-rose-400" />
+        Recommandation : {label}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 border text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border-amber-500/20">
+      <AlertTriangle size={10} className="text-amber-400" />
+      Recommandation : {label}
+    </span>
+  );
+}
+
+interface TranscriptionViewerProps {
+  transcription: string;
+  keywords: string[];
+}
+
+function TranscriptionViewer({ transcription, keywords }: Readonly<TranscriptionViewerProps>) {
+  const segments = useMemo(() => {
+    const text = transcription;
+    const segmentRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*/g;
+    const parts: { time: string; text: string }[] = [];
+    let lastIdx = 0;
+    let match;
+    while ((match = segmentRegex.exec(text)) !== null) {
+      if (lastIdx < match.index && lastIdx === 0) {
+        const pre = text.slice(lastIdx, match.index).trim();
+        if (pre) parts.push({ time: '00:00', text: pre });
+      }
+      lastIdx = match.index + match[0].length;
+      const nextMatch = segmentRegex.exec(text);
+      const endIdx = nextMatch ? nextMatch.index : text.length;
+      parts.push({ time: match[1], text: text.slice(lastIdx, endIdx).trim() });
+      lastIdx = endIdx;
+      if (nextMatch) {
+        segmentRegex.lastIndex = nextMatch.index;
+      }
+    }
+    if (parts.length === 0) {
+      const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+      const avgDuration = 5;
+      sentences.forEach((s, i) => {
+        const mins = Math.floor((i * avgDuration) / 60);
+        const secs = (i * avgDuration) % 60;
+        parts.push({ time: `${mins}:${String(secs).padStart(2, '0')}`, text: s });
+      });
+    }
+    return parts;
+  }, [transcription]);
+
+  const highlightText = useCallback((t: string) => {
+    if (keywords.length === 0) return <span>{t}</span>;
+    const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\\/]/g, String.raw`\\$&`)).join('|')})`, 'gi');
+    const frags = t.split(pattern);
+    return frags.map((frag, i) =>
+      keywords.some(k => k.toLowerCase() === frag.toLowerCase()) ? (
+        <mark key={`frag-${i}`} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">
+          {frag}
+        </mark>
+      ) : (
+        <span key={`frag-${i}`}>{frag}</span>
+      )
+    );
+  }, [keywords]);
+
+  return (
+    <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl max-h-[280px] overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
+      {segments.map((seg, i) => (
+        <div key={`part-${i}`} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
+          <span className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-md px-2 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-default">
+            {seg.time}
+          </span>
+          <div className="text-xs text-txt-2 leading-relaxed flex-1">{highlightText(seg.text)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ───── Live Transcription Component (Streaming STT) ───── */
 function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticketId: string; onTranscriptionUpdate?: (text: string) => void }>) {
   const [isRecording, setIsRecording] = useState(false);
@@ -803,25 +931,6 @@ export default function TicketDetailPage() {
     }
   };
 
-  const canalBadge = (canal: string) => ({ 
-    CALL: { l: '☎ Appel', c: 'bg-violet-500/10 text-violet-400 border-violet-500/20' }, 
-    EMAIL: { l: '✉ Email', c: 'bg-blue-400/10 text-blue-400 border-blue-400/20' }, 
-    WEB: { l: '⬡ Web', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' } 
-  }[canal] || { l: canal, c: 'bg-[var(--muted)] text-txt-3' });
-
-  const statutBadge = (statut: string) => ({ 
-    NOUVEAU: { l: 'Nouveau', c: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }, 
-    EN_COURS: { l: 'En cours', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }, 
-    RESOLU: { l: 'Résolu', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, 
-    FERME: { l: 'Fermé', c: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' } 
-  }[statut] || { l: statut, c: '' });
-
-  const decisionBadge = (d: string) => ({ 
-    FAVORABLE: { l: '✓ Favorable', c: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }, 
-    DEFAVORABLE: { l: '✕ Défavorable', c: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }, 
-    ETUDE: { l: '◷ Étude', c: 'bg-amber-500/10 text-amber-400 border-amber-500/20' } 
-  }[d] || { l: d, c: '' });
-
   if (loading) {
     return (
       <div className="space-y-4 max-w-[1600px] mx-auto w-full px-2 py-4">
@@ -837,7 +946,7 @@ export default function TicketDetailPage() {
 
   if (error || !ticket) return <ErrorState message={error || 'Ticket introuvable'} onRetry={fetchTicket} />;
 
-  const cs = canalBadge(ticket.canal);
+  const cs = getCanalBadge(ticket.canal);
   const keywords = ticket.transcriptionKeywords?.split(',').map(k => k.trim()).filter(Boolean) || [];
 
   return (
@@ -930,8 +1039,8 @@ export default function TicketDetailPage() {
           <span className={`text-[10px] font-mono font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${cs.c}`}>
             {cs.l}
           </span>
-          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${statutBadge(ticket.statut).c}`}>
-            {statutBadge(ticket.statut).l}
+          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${getStatutBadge(ticket.statut).c}`}>
+            {getStatutBadge(ticket.statut).l}
           </span>
         </div>
       </div>
@@ -1384,54 +1493,7 @@ export default function TicketDetailPage() {
                   {ticket.transcription ? (
                     <div className="space-y-4">
                       {/* Interactive block list of text speech fragments */}
-                      <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl max-h-[280px] overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
-                        {(() => {
-                          const text = ticket.transcription;
-                          const segmentRegex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*/g;
-                          const parts: { time: string; text: string }[] = [];
-                          let lastIdx = 0;
-                          let match;
-                          while ((match = segmentRegex.exec(text)) !== null) {
-                            if (lastIdx < match.index && lastIdx === 0) {
-                              const pre = text.slice(lastIdx, match.index).trim();
-                              if (pre) parts.push({ time: '00:00', text: pre });
-                            }
-                            lastIdx = match.index + match[0].length;
-                            const nextMatch = segmentRegex.exec(text);
-                            const endIdx = nextMatch ? nextMatch.index : text.length;
-                            parts.push({ time: match[1], text: text.slice(lastIdx, endIdx).trim() });
-                            lastIdx = endIdx;
-                            if (nextMatch) { segmentRegex.lastIndex = nextMatch.index; }
-                          }
-                          if (parts.length === 0) {
-                            const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-                            const avgDuration = 5;
-                            sentences.forEach((s, i) => {
-                              const mins = Math.floor((i * avgDuration) / 60);
-                              const secs = (i * avgDuration) % 60;
-                              parts.push({ time: `${mins}:${String(secs).padStart(2, '0')}`, text: s });
-                            });
-                          }
-                          const highlightText = (t: string) => {
-                            if (keywords.length === 0) return <span>{t}</span>;
-                            const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)).join('|')})`, 'gi');
-                            const frags = t.split(pattern);
-                            return frags.map((frag, i) =>
-                              keywords.some(k => k.toLowerCase() === frag.toLowerCase())
-                                ? <mark key={`frag-${i}`} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">{frag}</mark>
-                                : <span key={`frag-${i}`}>{frag}</span>
-                            );
-                          };
-                          return parts.map((seg, i) => (
-                            <div key={`part-${i}`} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
-                              <span className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-md px-2 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-default">
-                                {seg.time}
-                              </span>
-                              <div className="text-xs text-txt-2 leading-relaxed flex-1">{highlightText(seg.text)}</div>
-                            </div>
-                          ));
-                        })()}
-                      </div>
+                      <TranscriptionViewer transcription={ticket.transcription} keywords={keywords} />
 
                       {/* Extracted NLP Keywords list */}
                       {keywords.length > 0 && (
@@ -1617,21 +1679,7 @@ export default function TicketDetailPage() {
                     </div>
 
                     <div className="flex-1 space-y-1.5">
-                      {(() => { 
-                        const db = decisionBadge(decision.decision); 
-                        return (
-                          <span className={`inline-flex items-center gap-1.5 border text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${db.c}`}>
-                            {decision.decision === 'FAVORABLE' ? (
-                              <CheckCircle2 size={10} className="text-emerald-400" />
-                            ) : decision.decision === 'DEFAVORABLE' ? (
-                              <XCircle size={10} className="text-rose-400" />
-                            ) : (
-                              <AlertTriangle size={10} className="text-amber-400" />
-                            )}
-                            Recommandation : {db.l}
-                          </span>
-                        ); 
-                      })()}
+                      <DecisionStatusBadge decision={decision.decision} label={getDecisionBadge(decision.decision).l} />
                       <div className="text-[11px] text-txt-2 leading-relaxed font-medium">
                         {decision.motif}
                       </div>
@@ -1829,19 +1877,16 @@ export default function TicketDetailPage() {
               onClick={e => e.stopPropagation()}
               onKeyDown={e => e.stopPropagation()}
             >
-              {(() => {
-                const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${existingPhotos[lightboxIndex]}`;
-                return (
-                  <motion.img 
-                    initial={{ scale: 0.95, y: 10 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.95, y: 10 }}
-                    src={imgUrl} 
-                    alt={`Agrandissement sinistre ${lightboxIndex + 1}`}
-                    className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10" 
-                  />
-                );
-              })()}
+              {existingPhotos[lightboxIndex] && (
+                <motion.img 
+                  initial={{ scale: 0.95, y: 10 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.95, y: 10 }}
+                  src={`${import.meta.env.VITE_API_URL || ''}/api/tickets${existingPhotos[lightboxIndex]}`} 
+                  alt={`Agrandissement sinistre ${lightboxIndex + 1}`}
+                  className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10" 
+                />
+              )}
               <div className="absolute -bottom-8 left-0 right-0 text-center font-mono text-xs text-white/60">
                 Photo #{lightboxIndex + 1} sur {existingPhotos.length}
               </div>

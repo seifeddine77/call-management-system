@@ -16,6 +16,7 @@ from app.core.database import Base, engine
 from app.routers import analysis, audio_stream, chat, streaming, transcription
 from app.rag import rag_service
 from app.core.config import settings
+from app.core.logging_utils import sanitize_log
 
 logger = logging.getLogger("ai-service")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s - %(message)s")
@@ -25,24 +26,24 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelna
 async def lifespan(application: FastAPI):
     """Load heavy ML models and register with Eureka at startup."""
     # Register with Eureka
-    logger.info(f"Registering with Eureka at {settings.EUREKA_SERVER}...")
+    logger.info("Registering with Eureka at %s...", settings.EUREKA_SERVER)
     try:
         await eureka_client.init_async(
             eureka_server=settings.EUREKA_SERVER,
             app_name=settings.APP_NAME,
             instance_port=settings.INSTANCE_PORT
         )
-        logger.info(f"Successfully registered as '{settings.APP_NAME}' on port {settings.INSTANCE_PORT}")
+        logger.info("Successfully registered as '%s' on port %d", settings.APP_NAME, settings.INSTANCE_PORT)
     except Exception as e:
-        logger.error(f"Failed to register with Eureka: {e}")
+        logger.error("Failed to register with Eureka: %s", sanitize_log(e))
 
     logger.info("Loading Whisper model...")
     try:
         import whisper
         application.state.whisper_model = whisper.load_model(settings.WHISPER_MODEL)
-        logger.info(f"Whisper model '{settings.WHISPER_MODEL}' loaded successfully")
+        logger.info("Whisper model '%s' loaded successfully", settings.WHISPER_MODEL)
     except Exception as e:
-        logger.warning(f"Could not load Whisper model: {e}. Transcription will be unavailable.")
+        logger.warning("Could not load Whisper model: %s. Transcription will be unavailable.", sanitize_log(e))
         application.state.whisper_model = None
 
     logger.info("Loading spaCy NLP model...")
@@ -51,7 +52,7 @@ async def lifespan(application: FastAPI):
         application.state.nlp = spacy.load("fr_core_news_sm")
         logger.info("spaCy fr_core_news_sm loaded successfully")
     except Exception as e:
-        logger.warning(f"Could not load spaCy model: {e}. Keywords extraction will be limited.")
+        logger.warning("Could not load spaCy model: %s. Keywords extraction will be limited.", sanitize_log(e))
         application.state.nlp = None
 
     # Create tables if they don't exist
@@ -64,13 +65,13 @@ async def lifespan(application: FastAPI):
         rag_service.init_rag()
         logger.info("🤖 RAG chatbot ready")
     except Exception as e:
-        logger.warning(f"Could not initialize RAG: {e}. Chatbot will be unavailable.")
+        logger.warning("Could not initialize RAG: %s. Chatbot will be unavailable.", sanitize_log(e))
 
     # Warmup Gemma 4 — preload into RAM to avoid cold-start lag
     try:
         await rag_service.warmup_llm()
     except Exception as e:
-        logger.warning(f"LLM warmup skipped: {e}")
+        logger.warning("LLM warmup skipped: %s", sanitize_log(e))
 
     yield  # Application runs here
 
@@ -80,7 +81,7 @@ async def lifespan(application: FastAPI):
         await eureka_client.stop_async()
         logger.info("Successfully deregistered from Eureka")
     except Exception as e:
-        logger.error(f"Failed to deregister from Eureka: {e}")
+        logger.error("Failed to deregister from Eureka: %s", sanitize_log(e))
 
     logger.info("AI Service shutting down")
 

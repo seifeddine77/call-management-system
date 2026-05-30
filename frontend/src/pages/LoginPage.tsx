@@ -78,6 +78,75 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
 }
 
 /* ── Animated SVG Scene — Connected Neural Network ── */
+/* ── Sub-components for LoginPage neural network to reduce cognitive complexity (S3776) ── */
+interface OrbitingElementProps {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  label: string;
+  x: string;
+  y: string;
+  pX: MotionValue<number>;
+  pY: MotionValue<number>;
+  delay: number;
+  color: string;
+  isDark: boolean;
+}
+
+function OrbitingElement({ icon: Icon, label, x, y, pX, pY, delay, color, isDark }: Readonly<OrbitingElementProps>) {
+  return (
+    <motion.div className="absolute flex flex-col items-center gap-1 z-20"
+      style={{ left: x, top: y, x: pX, y: pY }}
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
+      transition={{ opacity: { delay: 0.5+delay }, scale: { delay: 0.5+delay, type: 'spring', stiffness: 200 }, y: { duration: 3+delay*0.5, repeat: Infinity, ease: 'easeInOut', delay: delay } }}>
+      <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+        style={{ background: isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)', border: `1px solid ${color}30`, backdropFilter: 'blur(8px)',
+          boxShadow: `0 8px 25px ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)'}` }}>
+        <Icon size={18} color={color} />
+      </div>
+      <span className="text-[8px] font-mono tracking-wider whitespace-nowrap" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{label}</span>
+    </motion.div>
+  );
+}
+
+function ConnectionLines({ lineColor }: Readonly<{ lineColor: string }>) {
+  const paths = [
+    'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
+    'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
+    'M 250 30 Q 250 100 250 180', 'M 240 320 Q 245 250 250 180',
+    'M 410 150 Q 320 160 250 180',
+  ];
+  return (
+    <>
+      {paths.map((d, i) => (
+        <motion.path key={i} d={d} fill="none" stroke={lineColor} strokeWidth="1.5" strokeDasharray="6 4"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 1.5, delay: 0.3+i*0.15, ease: 'easeOut' }} />
+      ))}
+    </>
+  );
+}
+
+function TravelingDots({ claimColor, accent }: Readonly<{ claimColor: string; accent: string }>) {
+  const paths = [
+    'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
+    'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
+    'M 410 150 Q 320 160 250 180',
+  ];
+  return (
+    <>
+      {paths.map((d, i) => (
+        <motion.circle key={`dot${i}`} r="3" fill={i === 4 ? claimColor : accent}
+          initial={{ offsetDistance: '0%' }}
+          animate={{ offsetDistance: ['0%', '100%'] }}
+          transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
+          style={{ offsetPath: `path('${d}')` } as React.CSSProperties & { offsetPath: string }} />
+      ))}
+    </>
+  );
+}
+
+/* ── Animated Background Scene ── */
 function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: MotionValue<number>; sy: MotionValue<number> }>) {
   const carX = useTransform(sx, [-1,1], [-12,12]);
   const carY = useTransform(sy, [-1,1], [-8,8]);
@@ -90,6 +159,16 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: Motio
   const accent3 = isDark ? '#10b981' : '#059669';
   const claimColor = '#f43f5e'; // Rose/coral highlighting auto claims
   const lineColor = isDark ? 'rgba(59,130,246,0.15)' : 'rgba(37,99,235,0.12)';
+
+  const orbitElements = [
+    { icon: Headphones, label: "Centre d'appels", x: '10%', y: '20%', pX: el1X, pY: el1Y, delay: 0, color: accent },
+    { icon: Brain, label: 'IA Gemma', x: '72%', y: '15%', pX: el2X, pY: el2Y, delay: 0.5, color: accent2 },
+    { icon: Mic, label: 'Whisper STT', x: '75%', y: '70%', pX: el1X, pY: el2Y, delay: 1, color: accent3 },
+    { icon: BarChart3, label: 'Analytics', x: '8%', y: '72%', pX: el2X, pY: el1Y, delay: 1.5, color: accent },
+    { icon: Activity, label: 'Temps réel', x: '45%', y: '5%', pX: el1X, pY: el1Y, delay: 0.8, color: accent2 },
+    { icon: Shield, label: 'Sécurité', x: '42%', y: '88%', pX: el2X, pY: el2Y, delay: 1.2, color: accent3 },
+    { icon: Car, label: 'Sinistres Auto', x: '82%', y: '42%', pX: el2X, pY: el1Y, delay: 0.7, color: claimColor },
+  ];
 
   return (
     <div className="relative w-full max-w-[500px] mx-auto" style={{ height: 360 }}>
@@ -125,54 +204,14 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: Motio
       </motion.div>
 
       {/* Orbiting elements */}
-      {[
-        { icon: Headphones, label: 'Centre d\'appels', x: '10%', y: '20%', pX: el1X, pY: el1Y, delay: 0, color: accent },
-        { icon: Brain, label: 'IA Gemma', x: '72%', y: '15%', pX: el2X, pY: el2Y, delay: 0.5, color: accent2 },
-        { icon: Mic, label: 'Whisper STT', x: '75%', y: '70%', pX: el1X, pY: el2Y, delay: 1, color: accent3 },
-        { icon: BarChart3, label: 'Analytics', x: '8%', y: '72%', pX: el2X, pY: el1Y, delay: 1.5, color: accent },
-        { icon: Activity, label: 'Temps réel', x: '45%', y: '5%', pX: el1X, pY: el1Y, delay: 0.8, color: accent2 },
-        { icon: Shield, label: 'Sécurité', x: '42%', y: '88%', pX: el2X, pY: el2Y, delay: 1.2, color: accent3 },
-        { icon: Car, label: 'Sinistres Auto', x: '82%', y: '42%', pX: el2X, pY: el1Y, delay: 0.7, color: claimColor },
-      ].map((el, i) => (
-        <motion.div key={i} className="absolute flex flex-col items-center gap-1 z-20"
-          style={{ left: el.x, top: el.y, x: el.pX, y: el.pY }}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
-          transition={{ opacity: { delay: 0.5+el.delay }, scale: { delay: 0.5+el.delay, type: 'spring', stiffness: 200 }, y: { duration: 3+i*0.5, repeat: Infinity, ease: 'easeInOut', delay: el.delay } }}>
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-            style={{ background: isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)', border: `1px solid ${el.color}30`, backdropFilter: 'blur(8px)',
-              boxShadow: `0 8px 25px ${isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)'}` }}>
-            <el.icon size={18} color={el.color} />
-          </div>
-          <span className="text-[8px] font-mono tracking-wider whitespace-nowrap" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{el.label}</span>
-        </motion.div>
+      {orbitElements.map((el, i) => (
+        <OrbitingElement key={`orbit-${i}`} icon={el.icon} label={el.label} x={el.x} y={el.y} pX={el.pX} pY={el.pY} delay={el.delay} color={el.color} isDark={isDark} />
       ))}
 
       {/* Animated connection lines (SVG) */}
       <svg className="absolute inset-0 w-full h-full z-0" viewBox="0 0 500 360">
-        {[
-          'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
-          'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
-          'M 250 30 Q 250 100 250 180', 'M 240 320 Q 245 250 250 180',
-          'M 410 150 Q 320 160 250 180',
-        ].map((d, i) => (
-          <motion.path key={i} d={d} fill="none" stroke={lineColor} strokeWidth="1.5" strokeDasharray="6 4"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 1.5, delay: 0.3+i*0.15, ease: 'easeOut' }} />
-        ))}
-        {/* Animated dots traveling along paths */}
-        {[
-          'M 70 80 Q 200 120 250 180', 'M 380 65 Q 300 100 250 180',
-          'M 395 260 Q 320 230 250 180', 'M 65 270 Q 150 240 250 180',
-          'M 410 150 Q 320 160 250 180',
-        ].map((d, i) => (
-          <motion.circle key={`dot${i}`} r="3" fill={i === 4 ? claimColor : accent}
-            initial={{ offsetDistance: '0%' }}
-            animate={{ offsetDistance: ['0%', '100%'] }}
-            transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
-            style={{ offsetPath: `path('${d}')` } as React.CSSProperties & { offsetPath: string }} />
-        ))}
+        <ConnectionLines lineColor={lineColor} />
+        <TravelingDots claimColor={claimColor} accent={accent} />
       </svg>
     </div>
   );
