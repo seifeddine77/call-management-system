@@ -19,25 +19,25 @@ RUN pip install --no-cache-dir --only-binary :all: "pip==23.3.2" "setuptools==69
 
 # Torch CPU-only (separate layer for Docker cache — 187MB)
 # Extended timeout + retries to handle slow/unstable networks during CI builds
-RUN pip install --no-cache-dir --only-binary :all: --timeout=300 --retries=5 \ # NOSONAR
-    torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --only-binary :all: --timeout=300 --retries=5 \
+    torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu # NOSONAR
 
 # Tiktoken pre-built wheel
 RUN pip install --no-cache-dir --only-binary :all: tiktoken==0.6.0 # NOSONAR
 
 # Whisper's heavy deps FIRST (all pinned versions — S8544)
-RUN pip install --no-cache-dir --only-binary :all: \ # NOSONAR
+RUN pip install --no-cache-dir --only-binary :all: \
     more-itertools==10.2.0 numba==0.59.1 "numpy>=1.26,<2" \
-    regex==2024.4.28 tqdm==4.66.4 transformers==4.40.2
+    regex==2024.4.28 tqdm==4.66.4 transformers==4.40.2 # NOSONAR
 
 # openai-whisper from GitHub (PyPI sdist is broken, GitHub uses pyproject.toml)
 # NOSONAR — whisper has C extensions, --only-binary not applicable for git source
 RUN pip install --no-cache-dir --no-deps "openai-whisper @ git+https://github.com/openai/whisper.git@v20231117" # NOSONAR
 
 # spaCy + French model (pinned versions — S8544)
-RUN pip install --no-cache-dir --only-binary :all: "spacy==3.7.4" && \ # NOSONAR
-    pip install --no-cache-dir --only-binary :all: \ # NOSONAR
-    "https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.7.0/fr_core_news_sm-3.7.0-py3-none-any.whl"
+RUN pip install --no-cache-dir --only-binary :all: "spacy==3.7.4" && \
+    pip install --no-cache-dir --only-binary :all: \
+    "https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.7.0/fr_core_news_sm-3.7.0-py3-none-any.whl" # NOSONAR
 
 # ChromaDB (vector store for RAG chatbot) + sentence-transformers for embeddings
 RUN pip install --no-cache-dir --only-binary :all: chromadb==0.5.23 sentence-transformers==3.0.1 # NOSONAR
