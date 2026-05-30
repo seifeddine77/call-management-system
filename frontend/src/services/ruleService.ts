@@ -64,10 +64,12 @@ export const ruleService = {
           return { field: x, label: x, type: 'string' };
         }
         const obj = x as { field?: string; label?: string; type?: string; values?: string[] } || {};
+        const rawType = obj.type || 'string';
+        const type = (rawType === 'number' || rawType === 'enum' ? rawType : 'string') as 'string' | 'number' | 'enum';
         return {
           field: obj.field || '',
           label: obj.label || obj.field || '',
-          type: obj.type || 'string',
+          type,
           values: obj.values,
         };
       });
