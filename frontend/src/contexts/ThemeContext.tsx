@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 
 type Theme = 'dark' | 'light';
 
@@ -22,7 +23,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     localStorage.setItem('aurora-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = useCallback(() => setTheme(prev => (prev === 'dark' ? 'light' : 'dark')), []);
 
   const value = useMemo(() => ({ theme, toggleTheme, isDark: theme === 'dark' }), [theme, toggleTheme]);
 

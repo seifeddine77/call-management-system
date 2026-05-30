@@ -13,6 +13,72 @@ type Theme = 'light' | 'dark';
 const getSystemTheme = (): Theme =>
   globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
+/* ───── Module-level helpers ───── */
+
+const TYPE_TEMPLATES: Record<string, string> = {
+  accident: '[Accident] Collision survenue le... Circonstances : ',
+  bris: '[Bris de glace] Impact sur le pare-brise/vitre... Détails : ',
+  panne: '[Panne mécanique] Perte de puissance / voyant moteur... Symptômes : ',
+  autre: "[Autre] Nature de l'assistance : ",
+};
+
+function validateNom(nom: string, touched: boolean): string {
+  if (!touched) return '';
+  if (!nom.trim()) return 'Le nom complet est obligatoire.';
+  if (nom.trim().length < 3) return 'Le nom doit contenir au moins 3 caractères.';
+  return '';
+}
+
+function validateTel(tel: string, touched: boolean): string {
+  if (!touched) return '';
+  if (tel.trim() && !/^\+?[0-9\s-]{8,15}$/.test(tel.trim().replace(/\s/g, ''))) {
+    return 'Veuillez saisir un numéro de téléphone valide (8 à 15 chiffres).';
+  }
+  return '';
+}
+
+function validateEmail(email: string, touched: boolean): string {
+  if (!touched) return '';
+  if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return 'Veuillez saisir une adresse e-mail valide.';
+  }
+  return '';
+}
+
+function validateDesc(desc: string, touched: boolean): string {
+  if (!touched) return '';
+  if (!desc.trim()) return 'La description est obligatoire.';
+  if (desc.trim().length < 15) return 'Veuillez décrire le problème avec au moins 15 caractères.';
+  return '';
+}
+
+function validateStep0(
+  form: { nom: string; telephone: string; email: string }
+): string | null {
+  if (!form.nom.trim() || form.nom.trim().length < 3) {
+    return 'Le nom complet doit comporter au moins 3 caractères.';
+  }
+  if (!form.telephone.trim() && !form.email.trim()) {
+    return 'Veuillez fournir au moins un moyen de contact (Téléphone ou Email).';
+  }
+  if (form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''))) {
+    return 'Le format du numéro de téléphone est incorrect.';
+  }
+  if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    return "L'adresse e-mail n'est pas valide.";
+  }
+  return null;
+}
+
+function readPublicFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function PublicFormPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', description: '', agenceId: '', consentementTraitement: false });
@@ -64,45 +130,18 @@ export default function PublicFormPage() {
     setTouched(prev => ({ ...prev, telephone: true }));
   };
 
-  // ── Validation checks ──
-  const getNomError = () => {
-    if (!touched.nom) return '';
-    if (!form.nom.trim()) return 'Le nom complet est obligatoire.';
-    if (form.nom.trim().length < 3) return 'Le nom doit contenir au moins 3 caractères.';
-    return '';
-  };
-
-  const getTelError = () => {
-    if (!touched.telephone) return '';
-    if (form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''))) {
-      return 'Veuillez saisir un numéro de téléphone valide (8 à 15 chiffres).';
-    }
-    return '';
-  };
-
-  const getEmailError = () => {
-    if (!touched.email) return '';
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      return 'Veuillez saisir une adresse e-mail valide.';
-    }
-    return '';
-  };
-
-  const getDescError = () => {
-    if (!touched.description) return '';
-    if (!form.description.trim()) return 'La description est obligatoire.';
-    if (form.description.trim().length < 15) {
-      return 'Veuillez décrire le problème avec au moins 15 caractères.';
-    }
-    return '';
-  };
+  // ── Validation checks (delegated to module-level helpers) ──
+  const getNomError = () => validateNom(form.nom, !!touched.nom);
+  const getTelError = () => validateTel(form.telephone, !!touched.telephone);
+  const getEmailError = () => validateEmail(form.email, !!touched.email);
+  const getDescError = () => validateDesc(form.description, !!touched.description);
 
   // ── Photos sinistre ──
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoSelect = (files: FileList | null) => {
+  const handlePhotoSelect = async (files: FileList | null) => {
     if (!files) return;
     const remaining = MAX_PHOTOS - photoFiles.length;
     const valid = Array.from(files)
@@ -112,11 +151,8 @@ export default function PublicFormPage() {
       setError(`Seules les images de moins de ${MAX_SIZE_MB}Mo sont acceptées (max ${MAX_PHOTOS}).`);
     }
     setPhotoFiles(prev => [...prev, ...valid]);
-    valid.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => setPhotoPreviews(prev => [...prev, e.target?.result as string]);
-      reader.readAsDataURL(file);
-    });
+    const previews = await Promise.all(valid.map(readPublicFileAsDataURL));
+    setPhotoPreviews(prev => [...prev, ...previews]);
   };
 
   const removePhoto = (index: number) => {
@@ -127,7 +163,7 @@ export default function PublicFormPage() {
   useEffect(() => {
     axios.get<Agence[]>(`${GATEWAY}/api/agences`).then(r => {
       const data = r.data;
-      setAgences(Array.isArray(data) ? data : (data as any).content ?? []);
+      setAgences(Array.isArray(data) ? data : (data as { content?: Agence[] }).content ?? []);
     }).catch(() => setAgences([]));
   }, []);
 
@@ -135,17 +171,7 @@ export default function PublicFormPage() {
 
   const handleTypeSelect = (type: 'accident' | 'bris' | 'panne' | 'autre') => {
     setSelectedType(type);
-    let template = '';
-    if (type === 'accident') {
-      template = "[Accident] Collision survenue le... Circonstances : ";
-    } else if (type === 'bris') {
-      template = "[Bris de glace] Impact sur le pare-brise/vitre... Détails : ";
-    } else if (type === 'panne') {
-      template = "[Panne mécanique] Perte de puissance / voyant moteur... Symptômes : ";
-    } else {
-      template = "[Autre] Nature de l'assistance : ";
-    }
-    setForm(f => ({ ...f, description: template }));
+    setForm(f => ({ ...f, description: TYPE_TEMPLATES[type] ?? '' }));
     setTouched(p => ({ ...p, description: true }));
   };
 
@@ -153,27 +179,8 @@ export default function PublicFormPage() {
     setError(null);
     if (currentStep === 0) {
       setTouched(prev => ({ ...prev, nom: true, telephone: true, email: true }));
-      const nomErr = !form.nom.trim() || form.nom.trim().length < 3;
-      const contactFilled = form.telephone.trim() !== '' || form.email.trim() !== '';
-      const telErr = form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''));
-      const emailErr = form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
-
-      if (nomErr) {
-        setError('Le nom complet doit comporter au moins 3 caractères.');
-        return;
-      }
-      if (!contactFilled) {
-        setError('Veuillez fournir au moins un moyen de contact (Téléphone ou Email).');
-        return;
-      }
-      if (telErr) {
-        setError('Le format du numéro de téléphone est incorrect.');
-        return;
-      }
-      if (emailErr) {
-        setError("L'adresse e-mail n'est pas valide.");
-        return;
-      }
+      const err = validateStep0(form);
+      if (err) { setError(err); return; }
     } else if (currentStep === 1) {
       if (!selectedType) {
         setError('Veuillez sélectionner un type de sinistre.');
@@ -725,18 +732,18 @@ export default function PublicFormPage() {
 
                         {/* Tactile Cards grid */}
                         <div className="cf-type-grid">
-                          {[
+                          {([
                             { id: 'accident', title: 'Accident / Choc', icon: <Car size={20} />, color: 'rgba(239, 68, 68, 0.15)', textC: 'text-rose-400 border-rose-500/20' },
                             { id: 'bris', title: 'Bris de glace', icon: <Zap size={20} />, color: 'rgba(59, 130, 246, 0.15)', textC: 'text-blue-400 border-blue-500/20' },
                             { id: 'panne', title: 'Panne mécanique', icon: <Wrench size={20} />, color: 'rgba(245, 158, 11, 0.15)', textC: 'text-amber-400 border-amber-500/20' },
                             { id: 'autre', title: 'Autre motif', icon: <Phone size={20} />, color: 'rgba(139, 92, 246, 0.15)', textC: 'text-violet-400 border-violet-500/20' }
-                          ].map(item => (
+                          ] as const).map(item => (
                             <div 
                               key={item.id}
                               role="button"
                               tabIndex={0}
-                              onClick={() => handleTypeSelect(item.id as any)}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTypeSelect(item.id as any); } }}
+                              onClick={() => handleTypeSelect(item.id)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTypeSelect(item.id); } }}
                               className={`cf-type-card ${selectedType === item.id ? 'selected' : ''}`}
                             >
                               <div className="cf-type-card-icon" style={{ backgroundColor: item.color }}>
@@ -828,7 +835,7 @@ export default function PublicFormPage() {
                             <div className="cf-previews-container">
                               {photoPreviews.map((src, i) => (
                                 <motion.div 
-                                  key={i}
+                                  key={`photo-preview-${i}-${src.substring(0, 50)}`}
                                   initial={{ scale: 0.8, opacity: 0 }}
                                   animate={{ scale: 1, opacity: 1 }}
                                   className="cf-polaroid"

@@ -15,8 +15,93 @@ import { userService } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 import { CardSkeleton, ErrorState } from '../components/ui/States';
 import type { Ticket } from '../types/ticket';
-import type { DecisionResult } from '../types/decision';
+import type { DecisionResult, DecisionRequest } from '../types/decision';
 import type { ReferenceData, FieldDef } from '../types/rule';
+
+/* ───── Module-level helpers (reduce cognitive complexity) ───── */
+
+function validateMissingFields(
+  formData: Record<string, string>,
+  requiredFields: string[],
+  fieldRefs: ReferenceData | null
+): string[] {
+  const missing: string[] = [];
+  for (const key of requiredFields) {
+    const val = formData[key];
+    if (val === undefined || val === null || val === '') {
+      const fd = (fieldRefs?.fields ?? []).find((f: FieldDef) => f.field === key);
+      missing.push(fd?.label ?? key);
+    }
+  }
+  return missing;
+}
+
+function buildAnalyzePayload(
+  formData: Record<string, string>,
+  fieldRefs: ReferenceData | null,
+  id: string,
+  pieceReference: string,
+  transcription: string | null | undefined
+): DecisionRequest {
+  const data: Record<string, unknown> = {};
+  for (const fd of (fieldRefs?.fields ?? [])) {
+    const val = formData[fd.field];
+    if (val !== undefined && val !== '') {
+      data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
+    }
+  }
+  return {
+    ticketId: id,
+    typePiece: (data.typePiece as string) || '',
+    ageVehiculeAns: (data.ageVehiculeAns as number) || 0,
+    kilometrage: (data.kilometrage as number) || 0,
+    categorieClient: (data.categorieClient as string) || '',
+    typeSinistre: (data.typeSinistre as string) || '',
+    pieceReference: (data.pieceReference as string) || pieceReference || undefined,
+    transcriptionText: transcription || undefined,
+  };
+}
+
+function resolveDecisionEmoji(decision: string): string {
+  if (decision === 'FAVORABLE') return '🟢';
+  if (decision === 'DEFAVORABLE') return '🔴';
+  return '🟡';
+}
+
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  try {
+    const stored = localStorage.getItem('aurora-auth');
+    if (stored) {
+      const { accessToken } = JSON.parse(stored);
+      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+  } catch { /* ignore */ }
+  return headers;
+}
+
+function generateWaveformBars(channelData: Float32Array, barCount = 48): number[] {
+  const samplesPerBar = Math.floor(channelData.length / barCount);
+  const bars: number[] = [];
+  for (let i = 0; i < barCount; i++) {
+    let sum = 0;
+    for (let j = 0; j < samplesPerBar; j++) {
+      sum += Math.abs(channelData[i * samplesPerBar + j]);
+    }
+    bars.push(sum / samplesPerBar);
+  }
+  const max = Math.max(...bars, 0.001);
+  return bars.map(v => Math.round(15 + (v / max) * 85));
+}
 
 /* ───── Live Transcription Component (Streaming STT) ───── */
 function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticketId: string; onTranscriptionUpdate?: (text: string) => void }>) {
@@ -29,6 +114,38 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const AI_WS_URL = `ws://localhost:8000/ws/transcribe/${ticketId}`;
+
+  const stopRecording = useCallback(() => {
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Stop recorder
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+      recorderRef.current.stream.getTracks().forEach(t => t.stop());
+      recorderRef.current = null;
+    }
+
+    // Send STOP and close WebSocket
+    if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send('STOP');
+      }
+      // Don't close immediately, let the server send final response
+      setTimeout(() => {
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+      }, 2000);
+    }
+
+    setIsRecording(false);
+    toast.success('🛑 Transcription arrêtée et sauvegardée');
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
@@ -92,42 +209,10 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
         if (isRecording) stopRecording();
       };
 
-    } catch (err) {
+    } catch {
       toast.error('Impossible d\'accéder au microphone');
     }
-  }, [ticketId, onTranscriptionUpdate]);
-
-  const stopRecording = useCallback(() => {
-    // Stop timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // Stop recorder
-    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.stop();
-      recorderRef.current.stream.getTracks().forEach(t => t.stop());
-      recorderRef.current = null;
-    }
-
-    // Send STOP and close WebSocket
-    if (wsRef.current) {
-      if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send('STOP');
-      }
-      // Don't close immediately, let the server send final response
-      setTimeout(() => {
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
-      }, 2000);
-    }
-
-    setIsRecording(false);
-    toast.success('🛑 Transcription arrêtée et sauvegardée');
-  }, [isRecording]);
+  }, [onTranscriptionUpdate, AI_WS_URL, isRecording, stopRecording]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -222,7 +307,7 @@ interface PremiumAudioPlayerProps {
   filename?: string;
 }
 
-function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumAudioPlayerProps>) {
+function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -250,52 +335,25 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
       setIsLoading(true);
       setError(null);
       try {
-        const stored = localStorage.getItem('aurora-auth');
-        const headers: Record<string, string> = {};
-        if (stored) {
-          try {
-            const { accessToken } = JSON.parse(stored);
-            if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-          } catch { /* ignore */ }
-        }
-
+        const headers = getAuthHeaders();
         const response = await fetch(audioUrl, { headers });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const blob = await response.blob();
         if (cancelled) return;
 
-        const url = URL.createObjectURL(blob);
-        setAudioBlobUrl(url);
+        setAudioBlobUrl(URL.createObjectURL(blob));
 
-        // Generate waveform from audio data
         try {
           const arrayBuffer = await blob.arrayBuffer();
           const audioContext = new AudioContext();
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          const channelData = audioBuffer.getChannelData(0);
-          
-          // Sample down to 48 bars
-          const barCount = 48;
-          const samplesPerBar = Math.floor(channelData.length / barCount);
-          const bars: number[] = [];
-          for (let i = 0; i < barCount; i++) {
-            let sum = 0;
-            for (let j = 0; j < samplesPerBar; j++) {
-              sum += Math.abs(channelData[i * samplesPerBar + j]);
-            }
-            bars.push(sum / samplesPerBar);
-          }
-          // Normalize to 15-100 range
-          const max = Math.max(...bars, 0.001);
-          const normalized = bars.map(v => Math.round(15 + (v / max) * 85));
+          const normalized = generateWaveformBars(audioBuffer.getChannelData(0));
           if (!cancelled) setWaveformData(normalized);
           audioContext.close();
         } catch {
-          // Fallback waveform if decoding fails
-          if (!cancelled) setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70)));
+          const fallback = Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70));
+          if (!cancelled) setWaveformData(fallback);
         }
 
         setIsLoading(false);
@@ -303,7 +361,6 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erreur de chargement');
           setIsLoading(false);
-          // Fallback waveform
           setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70)));
         }
       }
@@ -315,6 +372,7 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
       cancelled = true;
       if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup intentionally captures audioBlobUrl from this render cycle
   }, [audioUrl]);
 
   // Update progress during playback
@@ -560,17 +618,17 @@ export default function TicketDetailPage() {
     }
   }, [ticket?.photosPaths]);
 
-  const handlePhotoSelect = (files: FileList | null) => {
+  const handlePhotoSelect = async (files: FileList | null) => {
     if (!files) return;
-    const validFiles = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024);
-    if (validFiles.length < files.length) toast.error('Certains fichiers ignorés (non-image ou >10MB)');
+    const validFiles = Array.from(files).filter(
+      f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024
+    );
+    if (validFiles.length < files.length) {
+      toast.error('Certains fichiers ignorés (non-image ou >10MB)');
+    }
     setPhotoFiles(prev => [...prev, ...validFiles]);
-    
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => setPhotoPreviews(prev => [...prev, e.target?.result as string]);
-      reader.readAsDataURL(file);
-    });
+    const previews = await Promise.all(validFiles.map(readFileAsDataURL));
+    setPhotoPreviews(prev => [...prev, ...previews]);
   };
 
   const removePhoto = (index: number) => {
@@ -587,8 +645,11 @@ export default function TicketDetailPage() {
       setPhotoFiles([]);
       setPhotoPreviews([]);
       toast.success(`${photoFiles.length} photo(s) uploadée(s)`);
-    } catch { toast.error('Erreur upload photos'); }
-    finally { setUploadingPhotos(false); }
+    } catch {
+      toast.error('Erreur upload photos');
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const fetchTicket = useCallback(async () => {
@@ -635,16 +696,8 @@ export default function TicketDetailPage() {
   const handleAnalyze = async (forceReanalyze = false) => {
     if (!id) return;
 
-    // ── Validation frontend (les 5 champs obligatoires du DecisionRequest) ──
     const requiredFields = ['typePiece', 'ageVehiculeAns', 'kilometrage', 'categorieClient', 'typeSinistre'];
-    const missingFields: string[] = [];
-    for (const key of requiredFields) {
-      const val = formData[key];
-      if (val === undefined || val === null || val === '') {
-        const fd = (fieldRefs?.fields || []).find((f: FieldDef) => f.field === key);
-        missingFields.push(fd?.label || key);
-      }
-    }
+    const missingFields = validateMissingFields(formData, requiredFields, fieldRefs);
     if (missingFields.length > 0) {
       toast.error(`Champs obligatoires manquants : ${missingFields.join(', ')}`);
       return;
@@ -656,30 +709,10 @@ export default function TicketDetailPage() {
         try { await decisionService.deleteByTicket(id); } catch { /* ignore */ }
         setDecision(null);
       }
-      const data: Record<string, unknown> = {};
-      for (const fd of (fieldRefs?.fields || [])) {
-        const val = formData[fd.field];
-        if (val !== undefined && val !== '') {
-          data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
-        }
-      }
-      const result = await decisionService.analyze({
-        ticketId: id,
-        typePiece: (data.typePiece as string) || '',
-        ageVehiculeAns: (data.ageVehiculeAns as number) || 0,
-        kilometrage: (data.kilometrage as number) || 0,
-        categorieClient: (data.categorieClient as string) || '',
-        typeSinistre: (data.typeSinistre as string) || '',
-        pieceReference: (data.pieceReference as string) || pieceReference || undefined,
-        transcriptionText: ticket?.transcription || undefined,
-      });
+      const payload = buildAnalyzePayload(formData, fieldRefs, id, pieceReference, ticket?.transcription);
+      const result = await decisionService.analyze(payload);
       setDecision(result);
-      let emoji = '🟡';
-      if (result.decision === 'FAVORABLE') {
-        emoji = '🟢';
-      } else if (result.decision === 'DEFAVORABLE') {
-        emoji = '🔴';
-      }
+      const emoji = resolveDecisionEmoji(result.decision);
       toast.success(`${emoji} ${result.decision} — Score: ${result.score}%`);
     } catch {
       toast.error('Erreur d\'analyse IA');

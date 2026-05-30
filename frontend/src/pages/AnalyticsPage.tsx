@@ -461,7 +461,7 @@ export default function AnalyticsPage() {
                 INFO: { bg: 'var(--success)', soft: 'rgba(46,213,115,0.08)', border: 'rgba(46,213,115,0.2)', icon: <CircleCheck size={14} style={{ color: 'var(--success)' }} /> },
               }[a.severity];
               return (
-                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                <motion.div key={`analytics-alert-${i}-${a.type}-${a.severity}`} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
                   className="card-aurora rounded-xl p-3 flex items-start gap-3"
                   style={{ background: colors.soft, border: `1px solid ${colors.border}` }}>
                   <span className="flex items-center mt-0.5">{colors.icon}</span>

@@ -25,6 +25,8 @@ export interface DecisionResult {
   cached: boolean;
   finalDecision: DecisionType | null;
   overrideMotif: string | null;
+  createdAt?: string;
+  overriddenAt?: string;
 }
 
 export interface OverrideRequest {

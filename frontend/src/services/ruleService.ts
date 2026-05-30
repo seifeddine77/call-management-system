@@ -50,15 +50,27 @@ export const ruleService = {
   getReferences: async (): Promise<ReferenceData> => {
     const res = await api.get('/api/rules/references');
     const d = res.data;
-    const extract = (arr: unknown[]): string[] =>
-      arr?.map((x: any) => (typeof x === 'string' ? x : x.code)) ?? [];
-    const extractFields = (arr: unknown[]): FieldDef[] =>
-      arr?.map((x: any) => ({
-        field: typeof x === 'string' ? x : x.field,
-        label: x.label || x.field || x,
-        type: x.type || 'string',
-        values: x.values,
-      })) ?? [];
+    const extract = (arr: unknown[] | undefined): string[] =>
+      (arr || []).map((x) => {
+        if (typeof x === 'string') return x;
+        if (x && typeof x === 'object' && 'code' in x) {
+          return (x as { code: string }).code;
+        }
+        return '';
+      });
+    const extractFields = (arr: unknown[] | undefined): FieldDef[] =>
+      (arr || []).map((x) => {
+        if (typeof x === 'string') {
+          return { field: x, label: x, type: 'string' };
+        }
+        const obj = x as { field?: string; label?: string; type?: string; values?: string[] } || {};
+        return {
+          field: obj.field || '',
+          label: obj.label || obj.field || '',
+          type: obj.type || 'string',
+          values: obj.values,
+        };
+      });
     return {
       typesPiece: extract(d.typesPiece),
       categoriesClient: extract(d.categoriesClient),

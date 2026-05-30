@@ -81,7 +81,7 @@ export default function QueuePage() {
       setQueueCount((queueData.tickets || []).length);
 
       if (activeFilter === 'QUEUE') {
-        setItems((queueData.tickets || []).map(queueToItem));
+        setItems((queueData.tickets || []).map((q) => queueToItem(q)));
       } else {
         const ticketData = await ticketService.getTickets({ statut: activeFilter, size: 50 });
         setItems((ticketData.content || []).map((t, i) => ticketToItem(t, i)));
@@ -432,7 +432,7 @@ export default function QueuePage() {
                     <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Ordre de tri</span>
                     <select
                       value={sortBy}
-                      onChange={(e: any) => setSortBy(e.target.value)}
+                      onChange={(e) => setSortBy(e.target.value as 'PRIO_SLA' | 'NEWEST' | 'OLDEST')}
                       className="aurora-select"
                     >
                       <option value="PRIO_SLA">Priorité & SLA (Urgent + FIFO)</option>

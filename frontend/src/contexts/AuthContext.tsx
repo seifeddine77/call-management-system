@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types/auth';
 import { authService } from '../services/authService';
 
@@ -17,21 +18,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('aurora-auth');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as AuthUser;
-        setUser(parsed);
-      } catch {
-        localStorage.removeItem('aurora-auth');
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const stored = localStorage.getItem('aurora-auth');
+      if (stored) {
+        return JSON.parse(stored) as AuthUser;
       }
+    } catch {
+      try { localStorage.removeItem('aurora-auth'); } catch { /* ignore */ }
     }
-    setIsLoading(false);
-  }, []);
+    return null;
+  });
+  const [isLoading] = useState(false);
 
   const login = useCallback(async (email: string, password: string) => {
     const flatUser = await authService.login({ email, password });

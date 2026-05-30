@@ -138,7 +138,7 @@ export default function AuditPage() {
     if (decision) {
       events.push({
         id: `decision-created`,
-        timestamp: (decision as any).createdAt || ticket.updatedAt,
+        timestamp: decision.createdAt || ticket.updatedAt,
         source: 'decision',
         type: 'DECISION_IA',
         title: `Décision IA : ${decision.decision}`,
@@ -149,7 +149,7 @@ export default function AuditPage() {
       if (decision.finalDecision) {
         events.push({
           id: `decision-finalized`,
-          timestamp: (decision as any).overriddenAt || ticket.updatedAt,
+          timestamp: decision.overriddenAt || ticket.updatedAt,
           source: 'decision',
           type: 'DECISION_FINALE',
           title: `Décision superviseur : ${decision.finalDecision}`,
@@ -288,7 +288,7 @@ export default function AuditPage() {
   }, [ticket, notifications, decision]);
 
   const rgpdScore = useMemo(() => {
-    const applicable = rgpd.filter(r => !(r as any).na);
+    const applicable = rgpd.filter(r => !r.na);
     if (applicable.length === 0) return 0;
     return Math.round((applicable.filter(r => r.ok).length / applicable.length) * 100);
   }, [rgpd]);
@@ -653,7 +653,7 @@ export default function AuditPage() {
       rgpd.forEach((r) => {
         if (y > 262) { doc.addPage(); y = 20; }
 
-        const isNa = (r as any).na;
+        const isNa = r.na;
         const isOk = r.ok;
         
         // Draw badge box
@@ -689,7 +689,7 @@ export default function AuditPage() {
         doc.setTextColor(74, 81, 104);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
-        const descLines = doc.splitTextToSize((r as any).desc || '', CW - 38);
+        const descLines = doc.splitTextToSize(r.desc || '', CW - 38);
         doc.text(descLines, M + 36, y + 9);
         
         y += 9 + descLines.length * 3.5 + 4;
@@ -703,7 +703,7 @@ export default function AuditPage() {
       }
 
       doc.save(`audit_${ticket.numero}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch (err) {
+    } catch {
       /* silent */
     }
     finally { setExporting(false); }
@@ -919,18 +919,18 @@ export default function AuditPage() {
               </div>
               <div className="space-y-1.5">
                 {rgpd.map(r => (
-                  <div key={r.label} className={`p-2.5 rounded-lg border ${(r as any).na ? 'bg-zinc-500/5 border-zinc-500/10' : r.ok ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-rose-500/5 border-rose-500/15'}`}>
+                  <div key={r.label} className={`p-2.5 rounded-lg border ${r.na ? 'bg-zinc-500/5 border-zinc-500/10' : r.ok ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-rose-500/5 border-rose-500/15'}`}>
                     <div className="flex items-center gap-2">
-                      <span style={{ color: (r as any).na ? 'var(--text-3)' : r.ok ? '#10B981' : '#EF4444' }}>{r.icon}</span>
+                      <span style={{ color: r.na ? 'var(--text-3)' : r.ok ? '#10B981' : '#EF4444' }}>{r.icon}</span>
                       <span className="text-[11px] font-medium flex-1">{r.label}</span>
-                      <span className={`font-mono text-[8px] font-bold ${(r as any).na ? 'text-[var(--text-3)]' : r.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {(r as any).na ? 'N/A' : r.ok ? '✓ CONFORME' : '✕ NON'}
+                      <span className={`font-mono text-[8px] font-bold ${r.na ? 'text-[var(--text-3)]' : r.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {r.na ? 'N/A' : r.ok ? '✓ CONFORME' : '✕ NON'}
                       </span>
                     </div>
-                    <div className="font-mono text-[8px] text-[var(--text-3)] mt-0.5 ml-[22px]">{(r as any).desc}</div>
-                    {(r as any).recommendation && (
+                    <div className="font-mono text-[8px] text-[var(--text-3)] mt-0.5 ml-[22px]">{r.desc}</div>
+                    {r.recommendation && (
                       <div className="mt-1 ml-[22px] text-[9px] text-amber-400 flex items-center gap-1">
-                        <AlertTriangle size={9} /> {(r as any).recommendation}
+                        <AlertTriangle size={9} /> {r.recommendation}
                       </div>
                     )}
                   </div>

@@ -47,6 +47,58 @@ const getTestDecisionTextClass = (decision: string) => {
 };
 
 // ─── Sortable Condition Row ───
+
+/* ───── Condition Evaluator (module-level for reduced cognitive complexity) ───── */
+function evalCondition(cond: RuleCondition, testForm: Record<string, string>): boolean | null {
+  const fieldVal = testForm[cond.field];
+  if (fieldVal === undefined || fieldVal === '') return null;
+
+  const numField = Number(fieldVal);
+  const numCond = Number(cond.value);
+  const isNumeric = !isNaN(numField) && !isNaN(numCond);
+  const v1 = isNumeric ? numField : String(fieldVal).trim().toLowerCase();
+  const v2 = isNumeric ? numCond : String(cond.value).trim().toLowerCase();
+
+  switch (cond.operator) {
+    case '=':
+    case '==':
+      return v1 === v2;
+    case '!=':
+      return v1 !== v2;
+    case '<':
+      return v1 < v2;
+    case '>':
+      return v1 > v2;
+    case '<=':
+      return v1 <= v2;
+    case '>=':
+      return v1 >= v2;
+    default:
+      return false;
+  }
+}
+
+function buildRuleTestPayload(
+  refs: ReferenceData | null,
+  testForm: Record<string, string>
+): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  for (const fd of (refs?.fields ?? [])) {
+    const val = testForm[fd.field];
+    if (val !== undefined && val !== '') {
+      data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
+    }
+  }
+  return {
+    typePiece: (data.typePiece as string) || undefined,
+    ageVehiculeAns: (data.ageVehiculeAns as number) || undefined,
+    kilometrage: (data.kilometrage as number) || undefined,
+    categorieClient: (data.categorieClient as string) || undefined,
+    typeSinistre: (data.typeSinistre as string) || undefined,
+    data,
+  };
+}
+
 function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: Readonly<{
   id: string; cond: RuleCondition; index: number; refs: ReferenceData | null;
   formErrors: { conditions?: string }; onChange: (i: number, c: RuleCondition) => void; onRemove: (i: number) => void;
@@ -170,41 +222,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
   const conditions = rule.conditions.conditions;
   const numConds = conditions.length;
 
-  const evalCondition = (cond: RuleCondition) => {
-    const fieldVal = testForm[cond.field];
-    if (fieldVal === undefined || fieldVal === '') return null; // not evaluated
-
-    const op = cond.operator;
-    const condVal = cond.value;
-
-    const numField = Number(fieldVal);
-    const numCond = Number(condVal);
-    const isNumeric = !isNaN(numField) && !isNaN(numCond);
-
-    const val1 = isNumeric ? numField : String(fieldVal).trim().toLowerCase();
-    const val2 = isNumeric ? numCond : String(condVal).trim().toLowerCase();
-
-    switch (op) {
-      case '=':
-      case '==':
-        return val1 === val2;
-      case '!=':
-        return val1 !== val2;
-      case '<':
-        return val1 < val2;
-      case '>':
-        return val1 > val2;
-      case '<=':
-        return val1 <= val2;
-      case '>=':
-        return val1 >= val2;
-      default:
-        return false;
-    }
-  };
-
-  // Evaluate all conditions
-  const evaluatedConds = conditions.map(c => evalCondition(c));
+  const evaluatedConds = conditions.map(c => evalCondition(c, testForm));
 
   // Determine overall status
   let ruleStatus: boolean | null = null;
@@ -784,25 +802,14 @@ export default function RulesPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      // Build data map dynamically from all fields
-      const data: Record<string, unknown> = {};
-      for (const fd of (refs?.fields || [])) {
-        const val = testForm[fd.field];
-        if (val !== undefined && val !== '') {
-          data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
-        }
-      }
-      const result = await ruleService.evaluate({
-        typePiece: (data.typePiece as string) || undefined,
-        ageVehiculeAns: (data.ageVehiculeAns as number) || undefined,
-        kilometrage: (data.kilometrage as number) || undefined,
-        categorieClient: (data.categorieClient as string) || undefined,
-        typeSinistre: (data.typeSinistre as string) || undefined,
-        data,
-      });
+      const payload = buildRuleTestPayload(refs, testForm);
+      const result = await ruleService.evaluate(payload);
       setTestResult(result);
-    } catch { toast.error('Erreur test'); }
-    finally { setTesting(false); }
+    } catch {
+      toast.error('Erreur test');
+    } finally {
+      setTesting(false);
+    }
   };
 
   if (error) return <ErrorState message={error} onRetry={fetchRules} />;
@@ -988,7 +995,7 @@ export default function RulesPage() {
                 <div className="space-y-2">
                   <div className="font-mono text-[10px] text-txt-3 mb-1">Opérateur : {selectedRule.conditions.operator}</div>
                   {selectedRule.conditions.conditions.map((cond, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2.5 bg-[var(--elevated)] border border-border rounded-lg">
+                    <div key={`rule-cond-${i}-${cond.field}-${cond.operator}-${cond.value}`} className="flex items-center gap-2 p-2.5 bg-[var(--elevated)] border border-border rounded-lg">
                       <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${i === 0 ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
                         {i === 0 ? 'SI' : selectedRule.conditions.operator}
                       </span>

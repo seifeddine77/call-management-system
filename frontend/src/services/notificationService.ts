@@ -1,23 +1,39 @@
 import api from './api';
 import type { NotificationLog } from '../types/notification';
 
+interface RawNotification {
+  id?: string;
+  type?: string;
+  destinataire?: string;
+  recipient?: string;
+  sujet?: string;
+  subject?: string;
+  statut?: string;
+  status?: string;
+  attempts?: number;
+  errorMessage?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+  sentAt?: string;
+}
+
 export const notificationService = {
   getLogs: async (params?: { status?: string; page?: number; size?: number }): Promise<NotificationLog[]> => {
     const res = await api.get<NotificationLog[] | { content: NotificationLog[] }>('/api/notifications/logs', { params });
     // Handle both paginated and array responses
     const raw = Array.isArray(res.data) ? res.data : (res.data as { content: NotificationLog[] }).content;
     // Map API field names (English) → frontend type (French)
-    return (raw as any[] || []).map((n: any) => ({
-      id: (n.id as string) || '',
-      type: (n.type as string) || '',
-      destinataire: (n.destinataire as string) || (n.recipient as string) || '',
-      sujet: (n.sujet as string) || (n.subject as string) || '',
-      statut: ((n.statut as string) || (n.status as string) || 'FAILED') as NotificationLog['statut'],
-      attempts: (n.attempts as number) || 0,
-      errorMessage: (n.errorMessage as string) || null,
-      metadata: (n.metadata as Record<string, unknown>) || {},
-      createdAt: (n.createdAt as string) || '',
-      sentAt: (n.sentAt as string) || null,
+    return ((raw as RawNotification[]) || []).map((n) => ({
+      id: n.id || '',
+      type: n.type || '',
+      destinataire: n.destinataire || n.recipient || '',
+      sujet: n.sujet || n.subject || '',
+      statut: (n.statut || n.status || 'FAILED') as NotificationLog['statut'],
+      attempts: n.attempts || 0,
+      errorMessage: n.errorMessage || null,
+      metadata: n.metadata || {},
+      createdAt: n.createdAt || '',
+      sentAt: n.sentAt || null,
     }));
   },
 

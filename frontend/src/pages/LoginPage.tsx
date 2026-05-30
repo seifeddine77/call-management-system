@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from '../components/ui/Logo';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, MotionValue } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Mail, Lock, Eye, EyeOff, Sun, Moon, Shield, Brain, Mic, Headphones, BarChart3, Activity, Car, Check, AlertCircle } from 'lucide-react';
 
@@ -35,6 +35,18 @@ function useParallax() {
   return { sx, sy };
 }
 
+const STATIC_PARTICLES = Array.from({ length: 20 }).map((_, i) => ({
+  id: i,
+  w: 2 + Math.random() * 3,
+  h: 2 + Math.random() * 3,
+  left: Math.random() * 100,
+  top: Math.random() * 100,
+  bgRand1: 0.15 + Math.random() * 0.2,
+  bgRand2: 0.1 + Math.random() * 0.15,
+  animDur: 8 + Math.random() * 12,
+  animDelay: Math.random() * -20,
+}));
+
 /* ── Animated Background ── */
 function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
   return (
@@ -45,7 +57,7 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
         { w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.08)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
       ].map((b,i) => (
         <motion.div key={i} className="absolute rounded-full" style={{ width:b.w,height:b.h,top:b.top,bottom:b.bottom,left:b.left,right:b.right,
-          background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' } as any}
+          background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' } as React.CSSProperties}
           animate={{ x:[0,b.dx,-b.dx/2,0], y:[0,b.dy/2,-b.dy,0] }}
           transition={{ duration:b.dur, repeat:Infinity, ease:'easeInOut' }} />
       ))}
@@ -53,12 +65,12 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
         backgroundImage:`linear-gradient(${isDark?'rgba(59,130,246,0.03)':'rgba(37,99,235,0.04)'} 1px,transparent 1px),linear-gradient(90deg,${isDark?'rgba(59,130,246,0.03)':'rgba(37,99,235,0.04)'} 1px,transparent 1px)`,
         backgroundSize:'60px 60px',
       }}/>
-      {Array.from({length:20}).map((_,i) => (
-        <div key={`p${i}`} className="absolute rounded-full" style={{
-          width:`${2+Math.random()*3}px`,height:`${2+Math.random()*3}px`,
-          left:`${Math.random()*100}%`,top:`${Math.random()*100}%`,
-          background:isDark?`rgba(59,130,246,${0.15+Math.random()*0.2})`:`rgba(37,99,235,${0.1+Math.random()*0.15})`,
-          animation:`loginFloat ${8+Math.random()*12}s ease-in-out infinite`,animationDelay:`${Math.random()*-20}s`,
+      {STATIC_PARTICLES.map((p) => (
+        <div key={`p${p.id}`} className="absolute rounded-full" style={{
+          width: `${p.w}px`, height: `${p.h}px`,
+          left: `${p.left}%`, top: `${p.top}%`,
+          background: isDark ? `rgba(59,130,246,${p.bgRand1})` : `rgba(37,99,235,${p.bgRand2})`,
+          animation: `loginFloat ${p.animDur}s ease-in-out infinite`, animationDelay: `${p.animDelay}s`,
         }}/>
       ))}
     </div>
@@ -66,7 +78,7 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
 }
 
 /* ── Animated SVG Scene — Connected Neural Network ── */
-function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; sy: any }>) {
+function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: MotionValue<number>; sy: MotionValue<number> }>) {
   const carX = useTransform(sx, [-1,1], [-12,12]);
   const carY = useTransform(sy, [-1,1], [-8,8]);
   const el1X = useTransform(sx, [-1,1], [8,-8]);
@@ -159,7 +171,7 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: any; 
             initial={{ offsetDistance: '0%' }}
             animate={{ offsetDistance: ['0%', '100%'] }}
             transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
-            style={{ offsetPath: `path('${d}')` } as any} />
+            style={{ offsetPath: `path('${d}')` } as React.CSSProperties & { offsetPath: string }} />
         ))}
       </svg>
     </div>
@@ -283,7 +295,7 @@ export default function LoginPage() {
       await login(email, password); 
       toast.success('Connexion réussie !'); 
     }
-    catch (err) { 
+    catch { 
       setAuthError('Email ou mot de passe incorrect');
       toast.error('Email ou mot de passe incorrect'); 
     }

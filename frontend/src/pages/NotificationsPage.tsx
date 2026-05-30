@@ -211,7 +211,10 @@ export default function NotificationsPage() {
                         <div className="text-[12.5px] font-semibold text-txt tracking-wide truncate">{n.sujet}</div>
                         {n.metadata && typeof n.metadata === 'object' && Object.keys(n.metadata).length > 0 && (
                           <div className="font-mono text-[9px] text-txt-3 mt-0.5 truncate tracking-wider">
-                            ID: {String((n.metadata as any).ticketId || (n.metadata as any).ticketNumero || '')}
+                            ID: {(() => {
+                              const meta = n.metadata as { ticketId?: string | number; ticketNumero?: string | number } | null | undefined;
+                              return String(meta?.ticketId || meta?.ticketNumero || '');
+                            })()}
                           </div>
                         )}
                       </td>

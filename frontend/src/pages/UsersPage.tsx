@@ -14,6 +14,36 @@ import type { User, UserRequest } from '../types/user';
 interface FormErrors { prenom?: string; nom?: string; email?: string; password?: string; agenceId?: string; }
 interface AgenceOption { id: string; nom: string; }
 
+/* ───── Module-level helpers ───── */
+
+function validateUserForm(
+  form: import('../types/user').UserRequest,
+  isCreate: boolean
+): FormErrors {
+  const errors: FormErrors = {};
+  if (!form.prenom || form.prenom.trim().length === 0) errors.prenom = 'Le prénom est obligatoire';
+  if (!form.nom || form.nom.trim().length === 0) errors.nom = 'Le nom est obligatoire';
+  if (!form.email || form.email.trim().length === 0) {
+    errors.email = "L'email est obligatoire";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = "Format d'email invalide";
+  }
+  if (isCreate) {
+    if (!form.password || form.password.length === 0) {
+      errors.password = 'Le mot de passe est obligatoire';
+    } else if (form.password.length < 6) {
+      errors.password = 'Minimum 6 caractères';
+    }
+  } else if (form.password && form.password.length > 0 && form.password.length < 6) {
+    errors.password = 'Minimum 6 caractères';
+  }
+  if ((form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && !form.agenceId) {
+    const label = form.role === 'OPERATEUR' ? 'opérateur' : 'superviseur';
+    errors.agenceId = `Un ${label} doit être rattaché à une agence`;
+  }
+  return errors;
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,27 +89,7 @@ export default function UsersPage() {
   }, []);
 
   const validateForm = (isCreate: boolean): boolean => {
-    const errors: FormErrors = {};
-    if (!form.prenom || form.prenom.trim().length === 0) errors.prenom = 'Le prénom est obligatoire';
-    if (!form.nom || form.nom.trim().length === 0) errors.nom = 'Le nom est obligatoire';
-    if (!form.email || form.email.trim().length === 0) {
-      errors.email = "L'email est obligatoire";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      errors.email = "Format d'email invalide";
-    }
-    if (isCreate) {
-      if (!form.password || form.password.length === 0) {
-        errors.password = 'Le mot de passe est obligatoire';
-      } else if (form.password.length < 6) {
-        errors.password = 'Minimum 6 caractères';
-      }
-    } else if (form.password && form.password.length > 0 && form.password.length < 6) {
-      errors.password = 'Minimum 6 caractères';
-    }
-    // CDC 1.A — Agence obligatoire pour OPERATEUR et SUPERVISEUR
-    if ((form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && !form.agenceId) {
-      errors.agenceId = `Un ${form.role === 'OPERATEUR' ? 'opérateur' : 'superviseur'} doit être rattaché à une agence`;
-    }
+    const errors = validateUserForm(form, isCreate);
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -352,7 +362,7 @@ export default function UsersPage() {
                           const trimmed = segment.trim();
                           const [days, hours] = trimmed.split(' ');
                           return (
-                            <div key={i} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
+                            <div key={`planning-segment-${i}-${trimmed}`} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
                               <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
                               <span className="text-xs font-semibold text-txt tracking-wide">{hours || ''}</span>
                             </div>

@@ -49,7 +49,7 @@ export default function TicketListPage() {
         ...(search && { search }),
       };
       const data = await ticketService.getTickets(filters);
-      let sorted = [...data.content];
+      const sorted = [...data.content];
       // Client-side sort
       sorted.sort((a, b) => {
         let cmp = 0;

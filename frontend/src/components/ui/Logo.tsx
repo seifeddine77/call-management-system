@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -16,8 +17,9 @@ export default function Logo({ size = 28, animated = true, className = '' }: Rea
   const { isDark } = useTheme();
 
   // Gradient IDs must be unique per instance
-  const gradId = `logo-grad-${Math.random().toString(36).slice(2, 6)}`;
-  const glowId = `logo-glow-${Math.random().toString(36).slice(2, 6)}`;
+  const baseId = useId();
+  const gradId = `logo-grad-${baseId}`;
+  const glowId = `logo-glow-${baseId}`;
 
   const svg = (
     <svg

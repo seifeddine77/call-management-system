@@ -91,7 +91,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, page]);
+  }, [filter, page, isSupervisor, user?.userId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -182,7 +182,7 @@ export default function DashboardPage() {
                     const h = Math.max(8, (v / max) * 100);
                     return (
                       <div
-                        key={i}
+                        key={`spark-bar-${i}-${v}`}
                         className="flex-1 rounded-full transition-all duration-300 group-hover:animate-waveform"
                         style={{
                           height: `${h}%`,
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                   }[a.severity];
 
                   return (
-                    <motion.div key={i}
+                    <motion.div key={`dashboard-alert-${i}-${a.type}-${a.severity}`}
                       initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.08 }}
                       className={`grid grid-cols-12 gap-2 items-center px-2 py-2 rounded-lg relative overflow-hidden ${isCritical ? 'glow-danger border-rose-500/20' : ''}`}
