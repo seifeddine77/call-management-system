@@ -169,7 +169,7 @@ public class TicketController {
             }
 
         } catch (Exception e) {
-            log.warn("AI service call failed for ticket {}: {}. Storing audio path only.", id, e.getMessage());
+            log.warn("AI service call failed for ticket {}: {}. Storing audio path only.", id, e.getMessage(), e);
             // Fallback: store just the audio path even if AI service is down
         }
 
@@ -186,7 +186,7 @@ public class TicketController {
                 log.info("🔐 Audio chiffré pour ticket {} ({} bytes)", id, encrypted.length);
                 return audioPath + ".enc";
             } catch (Exception encEx) {
-                log.warn("⚠️ Chiffrement audio échoué pour ticket {}: {}", id, encEx.getMessage());
+                log.warn("⚠️ Chiffrement audio échoué pour ticket {}: {}", id, encEx.getMessage(), encEx);
             }
         }
         return audioPath;
@@ -291,7 +291,7 @@ public class TicketController {
             file.transferTo(filePath.toFile());
             log.info("📸 Photo sauvegardée: {} -> {}", photoPath, filePath);
         } catch (IOException e) {
-            log.error("Erreur sauvegarde fichier {}: {}", sanitizedName, e.getMessage());
+            log.error("Erreur sauvegarde fichier {}: {}", sanitizedName, e.getMessage(), e);
             return null;
         }
 
@@ -317,7 +317,7 @@ public class TicketController {
 
             log.info("📸 {} photos total pour ticket {}", allPaths.size(), ticketId);
         } catch (Exception e) {
-            log.error("Erreur sauvegarde photos: {}", e.getMessage());
+            log.error("Erreur sauvegarde photos: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
 

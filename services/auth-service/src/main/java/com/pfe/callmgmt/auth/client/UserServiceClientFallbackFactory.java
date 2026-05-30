@@ -26,7 +26,7 @@ public class UserServiceClientFallbackFactory implements FallbackFactory<UserSer
 
     @Override
     public UserServiceClient create(Throwable cause) {
-        log.warn("UserServiceClient fallback activé (organisation-service indisponible): {}", cause.getMessage());
+        log.warn("UserServiceClient fallback activé (organisation-service indisponible): {}", cause.getMessage(), cause);
         return new UserServiceClient() {
 
             @Override

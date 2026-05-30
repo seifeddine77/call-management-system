@@ -368,7 +368,7 @@ public class TicketServiceImpl implements TicketService {
             try {
                 messagingTemplate.convertAndSend(destination, payload);
             } catch (Exception e) {
-                log.warn("Failed to send WebSocket message to {}: {}", destination, e.getMessage());
+                log.warn("Failed to send WebSocket message to {}: {}", destination, e.getMessage(), e);
             }
         }
     }

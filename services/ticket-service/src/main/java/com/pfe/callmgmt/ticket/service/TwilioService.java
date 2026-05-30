@@ -42,7 +42,7 @@ public class TwilioService {
             RequestValidator validator = new RequestValidator(twilioConfig.getAuthToken());
             return validator.validate(url, params, signature);
         } catch (Exception e) {
-            log.error("Twilio signature validation error: {}", e.getMessage());
+            log.error("Twilio signature validation error: {}", e.getMessage(), e);
             return false;
         }
     }

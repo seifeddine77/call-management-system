@@ -323,8 +323,8 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
           } else if (data.type === 'error') {
             toast.error(`Erreur STT: ${data.detail}`);
           }
-        } catch (err) {
-          console.warn("Failed to parse WebSocket message", err);
+        } catch {
+          // Ignore malformed WebSocket messages — connection remains active
         }
       };
 

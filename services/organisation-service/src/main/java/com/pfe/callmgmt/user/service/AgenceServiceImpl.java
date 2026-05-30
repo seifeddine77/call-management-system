@@ -26,8 +26,8 @@ import java.util.UUID;
 @Transactional
 public class AgenceServiceImpl implements AgenceService {
 
-    // SonarCloud HIGH fix — duplicated literal 'Agence non trouvée: ' (5x)
     private static final String AGENCE_NOT_FOUND = "Agence non trouvée: ";
+    private static final String USER_NOT_FOUND = "Utilisateur non trouvé: ";
 
     private final AgenceRepository agenceRepository;
     private final UserRepository userRepository;
@@ -60,7 +60,7 @@ public class AgenceServiceImpl implements AgenceService {
                     .adresse(saved.getAdresse())
                     .build());
         } catch (Exception e) {
-            log.warn("⚠️ Impossible de publier l'événement agence.created: {}", e.getMessage());
+            log.warn("⚠️ Impossible de publier l'événement agence.created: {}", e.getMessage(), e);
         }
 
         return toResponseWithResponsableName(saved);
@@ -111,7 +111,7 @@ public class AgenceServiceImpl implements AgenceService {
                 .orElseThrow(() -> new EntityNotFoundException(AGENCE_NOT_FOUND + agenceId));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException(USER_NOT_FOUND + userId));
 
         // CDC 1.B — Seul un SUPERVISOR peut être responsable d'une agence
         if (!"SUPERVISOR".equals(user.getRole())) {

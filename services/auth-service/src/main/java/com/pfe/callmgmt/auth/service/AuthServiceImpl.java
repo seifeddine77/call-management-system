@@ -67,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
             userServiceClient.updateLastLogin(user.getId());
             log.info("Last login updated for user: {}", user.getEmail());
         } catch (Exception e) {
-            log.warn("Failed to update lastLogin for {}: {}", user.getEmail(), e.getMessage());
+            log.warn("Failed to update lastLogin for {}: {}", user.getEmail(), e.getMessage(), e);
         }
 
         // 5. Générer les tokens

@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
-        log.error("Erreur: {}", ex.getMessage());
+        log.error("Erreur: {}", ex.getMessage(), ex);
         Map<String, Object> body = new HashMap<>();
         body.put(KEY_TIMESTAMP, LocalDateTime.now());
         body.put(KEY_STATUS, 404);
@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleEntityNotFound(EntityNotFoundException ex) {
-        log.error("Ressource non trouvée: {}", ex.getMessage());
+        log.error("Ressource non trouvée: {}", ex.getMessage(), ex);
         Map<String, Object> body = new HashMap<>();
         body.put(KEY_TIMESTAMP, LocalDateTime.now());
         body.put(KEY_STATUS, 404);

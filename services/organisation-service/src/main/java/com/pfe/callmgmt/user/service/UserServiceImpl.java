@@ -31,6 +31,7 @@ public class UserServiceImpl implements UserService {
     private static final String ROLE_SUPERVISOR = "SUPERVISOR";
     private static final String MSG_AGENCE_NOT_FOUND = "Agence non trouvée: ";
     private static final String MSG_USER_NOT_FOUND = "Utilisateur non trouvé: ";
+    private static final String MSG_USER_EMAIL_NOT_FOUND = "Utilisateur non trouvé avec l'email: ";
 
     private final UserRepository userRepository;
     private final AgenceRepository agenceRepository;
@@ -76,7 +77,7 @@ public class UserServiceImpl implements UserService {
         if ((ROLE_OPERATOR.equals(request.getRole()) || ROLE_SUPERVISOR.equals(request.getRole()))
                 && request.getAgenceId() == null) {
             throw new IllegalArgumentException(
-                    "Un " + request.getRole() + " doit être rattaché à une agence");
+                    String.format("Un %s doit être rattaché à une agence", request.getRole()));
         }
 
         // Assign agence if provided
@@ -100,7 +101,7 @@ public class UserServiceImpl implements UserService {
                         .role(saved.getRole())
                         .build());
             } catch (Exception e) {
-                log.warn("Failed to publish UserCreatedEvent (RabbitMQ may be down): {}", e.getMessage());
+                log.warn("Failed to publish UserCreatedEvent (RabbitMQ may be down): {}", e.getMessage(), e);
             }
         }
 
@@ -131,7 +132,7 @@ public class UserServiceImpl implements UserService {
         if ((ROLE_OPERATOR.equals(request.getRole()) || ROLE_SUPERVISOR.equals(request.getRole()))
                 && request.getAgenceId() == null) {
             throw new IllegalArgumentException(
-                    "Un " + request.getRole() + " doit être rattaché à une agence");
+                    String.format("Un %s doit être rattaché à une agence", request.getRole()));
         }
 
         if (request.getAgenceId() != null) {
@@ -154,7 +155,7 @@ public class UserServiceImpl implements UserService {
                         .role(saved.getRole())
                         .build());
             } catch (Exception e) {
-                log.warn("Failed to publish UserCreatedEvent: {}", e.getMessage());
+                log.warn("Failed to publish UserCreatedEvent: {}", e.getMessage(), e);
             }
         }
 
@@ -239,7 +240,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public UserResponse getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé avec l'email: " + email));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_EMAIL_NOT_FOUND + email));
         return userMapper.toResponse(user);
     }
 
@@ -247,7 +248,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public InternalUserResponse getUserByEmailInternal(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé avec l'email: " + email));
+                .orElseThrow(() -> new EntityNotFoundException(MSG_USER_EMAIL_NOT_FOUND + email));
         return toInternalResponse(user);
     }
 
