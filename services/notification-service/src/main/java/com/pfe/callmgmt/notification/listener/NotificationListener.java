@@ -147,7 +147,7 @@ public class NotificationListener {
             log.info("📎 PDF trouvé: {} ({} bytes)", pdfPath, data.length);
             return data;
         } catch (Exception e) {
-            log.error("❌ Erreur lecture PDF: {}", e.getMessage());
+            log.error("❌ Erreur lecture PDF: {}", e.getMessage(), e);
             return null;
         }
     }

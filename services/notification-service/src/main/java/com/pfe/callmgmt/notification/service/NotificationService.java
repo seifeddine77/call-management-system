@@ -88,12 +88,12 @@ public class NotificationService {
             notifLog.setStatus(STATUS_FAILED);
             notifLog.setErrorMessage(e.getMessage());
             notifLog.setAttempts((short) 1);
-            log.error("❌ Échec envoi email → {} | Sujet: {} | Erreur: {}", to, subject, e.getMessage());
+            log.error("❌ Échec envoi email → {} | Sujet: {} | Erreur: {}", to, subject, e.getMessage(), e);
         } catch (Exception e) {
             notifLog.setStatus(STATUS_FAILED);
             notifLog.setErrorMessage(e.getMessage());
             notifLog.setAttempts((short) 1);
-            log.error("❌ Erreur inattendue envoi email → {} | {}", to, e.getMessage());
+            log.error("❌ Erreur inattendue envoi email → {} | {}", to, e.getMessage(), e);
         }
 
         logRepository.save(notifLog);
@@ -143,7 +143,7 @@ public class NotificationService {
         } catch (Exception e) {
             notifLog.setAttempts((short) (notifLog.getAttempts() + 1));
             notifLog.setErrorMessage(e.getMessage());
-            log.error("❌ Retry échoué → {} | {}", notifLog.getRecipient(), e.getMessage());
+            log.error("❌ Retry échoué → {} | {}", notifLog.getRecipient(), e.getMessage(), e);
         }
 
         return logRepository.save(notifLog);

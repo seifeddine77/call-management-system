@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
         } catch (FeignException.NotFound e) {
             throw new UnauthorizedException("Email ou mot de passe incorrect");
         } catch (FeignException e) {
-            log.error("Error calling organisation-service: {}", e.getMessage());
+            log.error("Error calling organisation-service: {}", e.getMessage(), e);
             throw new ServiceUnavailableException("Service utilisateur indisponible");
         }
 
@@ -90,7 +90,7 @@ public class AuthServiceImpl implements AuthService {
         } catch (ConflictException e) {
             throw e;
         } catch (FeignException e) {
-            log.error("Error calling organisation-service: {}", e.getMessage());
+            log.error("Error calling organisation-service: {}", e.getMessage(), e);
             throw new ServiceUnavailableException("Service utilisateur indisponible");
         }
 
@@ -102,7 +102,7 @@ public class AuthServiceImpl implements AuthService {
             ResponseEntity<UserDto> response = userServiceClient.createUser(request);
             createdUser = response.getBody();
         } catch (FeignException e) {
-            log.error("Error creating user: {}", e.getMessage());
+            log.error("Error creating user: {}", e.getMessage(), e);
             throw new ServiceUnavailableException("Impossible de créer l'utilisateur");
         }
 

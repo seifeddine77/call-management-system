@@ -146,9 +146,9 @@ public class EmailListenerService {
                 }
             }
         } catch (AuthenticationFailedException e) {
-            log.error("❌ [IMAP] Authentification échouée — vérifiez username/password: {}", e.getMessage());
+            log.error("❌ [IMAP] Authentification échouée — vérifiez username/password: {}", e.getMessage(), e);
         } catch (Exception e) {
-            log.error("❌ [IMAP] Erreur connexion IMAP: {}", e.getMessage());
+            log.error("❌ [IMAP] Erreur connexion IMAP: {}", e.getMessage(), e);
         }
     }
 
@@ -187,7 +187,7 @@ public class EmailListenerService {
             message.setFlag(Flags.Flag.SEEN, true);
             return 1;
         } catch (Exception e) {
-            log.error("❌ [IMAP] Erreur traitement email: {}", e.getMessage());
+            log.error("❌ [IMAP] Erreur traitement email: {}", e.getMessage(), e);
             return -1;
         }
     }

@@ -20,7 +20,7 @@ public class AnalyticsListener {
         try {
             analyticsService.incrementTicketCreated(event.getCanal());
         } catch (Exception e) {
-            log.error("❌ Erreur traitement ticket.created: {}", e.getMessage());
+            log.error("❌ Erreur traitement ticket.created: {}", e.getMessage(), e);
         }
     }
 
@@ -30,7 +30,7 @@ public class AnalyticsListener {
         try {
             analyticsService.incrementTicketResolved(event.getTicketCreatedAt());
         } catch (Exception e) {
-            log.error("❌ Erreur traitement ticket.resolved: {}", e.getMessage());
+            log.error("❌ Erreur traitement ticket.resolved: {}", e.getMessage(), e);
         }
     }
 
@@ -41,7 +41,7 @@ public class AnalyticsListener {
         try {
             analyticsService.onTicketStatusChanged(event.getOldStatut(), event.getNewStatut());
         } catch (Exception e) {
-            log.error("❌ Erreur traitement ticket.status-changed: {}", e.getMessage());
+            log.error("❌ Erreur traitement ticket.status-changed: {}", e.getMessage(), e);
         }
     }
 
@@ -52,7 +52,7 @@ public class AnalyticsListener {
         try {
             analyticsService.incrementDecision(event.getFinalDecision());
         } catch (Exception e) {
-            log.error("❌ Erreur traitement decision.finalized: {}", e.getMessage());
+            log.error("❌ Erreur traitement decision.finalized: {}", e.getMessage(), e);
         }
     }
 }

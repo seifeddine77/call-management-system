@@ -177,7 +177,7 @@ public class DecisionServiceImpl {
                     rulesResult.getAmbiguous());
             return rulesResult;
         } catch (Exception e) {
-            log.error("❌ Rules Service call failed for ticket {}: {}", request.getTicketId(), e.getMessage());
+            log.error("❌ Rules Service call failed for ticket {}: {}", request.getTicketId(), e.getMessage(), e);
             // Fallback: mark as ETUDE
             return RulesEvaluateResponse.builder()
                     .decision(DECISION_ETUDE)
@@ -491,7 +491,7 @@ public class DecisionServiceImpl {
                     .build();
         } catch (Exception e) {
             log.error("❌ Erreur parsing réponse LLM: {} | Body: {}", e.getMessage(),
-                    response.getBody() != null ? response.getBody().substring(0, Math.min(500, response.getBody().length())) : "null");
+                    response.getBody() != null ? response.getBody().substring(0, Math.min(500, response.getBody().length())) : "null", e);
             return DecisionResult.builder()
                     .decision(DECISION_ETUDE)
                     .score(0.0)

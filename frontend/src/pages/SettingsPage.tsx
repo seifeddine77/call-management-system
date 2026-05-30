@@ -62,8 +62,8 @@ export default function SettingsPage() {
             telephone: fullUser.telephone || '',
           });
         })
-        .catch(err => {
-          console.error('Error loading full profile details:', err);
+        .catch(() => {
+          // Profile details failed to load — fallback to session data already in context
         });
     }
   }, [user?.userId]);

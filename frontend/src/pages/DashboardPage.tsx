@@ -98,14 +98,67 @@ export default function DashboardPage() {
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   // AI Insight (generated from KPIs)
-  const aiInsight = kpis ? (() => {
+  let aiInsight: string | null = null;
+  if (kpis) {
     const perf = getPerformanceLabel(kpis.tauxResolution);
-    return `${kpis.totalTickets.toLocaleString('fr-FR')} tickets traités · ${kpis.tauxResolution.toFixed(1)}% résolution · ${kpis.tempsMoyenMinutes.toFixed(0)}min temps moyen · Performance ${perf}`;
-  })() : null;
+    aiInsight = `${kpis.totalTickets.toLocaleString('fr-FR')} tickets traités · ${kpis.tauxResolution.toFixed(1)}% résolution · ${kpis.tempsMoyenMinutes.toFixed(0)}min temps moyen · Performance ${perf}`;
+  }
 
   const hour = new Date().getHours();
   const greeting = getGreeting(hour);
   const firstName = user?.prenom || 'Utilisateur';
+
+  // ── Resolved badge (extracted from JSX IIFE) ──
+  const resolvedBadge = kpis && (kpis.ticketsResolu || 0) > 0 ? (() => {
+    const resolved = kpis.ticketsResolu || 0;
+    const total = kpis.totalTickets || 1;
+    const pct = ((resolved / total) * 100).toFixed(0);
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+        <TrendingUp size={11} /> {pct}% résolus
+      </span>
+    );
+  })() : null;
+
+  // ── Sparkline bars (extracted from JSX IIFE) ──
+  const sparkBars = (() => {
+    const data = sparkData.length > 0
+      ? sparkData.slice(-12).map(d => d.count)
+      : [0];
+    const max = Math.max(...data, 1);
+    return data.map((v, i) => {
+      const h = Math.max(8, (v / max) * 100);
+      return (
+        <div
+          key={`spark-bar-${i}-${v}`}
+          className="flex-1 rounded-full transition-all duration-300 group-hover:animate-waveform"
+          style={{
+            height: `${h}%`,
+            background: i >= data.length - 2 ? 'var(--primary)' : 'var(--muted)',
+            opacity: 0.35 + (h / 100) * 0.65,
+            animationDelay: `${i * 0.06}s`,
+          }}
+        />
+      );
+    });
+  })();
+
+  // ── Donut AI decisions (extracted from JSX IIFE) ──
+  const donutSegments = kpis ? (() => {
+    const total = (kpis.decisionsAiFavorable + kpis.decisionsAiDefavorable + kpis.decisionsAiEtude) || 1;
+    const f = (kpis.decisionsAiFavorable / total) * 100;
+    const d = (kpis.decisionsAiDefavorable / total) * 100;
+    return (
+      <>
+        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--muted)" strokeWidth="6" />
+        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--success)" strokeWidth="6"
+          strokeDasharray={`${f * 1.76} 176`} strokeLinecap="round" transform="rotate(-90 36 36)" />
+        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--danger)" strokeWidth="6"
+          strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={`${-f * 1.76}`}
+          strokeLinecap="round" transform="rotate(-90 36 36)" />
+      </>
+    );
+  })() : null;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
@@ -157,43 +210,14 @@ export default function DashboardPage() {
                   </div>
                   <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Total tickets</span>
                 </div>
-                {(() => {
-                  const resolved = kpis.ticketsResolu || 0;
-                  const total = kpis.totalTickets || 1;
-                  const pct = ((resolved / total) * 100).toFixed(0);
-                  return resolved > 0 ? (
-                    <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      <TrendingUp size={11} /> {pct}% résolus
-                    </span>
-                  ) : null;
-                })()}
+                {resolvedBadge}
               </div>
               <div className="flex items-baseline gap-2 mt-3">
                 <AnimatedCounter value={kpis.totalTickets} className="text-3xl font-extrabold tracking-tighter" />
               </div>
               {/* Mini sparkline — données réelles animées en ondes vocales */}
               <div className="flex items-end gap-[3px] h-9 mt-4 border-t border-border-subtle pt-3">
-                {(() => {
-                  const data = sparkData.length > 0
-                    ? sparkData.slice(-12).map(d => d.count)
-                    : [0];
-                  const max = Math.max(...data, 1);
-                  return data.map((v, i) => {
-                    const h = Math.max(8, (v / max) * 100);
-                    return (
-                      <div
-                        key={`spark-bar-${i}-${v}`}
-                        className="flex-1 rounded-full transition-all duration-300 group-hover:animate-waveform"
-                        style={{
-                          height: `${h}%`,
-                          background: i >= data.length - 2 ? 'var(--primary)' : 'var(--muted)',
-                          opacity: 0.35 + (h / 100) * 0.65,
-                          animationDelay: `${i * 0.06}s`,
-                        }}
-                      />
-                    );
-                  });
-                })()}
+                {sparkBars}
               </div>
             </div>
           </motion.div>
@@ -305,21 +329,7 @@ export default function DashboardPage() {
                       <stop offset="100%" stopColor="var(--primary)" />
                     </linearGradient>
                   </defs>
-                  {(() => {
-                    const total = (kpis.decisionsAiFavorable + kpis.decisionsAiDefavorable + kpis.decisionsAiEtude) || 1;
-                    const f = (kpis.decisionsAiFavorable / total) * 100;
-                    const d = (kpis.decisionsAiDefavorable / total) * 100;
-                    return (
-                      <>
-                        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--muted)" strokeWidth="6" />
-                        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--success)" strokeWidth="6"
-                          strokeDasharray={`${f * 1.76} 176`} strokeLinecap="round" transform="rotate(-90 36 36)" />
-                        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--danger)" strokeWidth="6"
-                          strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={`${-f * 1.76}`}
-                          strokeLinecap="round" transform="rotate(-90 36 36)" />
-                      </>
-                    );
-                  })()}
+                  {donutSegments}
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Sparkles size={14} className="text-[var(--primary)] animate-pulse" />
