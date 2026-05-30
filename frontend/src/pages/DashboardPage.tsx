@@ -75,7 +75,7 @@ export default function DashboardPage() {
         // Only fetch supervision data for supervisors/admins
         isSupervisor
           ? analyticsService.getOperatorPerformance('30d').catch(() => [] as OperatorPerformance[])
-          : analyticsService.getOperatorPerformance('30d').catch(() => [] as OperatorPerformance[]),
+          : Promise.resolve([] as OperatorPerformance[]),
         isSupervisor
           ? analyticsService.getSupervisionAlerts().catch(() => [] as SupervisionAlert[])
           : Promise.resolve([] as SupervisionAlert[]),

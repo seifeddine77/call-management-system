@@ -448,6 +448,8 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
                 return (
                   <div
                     key={`waveform-bar-${i}`}
+                    role="button"
+                    tabIndex={-1}
                     className="flex-1 rounded-full transition-all duration-150"
                     style={{
                       height: `${h}%`,
@@ -464,6 +466,7 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
                       transformOrigin: 'bottom'
                     }}
                     onClick={() => handleBarClick(i)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBarClick(i); } }}
                   />
                 );
               })}

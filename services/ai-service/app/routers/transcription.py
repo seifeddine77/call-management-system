@@ -79,10 +79,12 @@ async def transcribe_audio(
         )
 
     # ── Save file to disk ───────────────────────────────────────
-    # Sanitize ticket_id to prevent path traversal (SonarCloud Security Blocker)
-    if not re.match(r'^[a-zA-Z0-9_-]+$', ticket_id):
-        raise HTTPException(status_code=400, detail="Invalid ticket_id format")
-    ticket_dir = os.path.join(settings.AUDIO_STORAGE_PATH, ticket_id)
+    # Prevent path traversal (SonarCloud Blocker S2083) by resolving absolute paths
+    base_dir = os.path.abspath(settings.AUDIO_STORAGE_PATH)
+    ticket_dir = os.path.abspath(os.path.join(base_dir, ticket_id))
+    if not ticket_dir.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid path traversal detected")
+
     os.makedirs(ticket_dir, exist_ok=True)
 
     ext = os.path.splitext(file.filename or "audio.wav")[1] or ".wav"
@@ -135,13 +137,13 @@ async def transcribe_audio(
 
     # ── Transcribe with Whisper ─────────────────────────────────
     temp_transcribe_path = file_path
-    temp_file = None
+    temp_path = None
     try:
         # Check if the file is encrypted and decrypt it to a temporary file for Whisper
         if audio_crypto.is_enabled():
             try:
-                with open(file_path, "rb") as rf:
-                    encrypted_data = rf.read()
+                async with aiofiles.open(file_path, "rb") as rf:
+                    encrypted_data = await rf.read()
 
                 # Decrypt
                 decrypted_data = audio_crypto.decrypt(encrypted_data)
@@ -149,16 +151,17 @@ async def transcribe_audio(
                 # Create a secure temporary file
                 import tempfile
                 ext = os.path.splitext(file_path)[1] or ".wav"
-                temp_file = tempfile.NamedTemporaryFile(suffix=ext, dir=ticket_dir, delete=False)
-                temp_file.write(decrypted_data)
-                temp_file.flush()
-                temp_file.close()
+                temp_fd, temp_path = tempfile.mkstemp(suffix=ext, dir=ticket_dir)
+                os.close(temp_fd)
 
-                temp_transcribe_path = temp_file.name
-                logger.info(f"Temporary decrypted file created for Whisper: {temp_transcribe_path}")
+                async with aiofiles.open(temp_path, "wb") as wf:
+                    await wf.write(decrypted_data)
+
+                temp_transcribe_path = temp_path
+                logger.info("Temporary decrypted file created for Whisper: %s", sanitize_log(temp_transcribe_path))
             except Exception as dec_err:
                 # Decryption failed (meaning it's already plaintext, e.g. an old or unencrypted file)
-                logger.warning(f"File {file_path} could not be decrypted. Treating as plaintext. Error: {dec_err}")
+                logger.warning("File %s could not be decrypted. Treating as plaintext. Error: %s", sanitize_log(file_path), sanitize_log(dec_err))
                 temp_transcribe_path = file_path
 
         result = whisper_model.transcribe(temp_transcribe_path, language="fr", fp16=False)
@@ -210,12 +213,12 @@ async def transcribe_audio(
 
     finally:
         # Securely remove temporary decrypted file if created
-        if temp_file and os.path.exists(temp_transcribe_path) and temp_transcribe_path != file_path:
+        if temp_path and os.path.exists(temp_path):
             try:
-                os.remove(temp_transcribe_path)
-                logger.info(f"Temporary decrypted file securely deleted: {temp_transcribe_path}")
+                os.remove(temp_path)
+                logger.info(f"Temporary decrypted file securely deleted: {temp_path}")
             except OSError as cleanup_err:
-                logger.warning(f"Failed to delete temporary decrypted file {temp_transcribe_path}: {cleanup_err}")
+                logger.warning(f"Failed to delete temporary decrypted file {temp_path}: {cleanup_err}")
 
 
 

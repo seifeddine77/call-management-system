@@ -1108,7 +1108,7 @@ async def chat(question: str, group_name: str = "") -> dict:
     # ── Step 0: Intent Classification ──
     intent = classify_intent(question)
     _stats["intents"][intent] += 1
-    logger.info(f"🎯 Intent: {intent} for '{question[:50]}...'")
+    logger.info("🎯 Intent: %s for '%s...'", sanitize_log(intent), sanitize_log(question[:50]))
 
     # Track query for analytics
     _stats["query_history"].append({
@@ -1273,8 +1273,13 @@ async def chat(question: str, group_name: str = "") -> dict:
     response_id = f"resp_{int(time.time())}_{_stats['total_queries']}"
 
     logger.info(
-        f"✅ RAG [{response_id}] '{question[:50]}...' → "
-        f"{len(answer)} chars, {len(sources)} sources, {elapsed:.1f}s, llm={llm_used}"
+        "✅ RAG [%s] '%s...' → %d chars, %d sources, %.1fs, llm=%s",
+        sanitize_log(response_id),
+        sanitize_log(question[:50]),
+        len(answer),
+        len(sources),
+        elapsed,
+        sanitize_log(llm_used)
     )
 
     result = {
