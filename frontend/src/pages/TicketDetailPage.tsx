@@ -405,7 +405,7 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
   return (
     <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-md backdrop-blur-md relative overflow-hidden">
       {/* Hidden <audio> element */}
-      {audioBlobUrl && <audio ref={audioRef} src={audioBlobUrl} preload="metadata" />}
+      {audioBlobUrl && <audio ref={audioRef} src={audioBlobUrl} preload="metadata"><track kind="captions" /></audio>}
 
       {isLoading ? (
         <div className="flex items-center justify-center gap-3 py-4">
@@ -440,6 +440,9 @@ function PremiumAudioPlayer({ ticketId, filename: _filename }: Readonly<PremiumA
               className="h-10 flex items-end gap-[2px] px-1 overflow-hidden select-none cursor-pointer"
               role="slider"
               aria-label="Audio waveform"
+              aria-valuenow={Math.round(progress)}
+              aria-valuemin={0}
+              aria-valuemax={100}
               tabIndex={0}
             >
               {barHeights.map((h, i) => {
@@ -1176,9 +1179,7 @@ export default function TicketDetailPage() {
                     {uploadingPhotos ? (
                       <>⏳ Envoi en cours...</>
                     ) : (
-                      <>
-                        <span>📤 Sauvegarder les {photoFiles.length} photos</span>
-                      </>
+                      <span>📤 Sauvegarder les {photoFiles.length} photos</span>
                     )}
                   </button>
                 </div>
@@ -1380,7 +1381,7 @@ export default function TicketDetailPage() {
                           }
                           const highlightText = (t: string) => {
                             if (keywords.length === 0) return <span>{t}</span>;
-                            const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+                            const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)).join('|')})`, 'gi');
                             const frags = t.split(pattern);
                             return frags.map((frag, i) =>
                               keywords.some(k => k.toLowerCase() === frag.toLowerCase())
@@ -1671,9 +1672,7 @@ export default function TicketDetailPage() {
                           className="btn-premium-accept flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {accepting ? '...' : (
-                            <>
-                              <span>✓ Accepter</span>
-                            </>
+                            <span>✓ Accepter</span>
                           )}
                         </button>
                         <button 
@@ -1682,9 +1681,7 @@ export default function TicketDetailPage() {
                           className="btn-premium-reject flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {rejecting ? '...' : (
-                            <>
-                              <span>✕ Rejeter</span>
-                            </>
+                            <span>✕ Rejeter</span>
                           )}
                         </button>
                       </div>

@@ -12,7 +12,7 @@ interface LogoProps {
  * Combines a headset silhouette with AI neural-network nodes
  * Adapts automatically to dark/light theme
  */
-export default function Logo({ size = 28, animated = true, className = '' }: LogoProps) {
+export default function Logo({ size = 28, animated = true, className = '' }: Readonly<LogoProps>) {
   const { isDark } = useTheme();
 
   // Gradient IDs must be unique per instance

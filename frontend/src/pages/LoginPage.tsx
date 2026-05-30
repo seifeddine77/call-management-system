@@ -267,7 +267,7 @@ export default function LoginPage() {
     cardY.set(0);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setAuthError(null);

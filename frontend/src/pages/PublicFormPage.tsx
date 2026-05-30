@@ -11,7 +11,7 @@ interface Agence { id: string; nom: string; ville: string; }
 
 type Theme = 'light' | 'dark';
 const getSystemTheme = (): Theme =>
-  window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
 export default function PublicFormPage() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -74,7 +74,7 @@ export default function PublicFormPage() {
 
   const getTelError = () => {
     if (!touched.telephone) return '';
-    if (form.telephone.trim() && !/^\+?[0-9\s\-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''))) {
+    if (form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''))) {
       return 'Veuillez saisir un numéro de téléphone valide (8 à 15 chiffres).';
     }
     return '';
@@ -155,7 +155,7 @@ export default function PublicFormPage() {
       setTouched(prev => ({ ...prev, nom: true, telephone: true, email: true }));
       const nomErr = !form.nom.trim() || form.nom.trim().length < 3;
       const contactFilled = form.telephone.trim() !== '' || form.email.trim() !== '';
-      const telErr = form.telephone.trim() && !/^\+?[0-9\s\-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''));
+      const telErr = form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''));
       const emailErr = form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
 
       if (nomErr) {
@@ -199,7 +199,7 @@ export default function PublicFormPage() {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     if (!form.consentementTraitement) {
