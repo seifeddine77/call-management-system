@@ -78,7 +78,7 @@ public class RuleEvaluator {
             return compareValues(op, actualValue, expectedValue);
         } catch (Exception e) {
             log.warn("Erreur évaluation condition: field={}, op={}, expected={}, actual={} — {}",
-                    field, op, expectedValue, actualValue, e.getMessage());
+                    field, op, expectedValue, actualValue, e.getMessage(), e);
             return false;
         }
     }
