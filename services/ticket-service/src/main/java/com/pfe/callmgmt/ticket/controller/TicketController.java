@@ -124,7 +124,7 @@ public class TicketController {
             @RequestHeader(name = "X-User-Email", required = false) String userName) {
 
         // RGPD (CDC 5.1) — Vérification du consentement à l'enregistrement
-        TicketResponse existingTicket = ticketService.getTicketById(id, "ADMIN", userId, null);
+        TicketResponse existingTicket = ticketService.getTicketById(id, ROLE_ADMIN, userId, null);
         if (existingTicket.getConsentementEnregistrement() == null
                 || !existingTicket.getConsentementEnregistrement()) {
             log.warn("⚠️ RGPD: Upload audio pour ticket {} SANS consentement client explicite. "
@@ -145,16 +145,7 @@ public class TicketController {
                     transcription != null ? transcription.length() : 0);
 
             // Step 1.5: Chiffrer l'audio sur disque (RGPD)
-            if (audioEncryptionService.isEnabled()) {
-                try {
-                    byte[] encrypted = audioEncryptionService.encrypt(file.getBytes());
-                    log.info("🔐 Audio chiffré pour ticket {} ({} bytes)", id, encrypted.length);
-                    // Le fichier chiffré serait sauvegardé sur disque ici
-                    audioPath = audioPath + ".enc";
-                } catch (Exception encEx) {
-                    log.warn("⚠️ Chiffrement audio échoué pour ticket {}: {}", id, encEx.getMessage());
-                }
-            }
+            audioPath = encryptAudioIfEnabled(id, file, audioPath);
 
             // Step 2: Send transcribed text to AI service for NLP analysis
             if (transcription != null && !transcription.isBlank()) {
@@ -186,6 +177,19 @@ public class TicketController {
         ticketService.updateAudioTranscription(id, audioPath, transcription, keywordsJson);
 
         return ResponseEntity.ok(ticketService.getTicketById(id, ROLE_ADMIN, userId, null));
+    }
+
+    private String encryptAudioIfEnabled(UUID id, MultipartFile file, String audioPath) {
+        if (audioEncryptionService.isEnabled()) {
+            try {
+                byte[] encrypted = audioEncryptionService.encrypt(file.getBytes());
+                log.info("🔐 Audio chiffré pour ticket {} ({} bytes)", id, encrypted.length);
+                return audioPath + ".enc";
+            } catch (Exception encEx) {
+                log.warn("⚠️ Chiffrement audio échoué pour ticket {}: {}", id, encEx.getMessage());
+            }
+        }
+        return audioPath;
     }
 
     @GetMapping("/{id}/transcription")
@@ -239,75 +243,85 @@ public class TicketController {
 
         List<String> photoPaths = new ArrayList<>();
         for (MultipartFile file : files) {
-            // Validate file type
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                log.warn("Fichier non-image ignoré: {}", file.getOriginalFilename());
-                continue;
+            String savedPath = processSinglePhoto(file, id);
+            if (savedPath != null) {
+                photoPaths.add(savedPath);
             }
-            // Validate file size (max 10MB per photo)
-            if (file.getSize() > 10 * 1024 * 1024) {
-                log.warn("Photo trop volumineuse ignorée: {} ({}MB)",
-                        file.getOriginalFilename(), file.getSize() / 1024 / 1024);
-                continue;
-            }
-
-            // SonarCloud BLOCKER S2083 fix — Sanitize filename to prevent Path Traversal (CWE-22)
-            // Strip all directory components from the user-supplied filename
-            String rawName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
-            // Use Paths.get().getFileName() to remove any directory traversal sequences ("../", "/" etc.)
-            String sanitizedName = Paths.get(rawName).getFileName().toString();
-            // Additionally remove any remaining dangerous characters
-            sanitizedName = sanitizedName.replaceAll("[^a-zA-Z0-9._-]", "_");
-            String fileName = System.currentTimeMillis() + "_" + sanitizedName;
-            String photoPath = "/photos/" + id + "/" + fileName;
-
-            // Actually save the file to disk
-            try {
-                Path dirPath = Paths.get(photosStoragePath, id.toString());
-                Files.createDirectories(dirPath);
-                Path filePath = dirPath.resolve(fileName);
-                // Validate resolved path stays within the storage directory (extra safety)
-                if (!filePath.normalize().startsWith(dirPath.normalize())) {
-                    log.warn("⚠️ SECURITY: Path traversal attempt detected for file '{}', skipping.", rawName);
-                    continue;
-                }
-                file.transferTo(filePath.toFile());
-                log.info("📸 Photo sauvegardée: {} -> {}", photoPath, filePath);
-            } catch (IOException e) {
-                log.error("Erreur sauvegarde fichier {}: {}", sanitizedName, e.getMessage());
-                continue;
-            }
-
-            photoPaths.add(photoPath);
-            log.info("📸 Photo enregistrée: {}", photoPath);
         }
 
         if (photoPaths.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
+        return mergeAndSavePhotoPaths(id, photoPaths, userId);
+    }
+
+    /**
+     * Valide, sanitize et sauvegarde une seule photo sur disque.
+     *
+     * @return le chemin relatif de la photo sauvegardée, ou null si le fichier est invalide
+     */
+    private String processSinglePhoto(MultipartFile file, UUID ticketId) {
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            log.warn("Fichier non-image ignoré: {}", file.getOriginalFilename());
+            return null;
+        }
+        if (file.getSize() > 10 * 1024 * 1024) {
+            log.warn("Photo trop volumineuse ignorée: {} ({}MB)",
+                    file.getOriginalFilename(), file.getSize() / 1024 / 1024);
+            return null;
+        }
+
+        // SonarCloud BLOCKER S2083 fix — Sanitize filename to prevent Path Traversal (CWE-22)
+        String rawName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
+        String sanitizedName = Paths.get(rawName).getFileName().toString();
+        sanitizedName = sanitizedName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String fileName = System.currentTimeMillis() + "_" + sanitizedName;
+        String photoPath = "/photos/" + ticketId + "/" + fileName;
+
         try {
-            // Merge with existing photos
-            TicketResponse existing = ticketService.getTicketById(id, "ADMIN", userId, null);
+            Path dirPath = Paths.get(photosStoragePath, ticketId.toString());
+            Files.createDirectories(dirPath);
+            Path filePath = dirPath.resolve(fileName);
+            if (!filePath.normalize().startsWith(dirPath.normalize())) {
+                log.warn("⚠️ SECURITY: Path traversal attempt detected for file '{}', skipping.", rawName);
+                return null;
+            }
+            file.transferTo(filePath.toFile());
+            log.info("📸 Photo sauvegardée: {} -> {}", photoPath, filePath);
+        } catch (IOException e) {
+            log.error("Erreur sauvegarde fichier {}: {}", sanitizedName, e.getMessage());
+            return null;
+        }
+
+        return photoPath;
+    }
+
+    /**
+     * Fusionne les nouveaux chemins photo avec les existants et met à jour le ticket.
+     */
+    private ResponseEntity<TicketResponse> mergeAndSavePhotoPaths(UUID ticketId, List<String> newPaths, UUID userId) {
+        try {
+            TicketResponse existing = ticketService.getTicketById(ticketId, ROLE_ADMIN, userId, null);
             List<String> allPaths = new ArrayList<>();
             if (existing.getPhotosPaths() != null && !existing.getPhotosPaths().isBlank()) {
                 @SuppressWarnings("unchecked")
                 List<String> existingPaths = objectMapper.readValue(existing.getPhotosPaths(), List.class);
                 allPaths.addAll(existingPaths);
             }
-            allPaths.addAll(photoPaths);
+            allPaths.addAll(newPaths);
 
             String photosJson = objectMapper.writeValueAsString(allPaths);
-            ticketService.updatePhotosPaths(id, photosJson);
+            ticketService.updatePhotosPaths(ticketId, photosJson);
 
-            log.info("📸 {} photos total pour ticket {}", allPaths.size(), id);
+            log.info("📸 {} photos total pour ticket {}", allPaths.size(), ticketId);
         } catch (Exception e) {
             log.error("Erreur sauvegarde photos: {}", e.getMessage());
             return ResponseEntity.internalServerError().build();
         }
 
-        return ResponseEntity.ok(ticketService.getTicketById(id, "ADMIN", userId, null));
+        return ResponseEntity.ok(ticketService.getTicketById(ticketId, ROLE_ADMIN, userId, null));
     }
 
     // ══════════════════════════════════════════════════════════════

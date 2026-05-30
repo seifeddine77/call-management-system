@@ -84,64 +84,13 @@ public class DecisionServiceImpl {
             return toResult(existing.get(), false);
         }
 
-        // ── STEP 1: Redis Cache ──
         String cacheKey = buildCacheKey(request);
-        String cachedJson = redisTemplate.opsForValue().get(cacheKey);
-        if (cachedJson != null) {
-            try {
-                DecisionResult cached = objectMapper.readValue(cachedJson, DecisionResult.class);
-                // Save with new ticketId (cache is parameter-based, not ticket-based)
-                Decision decision = saveToDB(request.getTicketId(), cached.getDecision(),
-                        BigDecimal.valueOf(cached.getScore()), cached.getMotif(),
-                        cached.getSource(), cached.getRulesApplied());
-                cached.setDecisionId(decision.getId());
-                cached.setTicketId(request.getTicketId());
-                cached.setCached(true);
-                log.info("✅ Cache HIT for ticket {} — decision: {}", request.getTicketId(), cached.getDecision());
-                return cached;
-            } catch (JsonProcessingException e) {
-                log.warn("Cache deserialization failed, continuing to rules evaluation", e);
-            }
+        DecisionResult cached = getCachedDecision(request, cacheKey);
+        if (cached != null) {
+            return cached;
         }
 
-        // ── STEP 2: Rules Engine (via Feign) ──
-        RulesEvaluateResponse rulesResult;
-        try {
-            RulesEvaluateRequest rulesRequest = RulesEvaluateRequest.builder()
-                    .typePiece(request.getTypePiece())
-                    .ageVehiculeAns(request.getAgeVehiculeAns())
-                    .kilometrage(request.getKilometrage())
-                    .categorieClient(request.getCategorieClient())
-                    .typeSinistre(request.getTypeSinistre())
-                    .pieceReference(request.getPieceReference())
-                    .transcriptionText(request.getTranscriptionText())
-                    // Duplicate into data map for dynamic field evaluation
-                    .data(java.util.Map.of(
-                            "typePiece", request.getTypePiece() != null ? request.getTypePiece() : "",
-                            "ageVehiculeAns", request.getAgeVehiculeAns() != null ? request.getAgeVehiculeAns() : 0,
-                            "kilometrage", request.getKilometrage() != null ? request.getKilometrage() : 0,
-                            "categorieClient", request.getCategorieClient() != null ? request.getCategorieClient() : "",
-                            "typeSinistre", request.getTypeSinistre() != null ? request.getTypeSinistre() : "",
-                            "pieceReference", request.getPieceReference() != null ? request.getPieceReference() : "",
-                            "transcriptionText", request.getTranscriptionText() != null ? request.getTranscriptionText() : ""
-                    ))
-                    .build();
-
-            rulesResult = rulesServiceClient.evaluate(rulesRequest);
-            log.info("📏 Rules Engine result for ticket {}: decision={}, score={}, ambiguous={}",
-                    request.getTicketId(), rulesResult.getDecision(), rulesResult.getScore(),
-                    rulesResult.getAmbiguous());
-        } catch (Exception e) {
-            log.error("❌ Rules Service call failed for ticket {}: {}", request.getTicketId(), e.getMessage());
-            // Fallback: mark as ETUDE
-            rulesResult = RulesEvaluateResponse.builder()
-                    .decision(DECISION_ETUDE)
-                    .score(0.0)
-                    .motif("Impossible de joindre le moteur de règles — analyse manuelle requise")
-                    .rulesApplied(Collections.emptyList())
-                    .ambiguous(true)
-                    .build();
-        }
+        RulesEvaluateResponse rulesResult = evaluateRules(request);
 
         // If rules gave a clear answer (not ambiguous, and score matches decision threshold)
         boolean isClearFavorable = DECISION_FAVORABLE.equals(rulesResult.getDecision())
@@ -163,38 +112,9 @@ public class DecisionServiceImpl {
             return result;
         }
 
-        // ── STEP 3: LLM local Gemma 4 via Ollama (cas ambigus) ──
-        // Programmatic CircuitBreaker (annotation-based doesn't work on private methods)
-        final RulesEvaluateResponse finalRulesResult = rulesResult;
-        if (openaiApiKey != null && !openaiApiKey.isBlank()) {
-            io.github.resilience4j.circuitbreaker.CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("llm");
-            try {
-                DecisionResult aiResult = cb.executeSupplier(() -> callOpenAI(request, finalRulesResult));
-                String source = (rulesResult.getMatchedRules() != null && rulesResult.getMatchedRules() > 0) ? "HYBRID"
-                        : "AI";
-                List<String> allRules = new ArrayList<>();
-                if (rulesResult.getRulesApplied() != null)
-                    allRules.addAll(rulesResult.getRulesApplied());
-
-                Decision decision = saveToDB(request.getTicketId(), aiResult.getDecision(),
-                        BigDecimal.valueOf(aiResult.getScore()), aiResult.getMotif(),
-                        source, allRules);
-                DecisionResult result = toResult(decision, false);
-                cacheResult(cacheKey, result);
-                return result;
-            } catch (Exception e) {
-                log.warn("⚡ Circuit breaker LLM — fallback ETUDE pour ticket {}. Cause: {}",
-                        request.getTicketId(), e.getMessage());
-                // Save with CIRCUIT_BREAKER source when LLM is unavailable
-                Decision decision = saveToDB(request.getTicketId(), DECISION_ETUDE,
-                        BigDecimal.ZERO,
-                        "Service IA temporairement indisponible — analyse manuelle requise",
-                        "CIRCUIT_BREAKER",
-                        rulesResult.getRulesApplied() != null ? rulesResult.getRulesApplied() : Collections.emptyList());
-                return toResult(decision, false);
-            }
-        } else {
-            log.info("ℹ️ No LLM API key configured — skipping AI step");
+        DecisionResult aiResult = callLlmWithCircuitBreaker(request, rulesResult, cacheKey);
+        if (aiResult != null) {
+            return aiResult;
         }
 
         // Fallback: use rules result as-is (ETUDE if ambiguous)
@@ -205,6 +125,101 @@ public class DecisionServiceImpl {
                 "RULES",
                 rulesResult.getRulesApplied() != null ? rulesResult.getRulesApplied() : Collections.emptyList());
         return toResult(decision, false);
+    }
+
+    private DecisionResult getCachedDecision(DecisionRequest request, String cacheKey) {
+        String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+        if (cachedJson == null) {
+            return null;
+        }
+        try {
+            DecisionResult cached = objectMapper.readValue(cachedJson, DecisionResult.class);
+            // Save with new ticketId (cache is parameter-based, not ticket-based)
+            Decision decision = saveToDB(request.getTicketId(), cached.getDecision(),
+                    BigDecimal.valueOf(cached.getScore()), cached.getMotif(),
+                    cached.getSource(), cached.getRulesApplied());
+            cached.setDecisionId(decision.getId());
+            cached.setTicketId(request.getTicketId());
+            cached.setCached(true);
+            log.info("✅ Cache HIT for ticket {} — decision: {}", request.getTicketId(), cached.getDecision());
+            return cached;
+        } catch (JsonProcessingException e) {
+            log.warn("Cache deserialization failed, continuing to rules evaluation", e);
+            return null;
+        }
+    }
+
+    private RulesEvaluateResponse evaluateRules(DecisionRequest request) {
+        try {
+            RulesEvaluateRequest rulesRequest = RulesEvaluateRequest.builder()
+                    .typePiece(request.getTypePiece())
+                    .ageVehiculeAns(request.getAgeVehiculeAns())
+                    .kilometrage(request.getKilometrage())
+                    .categorieClient(request.getCategorieClient())
+                    .typeSinistre(request.getTypeSinistre())
+                    .pieceReference(request.getPieceReference())
+                    .transcriptionText(request.getTranscriptionText())
+                    // Duplicate into data map for dynamic field evaluation
+                    .data(java.util.Map.of(
+                            "typePiece", request.getTypePiece() != null ? request.getTypePiece() : "",
+                            "ageVehiculeAns", request.getAgeVehiculeAns() != null ? request.getAgeVehiculeAns() : 0,
+                            "kilometrage", request.getKilometrage() != null ? request.getKilometrage() : 0,
+                            "categorieClient", request.getCategorieClient() != null ? request.getCategorieClient() : "",
+                            "typeSinistre", request.getTypeSinistre() != null ? request.getTypeSinistre() : "",
+                            "pieceReference", request.getPieceReference() != null ? request.getPieceReference() : "",
+                            "transcriptionText", request.getTranscriptionText() != null ? request.getTranscriptionText() : ""
+                    ))
+                    .build();
+
+            RulesEvaluateResponse rulesResult = rulesServiceClient.evaluate(rulesRequest);
+            log.info("📏 Rules Engine result for ticket {}: decision={}, score={}, ambiguous={}",
+                    request.getTicketId(), rulesResult.getDecision(), rulesResult.getScore(),
+                    rulesResult.getAmbiguous());
+            return rulesResult;
+        } catch (Exception e) {
+            log.error("❌ Rules Service call failed for ticket {}: {}", request.getTicketId(), e.getMessage());
+            // Fallback: mark as ETUDE
+            return RulesEvaluateResponse.builder()
+                    .decision(DECISION_ETUDE)
+                    .score(0.0)
+                    .motif("Impossible de joindre le moteur de règles — analyse manuelle requise")
+                    .rulesApplied(Collections.emptyList())
+                    .ambiguous(true)
+                    .build();
+        }
+    }
+
+    private DecisionResult callLlmWithCircuitBreaker(DecisionRequest request, RulesEvaluateResponse rulesResult, String cacheKey) {
+        if (openaiApiKey == null || openaiApiKey.isBlank()) {
+            log.info("ℹ️ No LLM API key configured — skipping AI step");
+            return null;
+        }
+        io.github.resilience4j.circuitbreaker.CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("llm");
+        try {
+            DecisionResult aiResult = cb.executeSupplier(() -> callOpenAI(request, rulesResult));
+            String source = (rulesResult.getMatchedRules() != null && rulesResult.getMatchedRules() > 0) ? "HYBRID" : "AI";
+            List<String> allRules = new ArrayList<>();
+            if (rulesResult.getRulesApplied() != null) {
+                allRules.addAll(rulesResult.getRulesApplied());
+            }
+
+            Decision decision = saveToDB(request.getTicketId(), aiResult.getDecision(),
+                    BigDecimal.valueOf(aiResult.getScore()), aiResult.getMotif(),
+                    source, allRules);
+            DecisionResult result = toResult(decision, false);
+            cacheResult(cacheKey, result);
+            return result;
+        } catch (Exception e) {
+            log.warn("⚡ Circuit breaker LLM — fallback ETUDE pour ticket {}. Cause: {}",
+                    request.getTicketId(), e.getMessage());
+            // Save with CIRCUIT_BREAKER source when LLM is unavailable
+            Decision decision = saveToDB(request.getTicketId(), DECISION_ETUDE,
+                    BigDecimal.ZERO,
+                    "Service IA temporairement indisponible — analyse manuelle requise",
+                    "CIRCUIT_BREAKER",
+                    rulesResult.getRulesApplied() != null ? rulesResult.getRulesApplied() : Collections.emptyList());
+            return toResult(decision, false);
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -485,17 +500,10 @@ public class DecisionServiceImpl {
         }
     }
 
-    /**
-     * Extracts the last valid JSON object from a text that may contain
-     * free-form reasoning, markdown fences, or multiple JSON snippets.
-     * Thinking models like Gemma 4 often embed the final answer JSON
-     * at the end of their reasoning chain.
-     */
     private String extractJsonObject(String text) {
         if (text == null || text.isBlank()) return null;
 
         // Step 1: Try to extract from markdown ```json ... ``` fence
-        // SonarCloud C2 fix — using static final FENCE_PATTERN instead of compiling inline
         java.util.regex.Matcher fenceMatcher = FENCE_PATTERN.matcher(text);
         String lastFenced = null;
         while (fenceMatcher.find()) {
@@ -507,7 +515,15 @@ public class DecisionServiceImpl {
         }
 
         // Step 2: Find all balanced { } blocks and return the last one
-        // that successfully parses as JSON with our expected fields
+        String bestCandidate = scanBalancedBraces(text);
+
+        if (bestCandidate != null) {
+            log.debug("📎 Extracted JSON via balanced-brace scan ({} chars)", bestCandidate.length());
+        }
+        return bestCandidate;
+    }
+
+    private String scanBalancedBraces(String text) {
         int depth = 0;
         int blockStart = -1;
         String bestCandidate = null;
@@ -515,22 +531,19 @@ public class DecisionServiceImpl {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '{') {
-                if (depth == 0) blockStart = i;
+                if (depth == 0) {
+                    blockStart = i;
+                }
                 depth++;
-            } else if (c == '}') {
+            } else if (c == '}' && depth > 0) {
                 depth--;
                 if (depth == 0 && blockStart >= 0) {
                     String candidate = text.substring(blockStart, i + 1);
-                    // Validate: must contain at least "decision" field
-                    if (candidate.contains("\"decision\"") || candidate.contains("decision")) {
+                    if (candidate.contains("decision")) {
                         bestCandidate = candidate;
                     }
                 }
             }
-        }
-
-        if (bestCandidate != null) {
-            log.debug("📎 Extracted JSON via balanced-brace scan ({} chars)", bestCandidate.length());
         }
         return bestCandidate;
     }

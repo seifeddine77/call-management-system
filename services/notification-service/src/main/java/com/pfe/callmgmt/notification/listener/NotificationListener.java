@@ -95,46 +95,60 @@ public class NotificationListener {
     public void onDecisionFinalized(DecisionFinalizedEvent event) {
         log.info("📨 Event reçu: decision.finalized → ticket={}, décision={}",
                 event.getTicketId(), event.getFinalDecision());
-        if (event.getClientEmail() != null && !event.getClientEmail().isBlank()) {
-            Map<String, Object> vars = new HashMap<>();
-            vars.put(VAR_CLIENT_NOM, event.getClientNom() != null ? event.getClientNom() : "Client");
-            vars.put("finalDecision", event.getFinalDecision());
-            vars.put("motif", event.getMotif());
-            vars.put(VAR_TICKET_ID, event.getTicketId().toString().substring(0, 8).toUpperCase());
+        if (event.getClientEmail() == null || event.getClientEmail().isBlank()) {
+            return;
+        }
 
-            boolean isFavorable = DECISION_FAVORABLE.equals(event.getFinalDecision());
-            String templateName = isFavorable
-                    ? "emails/decision-favorable"
-                    : "emails/decision-defavorable";
+        Map<String, Object> vars = new HashMap<>();
+        vars.put(VAR_CLIENT_NOM, event.getClientNom() != null ? event.getClientNom() : "Client");
+        vars.put("finalDecision", event.getFinalDecision());
+        vars.put("motif", event.getMotif());
+        vars.put(VAR_TICKET_ID, event.getTicketId().toString().substring(0, 8).toUpperCase());
 
-            String subject = isFavorable
-                    ? "✅ Votre demande de garantie est acceptée — Réf. " + vars.get(VAR_TICKET_ID)
-                    : "Votre demande de garantie — Réf. " + vars.get(VAR_TICKET_ID);
+        boolean isFavorable = DECISION_FAVORABLE.equals(event.getFinalDecision());
+        String templateName = isFavorable
+                ? "emails/decision-favorable"
+                : "emails/decision-defavorable";
 
-            String type = isFavorable
-                    ? "DECISION_FAVORABLE"
-                    : "DECISION_DEFAVORABLE";
+        String subject = isFavorable
+                ? "✅ Votre demande de garantie est acceptée — Réf. " + vars.get(VAR_TICKET_ID)
+                : "Votre demande de garantie — Réf. " + vars.get(VAR_TICKET_ID);
 
-            // Read PDF attachment if letterFilePath is provided
-            byte[] pdfAttachment = null;
-            String attachmentName = null;
-            if (event.getLetterFilePath() != null && !event.getLetterFilePath().isBlank()) {
-                try {
-                    java.nio.file.Path pdfPath = java.nio.file.Paths.get(event.getLetterFilePath());
-                    if (java.nio.file.Files.exists(pdfPath)) {
-                        pdfAttachment = java.nio.file.Files.readAllBytes(pdfPath);
-                        attachmentName = "courrier_decision_" + vars.get(VAR_TICKET_ID) + ".pdf";
-                        log.info("📎 PDF trouvé: {} ({} bytes)", pdfPath, pdfAttachment.length);
-                    } else {
-                        log.warn("⚠️ PDF introuvable: {}", event.getLetterFilePath());
-                    }
-                } catch (Exception e) {
-                    log.error("❌ Erreur lecture PDF: {}", e.getMessage());
-                }
+        String type = isFavorable
+                ? "DECISION_FAVORABLE"
+                : "DECISION_DEFAVORABLE";
+
+        // Load PDF attachment via helper
+        byte[] pdfAttachment = loadPdfAttachment(event.getLetterFilePath());
+        String attachmentName = pdfAttachment != null
+                ? "courrier_decision_" + vars.get(VAR_TICKET_ID) + ".pdf"
+                : null;
+
+        notificationService.sendEmail(event.getClientEmail(), subject, templateName,
+                vars, pdfAttachment, attachmentName, type);
+    }
+
+    /**
+     * Charge un fichier PDF depuis le chemin spécifié.
+     *
+     * @return le contenu du PDF en bytes, ou null si le chemin est invalide ou le fichier introuvable
+     */
+    private byte[] loadPdfAttachment(String letterFilePath) {
+        if (letterFilePath == null || letterFilePath.isBlank()) {
+            return null;
+        }
+        try {
+            java.nio.file.Path pdfPath = java.nio.file.Paths.get(letterFilePath);
+            if (!java.nio.file.Files.exists(pdfPath)) {
+                log.warn("⚠️ PDF introuvable: {}", letterFilePath);
+                return null;
             }
-
-            notificationService.sendEmail(event.getClientEmail(), subject, templateName,
-                    vars, pdfAttachment, attachmentName, type);
+            byte[] data = java.nio.file.Files.readAllBytes(pdfPath);
+            log.info("📎 PDF trouvé: {} ({} bytes)", pdfPath, data.length);
+            return data;
+        } catch (Exception e) {
+            log.error("❌ Erreur lecture PDF: {}", e.getMessage());
+            return null;
         }
     }
 }

@@ -65,44 +65,48 @@ public class RuleService {
         }
         
         for (Object item : list) {
-            if (!(item instanceof Map)) {
-                throw new IllegalArgumentException("Chaque élément de 'conditions' doit être un objet");
-            }
-            Map<?, ?> cond = (Map<?, ?>) item;
-            
-            Object field = cond.get("field");
-            if (field == null || !(field instanceof String) || ((String) field).isBlank()) {
-                throw new IllegalArgumentException("Chaque condition doit avoir un champ 'field' valide");
-            }
-            
-            Object op = cond.get("operator");
-            if (op == null) {
-                op = cond.get("op");
-            }
-            if (op == null || !(op instanceof String) || ((String) op).isBlank()) {
-                throw new IllegalArgumentException("Chaque condition doit avoir un opérateur 'operator' ou 'op' valide");
-            }
-            
-            String opStr = ((String) op).trim().toUpperCase();
-            List<String> validOps = List.of(
-                "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "CONTAINS", "IN", "NOT_IN", "NOT IN",
-                "=", "!=", "<", ">", "<=", ">="
-            );
-            if (!validOps.contains(opStr)) {
-                throw new IllegalArgumentException("Opérateur inconnu ou non supporté : " + opStr);
-            }
-            
-            if (!cond.containsKey("value")) {
-                throw new IllegalArgumentException("Chaque condition doit spécifier une valeur ('value')");
-            }
-            Object val = cond.get("value");
-            if (val == null) {
-                throw new IllegalArgumentException("Le champ 'value' ne peut pas être null");
-            }
-            
-            if ((opStr.equals("IN") || opStr.equals("NOT_IN") || opStr.equals("NOT IN")) && !(val instanceof List)) {
-                throw new IllegalArgumentException("La valeur de l'opérateur " + opStr + " doit être une liste (ex: [\"VIP\", \"PREMIUM\"])");
-            }
+            validateSingleCondition(item);
+        }
+    }
+
+    private void validateSingleCondition(Object item) {
+        if (!(item instanceof Map)) {
+            throw new IllegalArgumentException("Chaque élément de 'conditions' doit être un objet");
+        }
+        Map<?, ?> cond = (Map<?, ?>) item;
+        
+        Object field = cond.get("field");
+        if (field == null || !(field instanceof String) || ((String) field).isBlank()) {
+            throw new IllegalArgumentException("Chaque condition doit avoir un champ 'field' valide");
+        }
+        
+        Object op = cond.get("operator");
+        if (op == null) {
+            op = cond.get("op");
+        }
+        if (op == null || !(op instanceof String) || ((String) op).isBlank()) {
+            throw new IllegalArgumentException("Chaque condition doit avoir un opérateur 'operator' ou 'op' valide");
+        }
+        
+        String opStr = ((String) op).trim().toUpperCase();
+        List<String> validOps = List.of(
+            "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "CONTAINS", "IN", "NOT_IN", "NOT IN",
+            "=", "!=", "<", ">", "<=", ">="
+        );
+        if (!validOps.contains(opStr)) {
+            throw new IllegalArgumentException("Opérateur inconnu ou non supporté : " + opStr);
+        }
+        
+        if (!cond.containsKey("value")) {
+            throw new IllegalArgumentException("Chaque condition doit spécifier une valeur ('value')");
+        }
+        Object val = cond.get("value");
+        if (val == null) {
+            throw new IllegalArgumentException("Le champ 'value' ne peut pas être null");
+        }
+        
+        if ((opStr.equals("IN") || opStr.equals("NOT_IN") || opStr.equals("NOT IN")) && !(val instanceof List)) {
+            throw new IllegalArgumentException("La valeur de l'opérateur " + opStr + " doit être une liste (ex: [\"VIP\", \"PREMIUM\"])");
         }
     }
 
@@ -276,16 +280,7 @@ public class RuleService {
                     .build();
         }
 
-        // Évaluer chaque règle
-        List<Rule> matchedRules = new ArrayList<>();
-        for (Rule rule : activeRules) {
-            boolean matches = ruleEvaluator.evaluate(rule.getConditions(), request);
-            if (matches) {
-                matchedRules.add(rule);
-                log.debug("✅ Règle '{}' matche (priorité={}, action={})",
-                        rule.getNom(), rule.getPriorite(), rule.getAction());
-            }
-        }
+        List<Rule> matchedRules = getMatchedRules(activeRules, request);
 
         // Aucune règle ne matche
         if (matchedRules.isEmpty()) {
@@ -336,18 +331,7 @@ public class RuleService {
             // Conflit → la règle de plus haute priorité gagne
             Rule highestPriority = matchedRules.get(0); // Déjà triées par priorité DESC
             finalDecision = highestPriority.getAction();
-            double baseScore = DECISION_FAVORABLE.equals(finalDecision) ? 65.0 : 35.0;
-            double dynamicBonus = matchedRules.stream()
-                    .mapToInt(r -> r.getScoreImpact() != null ? r.getScoreImpact() : 0)
-                    .sum();
-            dynamicBonus = Math.max(-50.0, Math.min(50.0, dynamicBonus));
-            double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText()) * 0.3;
-            double rawScore = baseScore + dynamicBonus + transcriptionBonus;
-            if (DECISION_FAVORABLE.equals(finalDecision)) {
-                score = Math.min(98.0, Math.max(40.0, rawScore));
-            } else {
-                score = Math.min(59.0, Math.max(10.0, rawScore));
-            }
+            score = calculateScore(finalDecision, matchedRules, request.getTranscriptionText());
             motif = String.format(
                     "Conflit entre règles (%d FAVORABLE, %d DÉFAVORABLE). Décision basée sur la règle la plus prioritaire '%s'. Vérification IA recommandée.",
                     actionCounts.getOrDefault(DECISION_FAVORABLE, 0L),
@@ -357,34 +341,9 @@ public class RuleService {
 
         } else {
             // Un seul type dominant (FAVORABLE, DEFAVORABLE ou toutes les règles sont ETUDE)
-            if (hasFavorable && !hasDefavorable) {
-                finalDecision = DECISION_FAVORABLE;
-                ambiguous = false;
-            } else if (hasDefavorable && !hasFavorable) {
-                finalDecision = DECISION_DEFAVORABLE;
-                ambiguous = false;
-            } else {
-                finalDecision = DECISION_ETUDE;
-                ambiguous = true;
-            }
-
-            if (DECISION_ETUDE.equals(finalDecision)) {
-                score = 45.0;
-            } else {
-                // Formule de scoring 100% dynamique pilotée par la base de données (somme des score_impact + transcription)
-                double baseScore = DECISION_FAVORABLE.equals(finalDecision) ? 65.0 : 35.0;
-                double dynamicBonus = matchedRules.stream()
-                        .mapToInt(r -> r.getScoreImpact() != null ? r.getScoreImpact() : 0)
-                        .sum();
-                dynamicBonus = Math.max(-50.0, Math.min(50.0, dynamicBonus));
-                double transcriptionBonus = analyzeTranscriptionKeywords(request.getTranscriptionText()) * 0.3;
-                double rawScore = baseScore + dynamicBonus + transcriptionBonus;
-                if (DECISION_FAVORABLE.equals(finalDecision)) {
-                    score = Math.min(98.0, Math.max(40.0, rawScore));
-                } else {
-                    score = Math.min(59.0, Math.max(10.0, rawScore));
-                }
-            }
+            finalDecision = hasFavorable ? DECISION_FAVORABLE : (hasDefavorable ? DECISION_DEFAVORABLE : DECISION_ETUDE);
+            ambiguous = DECISION_ETUDE.equals(finalDecision);
+            score = calculateScore(finalDecision, matchedRules, request.getTranscriptionText());
             motif = matchedRules.get(0).getActionMotif();
         }
 
@@ -400,6 +359,38 @@ public class RuleService {
                 .matchedRules(matchedRules.size())
                 .ambiguous(ambiguous)
                 .build();
+    }
+
+    private List<Rule> getMatchedRules(List<Rule> activeRules, EvaluateRequest request) {
+        List<Rule> matchedRules = new ArrayList<>();
+        for (Rule rule : activeRules) {
+            boolean matches = ruleEvaluator.evaluate(rule.getConditions(), request);
+            if (matches) {
+                matchedRules.add(rule);
+                log.debug("✅ Règle '{}' matche (priorité={}, action={})",
+                        rule.getNom(), rule.getPriorite(), rule.getAction());
+            }
+        }
+        return matchedRules;
+    }
+
+    private double calculateScore(String decision, List<Rule> matchedRules, String transcriptionText) {
+        if (DECISION_ETUDE.equals(decision)) {
+            return 45.0;
+        }
+        // Formule de scoring 100% dynamique pilotée par la base de données (somme des score_impact + transcription)
+        double baseScore = DECISION_FAVORABLE.equals(decision) ? 65.0 : 35.0;
+        double dynamicBonus = matchedRules.stream()
+                .mapToInt(r -> r.getScoreImpact() != null ? r.getScoreImpact() : 0)
+                .sum();
+        dynamicBonus = Math.max(-50.0, Math.min(50.0, dynamicBonus));
+        double transcriptionBonus = analyzeTranscriptionKeywords(transcriptionText) * 0.3;
+        double rawScore = baseScore + dynamicBonus + transcriptionBonus;
+        if (DECISION_FAVORABLE.equals(decision)) {
+            return Math.min(98.0, Math.max(40.0, rawScore));
+        } else {
+            return Math.min(59.0, Math.max(10.0, rawScore));
+        }
     }
 
     // ============================

@@ -167,24 +167,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_USER_NOT_FOUND + id));
 
-        // RBAC enforcement
-        if (ROLE_OPERATOR.equals(requesterRole)) {
-            // Operator can only update self, no role change
-            if (!id.equals(requesterId)) {
-                throw new AccessDeniedException("Un opérateur ne peut modifier que son propre profil");
-            }
-            // Operator cannot change their own role
-            if (request.getRole() != null && !request.getRole().equals(user.getRole())) {
-                throw new AccessDeniedException("Un opérateur ne peut pas changer son rôle");
-            }
-        } else if (ROLE_SUPERVISOR.equals(requesterRole)) {
-            // Supervisor can update users in their own agence
-            UUID userAgenceId = user.getAgence() != null ? user.getAgence().getId() : null;
-            if (userAgenceId != null && !userAgenceId.equals(requesterAgenceId)) {
-                throw new AccessDeniedException("Un superviseur ne peut modifier que les utilisateurs de son agence");
-            }
-        }
-        // ADMIN can update anyone — no restriction
+        // RBAC enforcement — delegated to helper for clarity
+        validateUpdatePermissions(id, request, user, requesterId, requesterRole, requesterAgenceId);
 
         // Update fields
         user.setNom(request.getNom());
@@ -208,6 +192,30 @@ public class UserServiceImpl implements UserService {
 
         User saved = userRepository.save(user);
         return userMapper.toResponse(saved);
+    }
+
+    /**
+     * Vérifie les droits RBAC pour la modification d'un utilisateur.
+     * Un OPERATOR ne peut modifier que lui-même et ne peut pas changer de rôle.
+     * Un SUPERVISOR ne peut modifier que les utilisateurs de son agence.
+     * Un ADMIN peut modifier n'importe qui.
+     */
+    private void validateUpdatePermissions(UUID targetId, UserRequest request, User targetUser,
+            UUID requesterId, String requesterRole, UUID requesterAgenceId) {
+        if (ROLE_OPERATOR.equals(requesterRole)) {
+            if (!targetId.equals(requesterId)) {
+                throw new AccessDeniedException("Un opérateur ne peut modifier que son propre profil");
+            }
+            if (request.getRole() != null && !request.getRole().equals(targetUser.getRole())) {
+                throw new AccessDeniedException("Un opérateur ne peut pas changer son rôle");
+            }
+        } else if (ROLE_SUPERVISOR.equals(requesterRole)) {
+            UUID userAgenceId = targetUser.getAgence() != null ? targetUser.getAgence().getId() : null;
+            if (userAgenceId != null && !userAgenceId.equals(requesterAgenceId)) {
+                throw new AccessDeniedException("Un superviseur ne peut modifier que les utilisateurs de son agence");
+            }
+        }
+        // ADMIN can update anyone — no restriction
     }
 
     @Override

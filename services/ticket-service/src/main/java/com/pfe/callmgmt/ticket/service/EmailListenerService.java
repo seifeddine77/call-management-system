@@ -132,39 +132,11 @@ public class EmailListenerService {
                 int skipped = 0;
 
                 for (Message message : messages) {
-                    try {
-                        // Ignorer les emails reçus avant le démarrage du service
-                        if (skipOldEmails && message.getReceivedDate() != null
-                                && message.getReceivedDate().before(serviceStartTime)) {
-                            message.setFlag(Flags.Flag.SEEN, true); // Marquer comme lu
-                            skipped++;
-                            continue;
-                        }
-
-                        // Anti-boucle : ignorer les emails de notification envoyés PAR notre système
-                        String subject = message.getSubject() != null ? message.getSubject() : "";
-                        if (subject.matches(".*Votre demande T-\\d{8}-\\d+.*")) {
-                            log.debug("📧 [IMAP] Email ignoré (notification système) : '{}'", subject);
-                            message.setFlag(Flags.Flag.SEEN, true);
-                            skipped++;
-                            continue;
-                        }
-
-                        // Filtrer par mots-clés dans le sujet ET le corps
-                        String emailBody = extractTextContent(message);
-                        if (!matchesKeywords(message.getSubject(), emailBody)) {
-                            log.debug("📧 [IMAP] Email ignoré (hors filtre) : '{}'", message.getSubject());
-                            message.setFlag(Flags.Flag.SEEN, true);
-                            skipped++;
-                            continue;
-                        }
-
-                        processEmail(message);
-                        message.setFlag(Flags.Flag.SEEN, true);
+                    int status = processSingleEmail(message);
+                    if (status == 1) {
                         processed++;
-                    } catch (Exception e) {
-                        log.error("❌ [IMAP] Erreur traitement email '{}': {}",
-                                message.getSubject(), e.getMessage());
+                    } else if (status == 0) {
+                        skipped++;
                     }
                 }
 
@@ -177,6 +149,46 @@ public class EmailListenerService {
             log.error("❌ [IMAP] Authentification échouée — vérifiez username/password: {}", e.getMessage());
         } catch (Exception e) {
             log.error("❌ [IMAP] Erreur connexion IMAP: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Traite un email individuel : vérifie le filtre mots-clés, crée le ticket, et marque comme lu.
+     *
+     * @return 1 si traité avec succès, 0 si ignoré (filtre mots-clés), -1 si erreur
+     */
+    private int processSingleEmail(Message message) {
+        try {
+            // Ignorer les emails reçus avant le démarrage du service (en renfort du filtre IMAP)
+            if (skipOldEmails && message.getReceivedDate() != null
+                    && message.getReceivedDate().before(serviceStartTime)) {
+                message.setFlag(Flags.Flag.SEEN, true); // Marquer comme lu
+                return 0;
+            }
+
+            String subject = message.getSubject() != null ? message.getSubject() : "";
+            // Anti-boucle : ignorer les emails de notification envoyés PAR notre système
+            if (subject.matches(".*Votre demande T-\\d{8}-\\d+.*")) {
+                log.debug("📧 [IMAP] Email ignoré (notification système) : '{}'", subject);
+                message.setFlag(Flags.Flag.SEEN, true);
+                return 0;
+            }
+
+            String body = extractTextContent(message);
+
+            // Filtrage par mots-clés
+            if (!matchesKeywords(subject, body)) {
+                log.debug("📧 [IMAP] Email ignoré (filtre mots-clés): '{}'", subject);
+                message.setFlag(Flags.Flag.SEEN, true);
+                return 0;
+            }
+
+            processEmail(message);
+            message.setFlag(Flags.Flag.SEEN, true);
+            return 1;
+        } catch (Exception e) {
+            log.error("❌ [IMAP] Erreur traitement email: {}", e.getMessage());
+            return -1;
         }
     }
 

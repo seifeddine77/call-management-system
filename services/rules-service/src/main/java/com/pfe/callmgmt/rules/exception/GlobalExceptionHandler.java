@@ -23,6 +23,7 @@ public class GlobalExceptionHandler {
     private static final String KEY_TIMESTAMP = "timestamp";
     private static final String KEY_STATUS = "status";
     private static final String KEY_ERROR = "error";
+    private static final String KEY_MESSAGE = "message";
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
@@ -31,7 +32,7 @@ public class GlobalExceptionHandler {
         body.put(KEY_TIMESTAMP, LocalDateTime.now());
         body.put(KEY_STATUS, 404);
         body.put(KEY_ERROR, "Not Found");
-        body.put("message", ex.getMessage());
+        body.put(KEY_MESSAGE, ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
@@ -58,7 +59,7 @@ public class GlobalExceptionHandler {
         body.put(KEY_TIMESTAMP, LocalDateTime.now());
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, "Bad Request");
-        body.put("message", ex.getMessage());
+        body.put(KEY_MESSAGE, ex.getMessage());
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -69,7 +70,7 @@ public class GlobalExceptionHandler {
         body.put(KEY_TIMESTAMP, LocalDateTime.now());
         body.put(KEY_STATUS, 404);
         body.put(KEY_ERROR, "Not Found");
-        body.put("message", ex.getMessage());
+        body.put(KEY_MESSAGE, ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 }

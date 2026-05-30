@@ -66,7 +66,7 @@ export default function DashboardPage() {
       const [kpiData, ticketData, sparklineData, opsData, alertsData] = await Promise.all([
         analyticsService.getKpis('30d').catch(() => null),
         ticketService.getTickets({
-          canal: filter === 'ALL' ? undefined : filter as Canal,
+          canal: filter === 'ALL' ? undefined : filter,
           // Operators see only their own tickets on dashboard; supervisors see all
           operateurId: !isSupervisor ? user?.userId : undefined,
           page, size: 8,
