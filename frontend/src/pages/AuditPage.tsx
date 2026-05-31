@@ -72,6 +72,97 @@ interface RgpdCheck {
   na?: boolean;
 }
 
+const getConsentCheck = (ticket: Ticket): RgpdCheck => {
+  const hasConsent = ticket.consentementEnregistrement;
+  const isCall = ticket.canal === 'CALL';
+  return {
+    label: getConsentLabel(ticket.canal),
+    desc: 'Art. 6 RGPD — Base légale du traitement',
+    ok: hasConsent,
+    icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
+    recommendation: getConsentRecommendation(hasConsent, isCall),
+  };
+};
+
+const getAudioChecks = (ticket: Ticket): RgpdCheck[] => {
+  const hasAudio = !!ticket.audioPath;
+  const hasTranscription = !!ticket.transcription;
+  return [
+    {
+      label: 'Audio enregistré & stocké',
+      desc: 'Art. 32 — Sécurité du traitement des données vocales',
+      ok: hasAudio,
+      icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
+      recommendation: hasAudio ? undefined : 'Aucun enregistrement audio associé à cet appel',
+    },
+    {
+      label: 'Chiffrement audio (AES-256-GCM)',
+      desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
+      ok: hasAudio,
+      icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
+      recommendation: hasAudio ? undefined : 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements',
+    },
+    {
+      label: 'Transcription générée (Whisper)',
+      desc: 'Art. 22 — Transparence du traitement automatisé',
+      ok: hasTranscription,
+      icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
+      recommendation: hasTranscription ? undefined : 'Lancer la transcription pour documenter l\'échange',
+    }
+  ];
+};
+
+const getPhotosCheck = (ticket: Ticket): RgpdCheck => {
+  const hasPhotos = !!(ticket.photosPaths && ticket.photosPaths !== '[]');
+  return {
+    label: 'Photos sinistre sécurisées',
+    desc: 'Art. 32 — Protection des données visuelles',
+    ok: hasPhotos ? true : null,
+    icon: hasPhotos ? <Camera size={14} /> : <AlertTriangle size={14} />,
+    na: !hasPhotos,
+    recommendation: undefined,
+  };
+};
+
+const getDecisionCheck = (hasDecisionTrace: boolean): RgpdCheck => ({
+  label: 'Traçabilité décisionnelle IA',
+  desc: 'Art. 22 — Décision automatisée explicable',
+  ok: hasDecisionTrace,
+  icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
+  recommendation: hasDecisionTrace ? undefined : 'Lancer l\'analyse IA pour documenter la décision',
+});
+
+const getNotificationCheck = (hasNotif: boolean): RgpdCheck => ({
+  label: 'Notification client envoyée',
+  desc: 'Art. 13/14 — Droit à l\'information',
+  ok: hasNotif,
+  icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
+  recommendation: hasNotif ? undefined : 'Informer le client du traitement de sa demande',
+});
+
+const getDataMinimizationCheck = (ticket: Ticket): RgpdCheck => {
+  const dataMinimization = !ticket.description || ticket.description.length < 2000;
+  return {
+    label: 'Minimisation des données',
+    desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
+    ok: dataMinimization,
+    icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
+    recommendation: dataMinimization ? undefined : 'Réduire le volume de données collectées',
+  };
+};
+
+const getRetentionCheck = (ticket: Ticket): RgpdCheck => {
+  const closedDays = Math.floor((Date.now() - parseSafeDate(ticket.updatedAt)) / 86400000);
+  const needsDeletion = closedDays > 90;
+  return {
+    label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
+    desc: 'Art. 17 — Suppression après délai de rétention',
+    ok: !needsDeletion,
+    icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
+    recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
+  };
+};
+
 const getRgpdChecks = (
   ticket: Ticket | null,
   notifications: NotificationLog[],
@@ -80,101 +171,35 @@ const getRgpdChecks = (
   if (!ticket) return [];
   const isCall = ticket.canal === 'CALL';
   const isEmail = ticket.canal === 'EMAIL';
-  const hasConsent = ticket.consentementEnregistrement;
-  const hasAudio = !!ticket.audioPath;
-  const hasTranscription = !!ticket.transcription;
-  const hasNotif = notifications.length > 0;
-  const hasDecisionTrace = !!decision;
-  const dataMinimization = !ticket.description || ticket.description.length < 2000;
   const isClosed = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
 
   const checks: RgpdCheck[] = [];
 
   // 1. Consentement
-  checks.push({
-    label: getConsentLabel(ticket.canal),
-    desc: 'Art. 6 RGPD — Base légale du traitement',
-    ok: hasConsent,
-    icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
-    recommendation: getConsentRecommendation(hasConsent, isCall),
-  });
+  checks.push(getConsentCheck(ticket));
 
   // 2. Audio & Transcription (only if isCall)
   if (isCall) {
-    checks.push({
-      label: 'Audio enregistré & stocké',
-      desc: 'Art. 32 — Sécurité du traitement des données vocales',
-      ok: hasAudio,
-      icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
-      recommendation: hasAudio ? undefined : 'Aucun enregistrement audio associé à cet appel',
-    });
-    checks.push({
-      label: 'Chiffrement audio (AES-256-GCM)',
-      desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
-      ok: hasAudio,
-      icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
-      recommendation: hasAudio ? undefined : 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements',
-    });
-    checks.push({
-      label: 'Transcription générée (Whisper)',
-      desc: 'Art. 22 — Transparence du traitement automatisé',
-      ok: hasTranscription,
-      icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
-      recommendation: hasTranscription ? undefined : 'Lancer la transcription pour documenter l\'échange',
-    });
+    checks.push(...getAudioChecks(ticket));
   }
 
   // 3. Photos (only if not CALL and not EMAIL)
   if (!isCall && !isEmail) {
-    const hasPhotos = !!(ticket.photosPaths && ticket.photosPaths !== '[]');
-    checks.push({
-      label: 'Photos sinistre sécurisées',
-      desc: 'Art. 32 — Protection des données visuelles',
-      ok: hasPhotos ? true : null,
-      icon: hasPhotos ? <Camera size={14} /> : <AlertTriangle size={14} />,
-      na: !hasPhotos,
-      recommendation: undefined,
-    });
+    checks.push(getPhotosCheck(ticket));
   }
 
   // 4. Traçabilité décisionnelle
-  checks.push({
-    label: 'Traçabilité décisionnelle IA',
-    desc: 'Art. 22 — Décision automatisée explicable',
-    ok: hasDecisionTrace,
-    icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
-    recommendation: hasDecisionTrace ? undefined : 'Lancer l\'analyse IA pour documenter la décision',
-  });
+  checks.push(getDecisionCheck(!!decision));
 
   // 5. Notifications
-  checks.push({
-    label: 'Notification client envoyée',
-    desc: 'Art. 13/14 — Droit à l\'information',
-    ok: hasNotif,
-    icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
-    recommendation: hasNotif ? undefined : 'Informer le client du traitement de sa demande',
-  });
+  checks.push(getNotificationCheck(notifications.length > 0));
 
   // 6. Minimisation des données
-  checks.push({
-    label: 'Minimisation des données',
-    desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
-    ok: dataMinimization,
-    icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
-    recommendation: dataMinimization ? undefined : 'Réduire le volume de données collectées',
-  });
+  checks.push(getDataMinimizationCheck(ticket));
 
   // 7. Droit à l'effacement (if isClosed)
   if (isClosed) {
-    const closedDays = Math.floor((Date.now() - parseSafeDate(ticket.updatedAt)) / 86400000);
-    const needsDeletion = closedDays > 90;
-    checks.push({
-      label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
-      desc: 'Art. 17 — Suppression après délai de rétention',
-      ok: !needsDeletion,
-      icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
-      recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
-    });
+    checks.push(getRetentionCheck(ticket));
   }
 
   return checks;
