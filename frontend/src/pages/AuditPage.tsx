@@ -106,7 +106,7 @@ const drawPDFGeneralInfo = (doc: jsPDF, ticket: Ticket, _W: number, M: number, C
   return y + 46;
 };
 
-const drawPDFPerformance = (doc: jsPDF, perf: Readonly<{ totalDuration: number; assignmentDuration: number; resolutionDuration: number; slaScore: number }>, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+const drawPDFPerformance = (doc: jsPDF, perf: Readonly<{ totalDuration: number; assignTime: number | null; resolveTime: number | null; slaOk: boolean; actionCount?: number }>, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
   y = drawSectionTitle("2. ANALYSE ET INDEX DE PERFORMANCE (SLA)", y);
 
   // Three columns metrics layout
@@ -293,7 +293,7 @@ const drawPDFTimeline = (doc: jsPDF, timeline: ReadonlyArray<{ id: string; times
   return y + 8;
 };
 
-const drawPDFRgpd = (doc: jsPDF, rgpd: ReadonlyArray<{ na: boolean; ok: boolean; label: string; desc?: string }>, rgpdScore: number, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+const drawPDFRgpd = (doc: jsPDF, rgpd: ReadonlyArray<{ na?: boolean; ok: boolean | null; label: string; desc?: string }>, rgpdScore: number, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
   y = drawSectionTitle(`5. CONFORMITÉ RÉGLEMENTAIRE & RGPD`, y);
 
   // Score Header Box
