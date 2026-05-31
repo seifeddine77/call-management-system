@@ -165,47 +165,7 @@ public class TwilioWebhookController {
             // 2. Créer un MultipartFile pour le pipeline existant
             final byte[] bytes = audioBytes;
             final String filename = "twilio_" + callSid + ".wav";
-            MultipartFile audioFile = new MultipartFile() {
-                @Override
-                public String getName() {
-                    return "file";
-                }
-
-                @Override
-                public String getOriginalFilename() {
-                    return filename;
-                }
-
-                @Override
-                public String getContentType() {
-                    return "audio/wav";
-                }
-
-                @Override
-                public boolean isEmpty() {
-                    return bytes.length == 0;
-                }
-
-                @Override
-                public long getSize() {
-                    return bytes.length;
-                }
-
-                @Override
-                public byte[] getBytes() {
-                    return bytes;
-                }
-
-                @Override
-                public InputStream getInputStream() {
-                    return new ByteArrayInputStream(bytes);
-                }
-
-                @Override
-                public void transferTo(File dest) throws java.io.IOException {
-                    java.nio.file.Files.write(dest.toPath(), bytes);
-                }
-            };
+            MultipartFile audioFile = new CustomMultipartFile(bytes, filename, "audio/wav");
 
             // 3. Envoyer au AI service pour transcription via Feign
             Map<String, Object> transcriptionResult = aiServiceClient.transcribeAudio(
@@ -285,5 +245,57 @@ public class TwilioWebhookController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private static class CustomMultipartFile implements MultipartFile {
+        private final byte[] bytes;
+        private final String filename;
+        private final String contentType;
+
+        public CustomMultipartFile(byte[] bytes, String filename, String contentType) {
+            this.bytes = bytes;
+            this.filename = filename;
+            this.contentType = contentType;
+        }
+
+        @Override
+        public String getName() {
+            return "file";
+        }
+
+        @Override
+        public String getOriginalFilename() {
+            return filename;
+        }
+
+        @Override
+        public String getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return bytes == null || bytes.length == 0;
+        }
+
+        @Override
+        public long getSize() {
+            return bytes.length;
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return bytes;
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return new ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public void transferTo(File dest) throws java.io.IOException {
+            java.nio.file.Files.write(dest.toPath(), bytes);
+        }
     }
 }

@@ -215,7 +215,7 @@ async function handleDecision(chat, ref) {
         if (!t) { await chat.sendMessage(`🔍 Ticket *${ref}* non trouvé.`); return; }
 
         const dec = await httpGet(DECISION_SERVICE_URL, `/api/decisions/ticket/${t.id}`);
-        if (!dec || !dec.decision) {
+        if (!dec?.decision) {
             await chat.sendMessage(`⚖️ Aucune décision pour *${ref}*. Lancez l'analyse depuis la plateforme.`);
             return;
         }
@@ -318,7 +318,7 @@ async function handleVoiceMessage(chat, msg) {
 
         // Download the audio from WhatsApp
         const media = await msg.downloadMedia();
-        if (!media || !media.data) {
+        if (!media?.data) {
             await chat.sendMessage(`⚠️ Impossible de télécharger le message vocal.`);
             return;
         }
@@ -469,7 +469,12 @@ async function handleGreeting(chat, lower) {
     const cleanLower = lower.replace(/[!?.,:;]+/g, '').trim();
     if (greetings.includes(cleanLower) || cleanLower.startsWith('bonjour ') || cleanLower.startsWith('salut ')) {
         const hour = new Date().getHours();
-        const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+        let greeting = 'Bonsoir';
+        if (hour < 12) {
+            greeting = 'Bonjour';
+        } else if (hour < 18) {
+            greeting = 'Bon après-midi';
+        }
         console.log(`👋 Sending greeting to [${chat.name}]...`);
         try {
             await chat.sendMessage(

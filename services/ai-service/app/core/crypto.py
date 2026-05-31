@@ -59,7 +59,7 @@ class AudioCrypto:
             logger.debug(f"🔐 Audio encrypted: {len(plain_bytes)} bytes -> {len(iv) + len(ciphertext)} bytes")
             return iv + ciphertext
         except Exception as e:
-            logger.error(f"❌ Audio encryption failed: {e}")
+            logger.exception("❌ Audio encryption failed")
             raise RuntimeError(f"Échec du chiffrement audio: {e}") from e
 
     def decrypt(self, encrypted_bytes: bytes) -> bytes:
