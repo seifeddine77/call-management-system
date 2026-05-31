@@ -395,7 +395,7 @@ export default function UsersPage() {
             <AnimatePresence mode="popLayout">
               {loading ? (
                 <div className="p-5 space-y-3">
-                  {AnimatePresence && Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
+                  {Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
                     <div key={idx} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
