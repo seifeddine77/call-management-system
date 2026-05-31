@@ -44,6 +44,175 @@ function validateUserForm(
   return errors;
 }
 
+interface UserRowProps {
+  u: User;
+  rb: { cls: string; avatar: string };
+  initials: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function UserRow({ u, rb, initials, isSelected, onSelect }: Readonly<UserRowProps>) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
+      className={`group flex items-center justify-between gap-4 px-5 py-3.5 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden
+        ${isSelected ? 'bg-indigo-500/[0.04] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-indigo-500' : ''}`}
+    >
+      <div className="flex items-center gap-3.5 flex-1 min-w-0">
+        {/* Avatar */}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[12px] font-extrabold bg-gradient-to-br border border-border-subtle flex-shrink-0 transition-transform group-hover:scale-105 duration-300 ${rb.avatar}`}>
+          {initials}
+        </div>
+
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors">
+            {u.prenom} {u.nom}
+          </div>
+          <div className="font-mono text-[9.5px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-1.5">
+            <Mail size={10} className="text-txt-3" />
+            {u.email}
+          </div>
+        </div>
+      </div>
+
+      {/* Right metadata badges */}
+      <div className="flex items-center gap-3.5">
+        <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${rb.cls}`}>
+          {u.role}
+        </span>
+        
+        <div className="flex items-center gap-1.5 font-mono text-[9px] bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
+          <span className={`w-1.5 h-1.5 rounded-full ${u.actif ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
+          <span className={u.actif ? 'text-emerald-400' : 'text-txt-3 font-semibold'}>
+            {u.actif ? 'ACTIF' : 'INACTIF'}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+interface UserDetailPanelProps {
+  selectedUser: User;
+  rb: { cls: string; avatar: string };
+  agenceNames: Record<string, string>;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function UserDetailPanel({ selectedUser, rb, agenceNames, onEdit, onDelete }: Readonly<UserDetailPanelProps>) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.2 }}
+      className="space-y-4"
+    >
+      {/* Visual Avatar Card */}
+      <div className="card-aurora rounded-2xl p-6 text-center border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] relative overflow-hidden shadow-lg">
+        <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+        
+        <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-xl font-bold bg-gradient-to-br from-indigo-500/30 to-violet-500/10 text-indigo-300 border border-indigo-500/20 shadow-md">
+          {`${(selectedUser.prenom || '')[0] || ''}${(selectedUser.nom || '')[0] || ''}`.toUpperCase()}
+        </div>
+        
+        <div className="text-base font-extrabold text-txt tracking-wide">{selectedUser.prenom} {selectedUser.nom}</div>
+        <div className="font-mono text-[10px] text-txt-3 mt-0.5 tracking-wider">{selectedUser.email}</div>
+        
+        <div className="flex items-center justify-center gap-2 mt-3.5">
+          <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${rb.cls}`}>
+            {selectedUser.role}
+          </span>
+          <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border flex items-center gap-1
+            ${selectedUser.actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}
+          >
+            <span className={`w-1 h-1 rounded-full ${selectedUser.actif ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
+            {selectedUser.actif ? 'Actif' : 'Inactif'}
+          </span>
+        </div>
+      </div>
+
+      {/* Metadata Details Card */}
+      <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md space-y-4">
+        <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2 border-b border-border/60">
+          Fiche d'identité
+        </div>
+        
+        <div className="space-y-3">
+          {[
+            { label: 'Identifiant UUID', value: selectedUser.id, icon: <Shield size={12} className="text-indigo-400" /> },
+            { label: 'Téléphone direct', value: selectedUser.telephone || '—', icon: <Phone size={12} className="text-indigo-400" /> },
+            { label: 'Agence assignée', value: selectedUser.agenceId ? (agenceNames[selectedUser.agenceId] || selectedUser.agenceId) : '—', icon: <Building size={12} className="text-indigo-400" /> },
+            { label: 'Date de création', value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: <Clock size={12} className="text-indigo-400" /> },
+          ].map(info => (
+            <div key={info.label} className="flex justify-between items-start text-xs border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
+              <span className="text-txt-3 flex items-center gap-1.5 font-medium">
+                {info.icon}
+                {info.label}
+              </span>
+              <span className="font-mono text-[10px] text-txt font-semibold text-right max-w-[180px] truncate select-all">{info.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Planning presets / Calendar */}
+      <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md">
+        <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2.5 border-b border-border/60 flex items-center justify-between">
+          <span className="flex items-center gap-1.5"><CalendarDays size={13} className="text-indigo-400" /> Planning Hebdomadaire</span>
+        </div>
+        
+        <div className="mt-3">
+          {selectedUser.planning ? (
+            <div className="space-y-2">
+              {selectedUser.planning.split(',').map((segment: string) => {
+                const trimmed = segment.trim();
+                const [days, hours] = trimmed.split(' ');
+                return (
+                  <div key={`planning-segment-${trimmed}`} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
+                    <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
+                    <span className="text-xs font-semibold text-txt tracking-wide">{hours || ''}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-xs text-txt-3 text-center py-5 font-mono italic">Aucun planning hebdomadaire défini</div>
+          )}
+        </div>
+      </div>
+
+      {/* Operations Buttons */}
+      <div className="flex gap-2.5">
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onEdit} 
+          className="btn-ghost flex-1 h-9.5 rounded-xl text-xs cursor-pointer flex items-center justify-center gap-1.5 border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] hover:text-txt transition-all font-bold"
+        >
+          <Pencil size={12} className="text-txt-2" /> Modifier
+        </motion.button>
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onDelete} 
+          className="flex-1 h-9.5 rounded-xl text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold flex items-center justify-center gap-1.5"
+        >
+          <Trash2 size={12} /> Désactiver
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,64 +395,23 @@ export default function UsersPage() {
             <AnimatePresence mode="popLayout">
               {loading ? (
                 <div className="p-5 space-y-3">
-                  {Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
+                  {AnimatePresence && Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
                     <div key={idx} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
               ) : users.length === 0 ? (
                 <EmptyState icon="user" title="Aucun collaborateur" subtitle="Aucun utilisateur ne correspond à ce filtre." />
               ) : (
-                users.map((u) => {
-                  const rb = roleBadge(u.role);
-                  const initials = `${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase();
-                  const isSelected = selectedUser?.id === u.id;
-                  
-                  return (
-                    <motion.div
-                      key={u.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedUser(u)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedUser(u); } }}
-                      className={`group flex items-center justify-between gap-4 px-5 py-3.5 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden
-                        ${isSelected ? 'bg-indigo-500/[0.04] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-indigo-500' : ''}`}
-                    >
-                      <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                        {/* Avatar */}
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[12px] font-extrabold bg-gradient-to-br border border-border-subtle flex-shrink-0 transition-transform group-hover:scale-105 duration-300 ${rb.avatar}`}>
-                          {initials}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors">
-                            {u.prenom} {u.nom}
-                          </div>
-                          <div className="font-mono text-[9.5px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-1.5">
-                            <Mail size={10} className="text-txt-3" />
-                            {u.email}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right metadata badges */}
-                      <div className="flex items-center gap-3.5">
-                        <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${rb.cls}`}>
-                          {u.role}
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5 font-mono text-[9px] bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
-                          <span className={`w-1.5 h-1.5 rounded-full ${u.actif ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
-                          <span className={u.actif ? 'text-emerald-400' : 'text-txt-3 font-semibold'}>
-                            {u.actif ? 'ACTIF' : 'INACTIF'}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })
+                users.map((u) => (
+                  <UserRow
+                    key={u.id}
+                    u={u}
+                    rb={roleBadge(u.role)}
+                    initials={`${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase()}
+                    isSelected={selectedUser?.id === u.id}
+                    onSelect={() => setSelectedUser(u)}
+                  />
+                ))
               )}
             </AnimatePresence>
           </div>
@@ -293,108 +421,25 @@ export default function UsersPage() {
         <div className="flex flex-col gap-4 sticky top-6 h-max">
           <AnimatePresence mode="wait">
             {selectedUser ? (
-              <motion.div
-                key={selectedUser.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-4"
-              >
-                {/* Visual Avatar Card */}
-                <div className="card-aurora rounded-2xl p-6 text-center border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] relative overflow-hidden shadow-lg">
-                  <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-                  
-                  <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-xl font-bold bg-gradient-to-br from-indigo-500/30 to-violet-500/10 text-indigo-300 border border-indigo-500/20 shadow-md">
-                    {`${(selectedUser.prenom || '')[0] || ''}${(selectedUser.nom || '')[0] || ''}`.toUpperCase()}
-                  </div>
-                  
-                  <div className="text-base font-extrabold text-txt tracking-wide">{selectedUser.prenom} {selectedUser.nom}</div>
-                  <div className="font-mono text-[10px] text-txt-3 mt-0.5 tracking-wider">{selectedUser.email}</div>
-                  
-                  <div className="flex items-center justify-center gap-2 mt-3.5">
-                    <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${roleBadge(selectedUser.role).cls}`}>
-                      {selectedUser.role}
-                    </span>
-                    <span className={`font-mono text-[8.5px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border flex items-center gap-1
-                      ${selectedUser.actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}
-                    >
-                      <span className={`w-1 h-1 rounded-full ${selectedUser.actif ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
-                      {selectedUser.actif ? 'Actif' : 'Inactif'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Metadata Details Card */}
-                <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md space-y-4">
-                  <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2 border-b border-border/60">
-                    Fiche d'identité
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Identifiant UUID', value: selectedUser.id, icon: <Shield size={12} className="text-indigo-400" /> },
-                      { label: 'Téléphone direct', value: selectedUser.telephone || '—', icon: <Phone size={12} className="text-indigo-400" /> },
-                      { label: 'Agence assignée', value: selectedUser.agenceId ? (agenceNames[selectedUser.agenceId] || selectedUser.agenceId) : '—', icon: <Building size={12} className="text-indigo-400" /> },
-                      { label: 'Date de création', value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: <Clock size={12} className="text-indigo-400" /> },
-                    ].map(info => (
-                      <div key={info.label} className="flex justify-between items-start text-xs border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
-                        <span className="text-txt-3 flex items-center gap-1.5 font-medium">
-                          {info.icon}
-                          {info.label}
-                        </span>
-                        <span className="font-mono text-[10px] text-txt font-semibold text-right max-w-[180px] truncate select-all">{info.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Planning presets / Calendar */}
-                <div className="card-aurora rounded-2xl p-5 border border-border bg-[var(--surface)] shadow-md">
-                  <div className="font-mono text-[9px] text-txt-3 uppercase tracking-widest font-extrabold pb-2.5 border-b border-border/60 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5"><CalendarDays size={13} className="text-indigo-400" /> Planning Hebdomadaire</span>
-                  </div>
-                  
-                  <div className="mt-3">
-                    {selectedUser.planning ? (
-                      <div className="space-y-2">
-                        {selectedUser.planning.split(',').map((segment: string) => {
-                          const trimmed = segment.trim();
-                          const [days, hours] = trimmed.split(' ');
-                          return (
-                            <div key={`planning-segment-${trimmed}`} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
-                              <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
-                              <span className="text-xs font-semibold text-txt tracking-wide">{hours || ''}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-txt-3 text-center py-5 font-mono italic">Aucun planning hebdomadaire défini</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Operations Buttons */}
-                <div className="flex gap-2.5">
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => { setForm({ nom: selectedUser.nom, prenom: selectedUser.prenom, email: selectedUser.email, password: '', role: selectedUser.role as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN', agenceId: selectedUser.agenceId || '', telephone: selectedUser.telephone || '', planning: selectedUser.planning || '' }); setShowEdit(true); }} 
-                    className="btn-ghost flex-1 h-9.5 rounded-xl text-xs cursor-pointer flex items-center justify-center gap-1.5 border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] hover:text-txt transition-all font-bold"
-                  >
-                    <Pencil size={12} className="text-txt-2" /> Modifier
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setDeleteTarget(selectedUser)} 
-                    className="flex-1 h-9.5 rounded-xl text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold flex items-center justify-center gap-1.5"
-                  >
-                    <Trash2 size={12} /> Désactiver
-                  </motion.button>
-                </div>
-              </motion.div>
+              <UserDetailPanel
+                selectedUser={selectedUser}
+                rb={roleBadge(selectedUser.role)}
+                agenceNames={agenceNames}
+                onEdit={() => {
+                  setForm({
+                    nom: selectedUser.nom,
+                    prenom: selectedUser.prenom,
+                    email: selectedUser.email,
+                    password: '',
+                    role: selectedUser.role as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN',
+                    agenceId: selectedUser.agenceId || '',
+                    telephone: selectedUser.telephone || '',
+                    planning: selectedUser.planning || ''
+                  });
+                  setShowEdit(true);
+                }}
+                onDelete={() => setDeleteTarget(selectedUser)}
+              />
             ) : (
               <div className="card-aurora rounded-2xl p-6 border border-border text-center">
                 <EmptyState icon="arrow-left" title="Détails du compte" subtitle="Sélectionnez un collaborateur pour explorer ses détails, son agence et son planning d'assistance." />

@@ -896,112 +896,130 @@ async def _fetch_live_stats(lower: str, live_parts: list):
             logger.warning(f"⚠️ Could not fetch live stats: {e}")
 
 
+async def _fetch_live_decision_for_ticket(client, ticket_id: str, ticket_ref: str, live_parts: list):
+    """Fetch the decision associated with a ticket (reduces nesting depth of _fetch_live_ticket)."""
+    try:
+        rd = await client.get(
+            f"{DECISION_SERVICE_URL}/api/decisions/ticket/{ticket_id}"
+        )
+        if rd.status_code == 200:
+            dec = rd.json()
+            live_parts.append(
+                f"[DONNÉES TEMPS RÉEL — Décision {ticket_ref}] "
+                f"Décision: {dec.get('decision', '?')}, "
+                f"Score: {dec.get('score', '?')}/100, "
+                f"Source: {dec.get('source', '?')}, "
+                f"Motif: {(dec.get('motif', '') or '')[:150]}"
+            )
+    except Exception:
+        pass
+
+
 async def _fetch_live_ticket(lower: str, question: str, live_parts: list):
     import re as _re
     ticket_match = _re.search(r'T-\d{8}-\d+', question, _re.IGNORECASE)
-    if ticket_match:
-        ticket_ref = ticket_match.group(0)
-        try:
-            async with httpx.AsyncClient(timeout=8) as client:
-                r = await client.get(f"{TICKET_SERVICE_URL}/api/tickets?page=0&size=200")
-                if r.status_code == 200:
-                    data = r.json()
-                    tickets = data.get("content", [])
-                    t = next((t for t in tickets if t.get("numero") == ticket_ref), None)
-                    if t:
-                        live_parts.append(
-                            f"[DONNÉES TEMPS RÉEL — Ticket {ticket_ref}] "
-                            f"Statut: {t.get('statut', '?')}, "
-                            f"Canal: {t.get('canal', '?')}, "
-                            f"Client: {t.get('clientNom', 'N/A')}, "
-                            f"Tél: {t.get('clientTel', 'N/A')}, "
-                            f"Priorité: {t.get('priorite', 'N/A')}, "
-                            f"Agence: {t.get('agenceNom', 'N/A')}, "
-                            f"Description: {(t.get('description', '') or '')[:200]}, "
-                            f"Créé: {t.get('createdAt', 'N/A')}"
-                        )
-                        logger.info("🎫 Live ticket fetched: %s", sanitize_log(ticket_ref))
+    if not ticket_match:
+        return
+    ticket_ref = ticket_match.group(0)
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(f"{TICKET_SERVICE_URL}/api/tickets?page=0&size=200")
+            if r.status_code == 200:
+                data = r.json()
+                tickets = data.get("content", [])
+                t = next((t for t in tickets if t.get("numero") == ticket_ref), None)
+                if t:
+                    live_parts.append(
+                        f"[DONNÉES TEMPS RÉEL — Ticket {ticket_ref}] "
+                        f"Statut: {t.get('statut', '?')}, "
+                        f"Canal: {t.get('canal', '?')}, "
+                        f"Client: {t.get('clientNom', 'N/A')}, "
+                        f"Tél: {t.get('clientTel', 'N/A')}, "
+                        f"Priorité: {t.get('priorite', 'N/A')}, "
+                        f"Agence: {t.get('agenceNom', 'N/A')}, "
+                        f"Description: {(t.get('description', '') or '')[:200]}, "
+                        f"Créé: {t.get('createdAt', 'N/A')}"
+                    )
+                    logger.info("🎫 Live ticket fetched: %s", sanitize_log(ticket_ref))
+                    await _fetch_live_decision_for_ticket(client, t.get('id'), ticket_ref, live_parts)
+    except Exception as e:
+        logger.warning("⚠️ Could not fetch ticket %s: %s", sanitize_log(ticket_ref), sanitize_log(e))
 
-                        # Also fetch decision for this ticket
-                        try:
-                            rd = await client.get(
-                                f"{DECISION_SERVICE_URL}/api/decisions/ticket/{t.get('id')}"
-                            )
-                            if rd.status_code == 200:
-                                dec = rd.json()
-                                live_parts.append(
-                                    f"[DONNÉES TEMPS RÉEL — Décision {ticket_ref}] "
-                                    f"Décision: {dec.get('decision', '?')}, "
-                                    f"Score: {dec.get('score', '?')}/100, "
-                                    f"Source: {dec.get('source', '?')}, "
-                                    f"Motif: {(dec.get('motif', '') or '')[:150]}"
-                                )
-                        except Exception:
-                            pass
-        except Exception as e:
-            logger.warning("⚠️ Could not fetch ticket %s: %s", sanitize_log(ticket_ref), sanitize_log(e))
+
+def _format_rule_conditions(conds: dict) -> str:
+    """Format rule conditions for a clean text representation (reduces nesting depth of _fetch_live_rules)."""
+    if not isinstance(conds, dict):
+        return ""
+    parts_list = []
+    for op, conditions_list in conds.items():
+        if isinstance(conditions_list, list):
+            parts = [
+                f"{c.get('field', '?')} {c.get('operator', '?')} {c.get('value', '?')}"
+                for c in conditions_list
+            ]
+            if parts:
+                parts_list.append(f"({op}: {', '.join(parts)})")
+    return " " + " ".join(parts_list) if parts_list else ""
 
 
 async def _fetch_live_rules(lower: str, live_parts: list):
-    if any(p in lower for p in _RULES_PATTERNS):
-        try:
-            async with httpx.AsyncClient(timeout=8) as client:
-                r = await client.get(f"{RULES_SERVICE_URL}/api/rules?page=0&size=100&sort=priorite,asc")
-                if r.status_code == 200:
-                    data = r.json()
-                    rules = data.get("content", [])
-                    rules_text = ""
-                    for rule in rules[:10]:
-                        conds = rule.get("conditions", {})
-                        conds_text = ""
-                        if isinstance(conds, dict):
-                            for op, conditions_list in conds.items():
-                                if isinstance(conditions_list, list):
-                                    parts = []
-                                    for c in conditions_list:
-                                        parts.append(
-                                            f"{c.get('field', '?')} {c.get('operator', '?')} {c.get('value', '?')}"
-                                        )
-                                    conds_text = f" ({op}: {', '.join(parts)})"
-                        rules_text += (
-                            f"- {rule.get('nom', '?')} (priorité {rule.get('priorite', '?')}, "
-                            f"décision: {rule.get('decision', '?')}, score: {rule.get('score', '?')})"
-                            f"{conds_text} "
-                            f"{rule.get('description', '')} "
-                        )
-                    if rules_text:
-                        live_parts.append(
-                            f"[DONNÉES TEMPS RÉEL — {len(rules)} règles actives] {rules_text}"
-                        )
-                        logger.info("📏 Live rules fetched: %d rules", len(rules))
-        except Exception as e:
-            logger.warning("⚠️ Could not fetch live rules: %s", sanitize_log(str(e)))
+    if not any(p in lower for p in _RULES_PATTERNS):
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(f"{RULES_SERVICE_URL}/api/rules?page=0&size=100&sort=priorite,asc")
+            if r.status_code == 200:
+                data = r.json()
+                rules = data.get("content", [])
+                rules_text = ""
+                for rule in rules[:10]:
+                    conds_text = _format_rule_conditions(rule.get("conditions", {}))
+                    rules_text += (
+                        f"- {rule.get('nom', '?')} (priorité {rule.get('priorite', '?')}, "
+                        f"décision: {rule.get('decision', '?')}, score: {rule.get('score', '?')})"
+                        f"{conds_text} "
+                        f"{rule.get('description', '')} "
+                    )
+                if rules_text:
+                    live_parts.append(
+                        f"[DONNÉES TEMPS RÉEL — {len(rules)} règles actives] {rules_text}"
+                    )
+                    logger.info("📏 Live rules fetched: %d rules", len(rules))
+    except Exception as e:
+        logger.warning("⚠️ Could not fetch live rules: %s", sanitize_log(str(e)))
+
+
+def _group_reference_items(items: list) -> dict:
+    """Group reference items by category/type (reduces nesting depth of _fetch_live_reference_items)."""
+    grouped = {}
+    for item in items:
+        cat = item.get("category", item.get("type", "AUTRE"))
+        if cat not in grouped:
+            grouped[cat] = []
+        grouped[cat].append(item.get("label", item.get("nom", "?")))
+    return grouped
 
 
 async def _fetch_live_reference_items(lower: str, live_parts: list):
-    if any(p in lower for p in _REFERENCE_PATTERNS):
-        try:
-            async with httpx.AsyncClient(timeout=8) as client:
-                r = await client.get(f"{RULES_SERVICE_URL}/api/reference-items?page=0&size=100")
-                if r.status_code == 200:
-                    data = r.json()
-                    items = data.get("content", []) if isinstance(data, dict) else data
-                    if items:
-                        grouped = {}
-                        for item in items:
-                            cat = item.get("category", item.get("type", "AUTRE"))
-                            if cat not in grouped:
-                                grouped[cat] = []
-                            grouped[cat].append(item.get("label", item.get("nom", "?")))
-                        ref_text = "; ".join(
-                            f"{cat}: {', '.join(labels[:8])}" for cat, labels in grouped.items()
-                        )
-                        live_parts.append(
-                            f"[DONNÉES TEMPS RÉEL — {len(items)} items de référence] {ref_text}"
-                        )
-                        logger.info("📦 Live reference data fetched: %d items", len(items))
-        except Exception as e:
-            logger.warning("⚠️ Could not fetch reference data: %s", sanitize_log(str(e)))
+    if not any(p in lower for p in _REFERENCE_PATTERNS):
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(f"{RULES_SERVICE_URL}/api/reference-items?page=0&size=100")
+            if r.status_code == 200:
+                data = r.json()
+                items = data.get("content", []) if isinstance(data, dict) else data
+                if items:
+                    grouped = _group_reference_items(items)
+                    ref_text = "; ".join(
+                        f"{cat}: {', '.join(labels[:8])}" for cat, labels in grouped.items()
+                    )
+                    live_parts.append(
+                        f"[DONNÉES TEMPS RÉEL — {len(items)} items de référence] {ref_text}"
+                    )
+                    logger.info("📦 Live reference data fetched: %d items", len(items))
+    except Exception as e:
+        logger.warning("⚠️ Could not fetch reference data: %s", sanitize_log(str(e)))
 
 
 async def _fetch_live_agences(lower: str, live_parts: list):
