@@ -452,7 +452,7 @@ interface AuditTimelineProps {
   timeline: TimelineEvent[];
 }
 
-function AuditTimeline({ timeline }: AuditTimelineProps) {
+function AuditTimeline({ timeline }: Readonly<AuditTimelineProps>) {
   return (
     <motion.div variants={item} className="card-aurora rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -506,7 +506,7 @@ interface AuditPipelineIaProps {
   }> | null;
 }
 
-function AuditPipelineIa({ decision, pipelineSteps }: AuditPipelineIaProps) {
+function AuditPipelineIa({ decision, pipelineSteps }: Readonly<AuditPipelineIaProps>) {
   return (
     <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-400 to-indigo-500" />
@@ -581,7 +581,7 @@ interface AuditRgpdComplianceProps {
   rgpdScore: number;
 }
 
-function AuditRgpdCompliance({ rgpd, rgpdScore }: AuditRgpdComplianceProps) {
+function AuditRgpdCompliance({ rgpd, rgpdScore }: Readonly<AuditRgpdComplianceProps>) {
   return (
     <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-rose-500" />
