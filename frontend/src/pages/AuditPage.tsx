@@ -703,8 +703,9 @@ export default function AuditPage() {
       }
 
       doc.save(`audit_${ticket.numero}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch {
-      /* silent */
+    } catch (err: unknown) {
+      /* PDF export failed — toast is not shown as it would confuse users mid-generation */
+      console.debug('[AuditPage] PDF export error (non-critical):', err);
     }
     finally { setExporting(false); }
   }, [ticket, decision, perf, timeline, rgpd, rgpdScore]);

@@ -35,7 +35,7 @@ async def lifespan(application: FastAPI):
         )
         logger.info("Successfully registered as '%s' on port %d", settings.APP_NAME, settings.INSTANCE_PORT)
     except Exception as e:
-        logger.error("Failed to register with Eureka: %s", sanitize_log(e))
+        logger.exception("Failed to register with Eureka")
 
     logger.info("Loading Whisper model...")
     try:
@@ -81,7 +81,7 @@ async def lifespan(application: FastAPI):
         await eureka_client.stop_async()
         logger.info("Successfully deregistered from Eureka")
     except Exception as e:
-        logger.error("Failed to deregister from Eureka: %s", sanitize_log(e))
+        logger.exception("Failed to deregister from Eureka")
 
     logger.info("AI Service shutting down")
 
@@ -139,7 +139,13 @@ async def proxy_create_call_ticket(request: Request):
         r = await client.post("http://ticket-service:8083/api/channels/call", json=body)
         return r.json()
 
-@app.post("/api/tickets/{ticket_id}/audio", tags=["softphone"])
+@app.post(
+    "/api/tickets/{ticket_id}/audio",
+    tags=["softphone"],
+    responses={
+        400: {"description": "Invalid ticket_id format"}
+    }
+)
 async def proxy_upload_audio(ticket_id: str, file: Annotated[UploadFile, File(...)]):
     """
     Proxy audio upload to ticket-service.

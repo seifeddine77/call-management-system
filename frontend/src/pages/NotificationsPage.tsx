@@ -165,8 +165,8 @@ export default function NotificationsPage() {
         <div className="overflow-x-auto">
           {loading && filtered.length === 0 ? (
             <div className="p-5 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
+              {Array.from({ length: 5 }, (_, idx) => idx).map((idx) => (
+                <div key={idx} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : filtered.length === 0 ? (

@@ -35,8 +35,8 @@ function useParallax() {
   return { sx, sy };
 }
 
-const STATIC_PARTICLES = Array.from({ length: 20 }).map((_, i) => ({
-  id: i,
+const STATIC_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: `p-${i}`,
   w: 2 + Math.random() * 3,
   h: 2 + Math.random() * 3,
   left: Math.random() * 100,
@@ -52,11 +52,11 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {[
-        { w:'50vw',h:'50vw',top:'-15%',left:'-10%',c:isDark?'rgba(37,99,235,0.15)':'rgba(37,99,235,0.08)',dur:22,dx:80,dy:60 },
-        { w:'40vw',h:'40vw',bottom:'-10%',right:'-5%',c:isDark?'rgba(6,182,212,0.12)':'rgba(6,182,212,0.06)',dur:26,dx:-60,dy:-50 },
-        { w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.08)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
-      ].map((b,i) => (
-        <motion.div key={i} className="absolute rounded-full" style={{ width:b.w,height:b.h,top:b.top,bottom:b.bottom,left:b.left,right:b.right,
+        { id: 'blur-1', w:'50vw',h:'50vw',top:'-15%',left:'-10%',c:isDark?'rgba(37,99,235,0.15)':'rgba(37,99,235,0.08)',dur:22,dx:80,dy:60 },
+        { id: 'blur-2', w:'40vw',h:'40vw',bottom:'-10%',right:'-5%',c:isDark?'rgba(6,182,212,0.12)':'rgba(6,182,212,0.06)',dur:26,dx:-60,dy:-50 },
+        { id: 'blur-3', w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.08)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
+      ].map((b) => (
+        <motion.div key={b.id} className="absolute rounded-full" style={{ width:b.w,height:b.h,top:b.top,bottom:b.bottom,left:b.left,right:b.right,
           background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' } as React.CSSProperties}
           animate={{ x:[0,b.dx,-b.dx/2,0], y:[0,b.dy/2,-b.dy,0] }}
           transition={{ duration:b.dur, repeat:Infinity, ease:'easeInOut' }} />
@@ -66,7 +66,7 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
         backgroundSize:'60px 60px',
       }}/>
       {STATIC_PARTICLES.map((p) => (
-        <div key={`p${p.id}`} className="absolute rounded-full" style={{
+        <div key={p.id} className="absolute rounded-full" style={{
           width: `${p.w}px`, height: `${p.h}px`,
           left: `${p.left}%`, top: `${p.top}%`,
           background: isDark ? `rgba(59,130,246,${p.bgRand1})` : `rgba(37,99,235,${p.bgRand2})`,
@@ -118,7 +118,7 @@ function ConnectionLines({ lineColor }: Readonly<{ lineColor: string }>) {
   return (
     <>
       {paths.map((d, i) => (
-        <motion.path key={i} d={d} fill="none" stroke={lineColor} strokeWidth="1.5" strokeDasharray="6 4"
+        <motion.path key={d} d={d} fill="none" stroke={lineColor} strokeWidth="1.5" strokeDasharray="6 4"
           initial={{ pathLength: 0, opacity: 0 }}
           animate={{ pathLength: 1, opacity: 1 }}
           transition={{ duration: 1.5, delay: 0.3+i*0.15, ease: 'easeOut' }} />
@@ -136,7 +136,7 @@ function TravelingDots({ claimColor, accent }: Readonly<{ claimColor: string; ac
   return (
     <>
       {paths.map((d, i) => (
-        <motion.circle key={`dot${i}`} r="3" fill={i === 4 ? claimColor : accent}
+        <motion.circle key={`dot-${d}`} r="3" fill={i === 4 ? claimColor : accent}
           initial={{ offsetDistance: '0%' }}
           animate={{ offsetDistance: ['0%', '100%'] }}
           transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
@@ -204,8 +204,8 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: Motio
       </motion.div>
 
       {/* Orbiting elements */}
-      {orbitElements.map((el, i) => (
-        <OrbitingElement key={`orbit-${i}`} icon={el.icon} label={el.label} x={el.x} y={el.y} pX={el.pX} pY={el.pY} delay={el.delay} color={el.color} isDark={isDark} />
+      {orbitElements.map((el) => (
+        <OrbitingElement key={`orbit-${el.label}`} icon={el.icon} label={el.label} x={el.x} y={el.y} pX={el.pX} pY={el.pY} delay={el.delay} color={el.color} isDark={isDark} />
       ))}
 
       {/* Animated connection lines (SVG) */}

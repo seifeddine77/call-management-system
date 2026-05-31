@@ -89,7 +89,7 @@ class DecisionControllerContractTest {
                         request.setCategorieClient("PREMIUM");
                         request.setTypeSinistre("PANNE");
 
-                        mockMvc.perform(post("/api/decisions/analyze")
+                        mockMvc.perform(post(API_DECISIONS + "analyze")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request)))
                                         .andExpect(status().isOk())
@@ -119,7 +119,7 @@ class DecisionControllerContractTest {
                                         }
                                         """;
 
-                        mockMvc.perform(post("/api/decisions/analyze")
+                        mockMvc.perform(post(API_DECISIONS + "analyze")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(body))
                                         .andExpect(status().isBadRequest());
@@ -139,7 +139,7 @@ class DecisionControllerContractTest {
                                         }
                                         """;
 
-                        mockMvc.perform(post("/api/decisions/analyze")
+                        mockMvc.perform(post(API_DECISIONS + "analyze")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(body))
                                         .andExpect(status().isBadRequest());
@@ -158,7 +158,7 @@ class DecisionControllerContractTest {
                                         }
                                         """;
 
-                        mockMvc.perform(post("/api/decisions/analyze")
+                        mockMvc.perform(post(API_DECISIONS + "analyze")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(body))
                                         .andExpect(status().isBadRequest());
@@ -193,7 +193,7 @@ class DecisionControllerContractTest {
                         req.setFinalDecision(FAVORABLE);
                         req.setMotif("Confirmé par l'opérateur");
 
-                        mockMvc.perform(post("/api/decisions/" + decisionId + "/accept")
+                        mockMvc.perform(post(API_DECISIONS + decisionId + "/accept")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isOk())
@@ -211,7 +211,7 @@ class DecisionControllerContractTest {
                                         }
                                         """;
 
-                        mockMvc.perform(post("/api/decisions/" + UUID.randomUUID() + "/accept")
+                        mockMvc.perform(post(API_DECISIONS + UUID.randomUUID() + "/accept")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(body))
                                         .andExpect(status().isBadRequest());
@@ -228,7 +228,7 @@ class DecisionControllerContractTest {
                         req.setFinalDecision(FAVORABLE);
                         req.setMotif("OK");
 
-                        mockMvc.perform(post("/api/decisions/" + id + "/accept")
+                        mockMvc.perform(post(API_DECISIONS + id + "/accept")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isNotFound());
@@ -245,7 +245,7 @@ class DecisionControllerContractTest {
                         req.setFinalDecision(FAVORABLE);
                         req.setMotif("OK");
 
-                        mockMvc.perform(post("/api/decisions/" + id + "/accept")
+                        mockMvc.perform(post(API_DECISIONS + id + "/accept")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isConflict());
@@ -277,7 +277,7 @@ class DecisionControllerContractTest {
                         req.setFinalDecision(DEFAVORABLE);
                         req.setMotif("Usure normale");
 
-                        mockMvc.perform(post("/api/decisions/" + decisionId + "/reject")
+                        mockMvc.perform(post(API_DECISIONS + decisionId + "/reject")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isOk())
@@ -307,7 +307,7 @@ class DecisionControllerContractTest {
                                         .build();
                         when(decisionService.getByTicketId(ticketId)).thenReturn(result);
 
-                        mockMvc.perform(get("/api/decisions/ticket/" + ticketId))
+                        mockMvc.perform(get(API_DECISIONS + "ticket/" + ticketId))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.ticketId").value(ticketId.toString()))
                                         .andExpect(jsonPath("$.decision").value(FAVORABLE));
@@ -320,7 +320,7 @@ class DecisionControllerContractTest {
                         when(decisionService.getByTicketId(ticketId))
                                         .thenThrow(new NoSuchElementException("Aucune décision"));
 
-                        mockMvc.perform(get("/api/decisions/ticket/" + ticketId))
+                        mockMvc.perform(get(API_DECISIONS + "ticket/" + ticketId))
                                         .andExpect(status().isNotFound());
                 }
         }
@@ -348,7 +348,7 @@ class DecisionControllerContractTest {
                         when(decisionService.findById(id)).thenReturn(Optional.of(decision));
                         when(letterService.generateLetter(any())).thenReturn(new byte[] { 1, 2, 3, 4 });
 
-                        mockMvc.perform(get("/api/decisions/" + id + "/letter"))
+                        mockMvc.perform(get(API_DECISIONS + id + "/letter"))
                                         .andExpect(status().isOk())
                                         .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                                         .andExpect(header().string("Content-Disposition",
@@ -368,7 +368,7 @@ class DecisionControllerContractTest {
                                         .build();
                         when(decisionService.findById(id)).thenReturn(Optional.of(decision));
 
-                        mockMvc.perform(get("/api/decisions/" + id + "/letter"))
+                        mockMvc.perform(get(API_DECISIONS + id + "/letter"))
                                         .andExpect(status().isBadRequest());
                 }
 
@@ -378,7 +378,7 @@ class DecisionControllerContractTest {
                         UUID id = UUID.randomUUID();
                         when(decisionService.findById(id)).thenReturn(Optional.empty());
 
-                        mockMvc.perform(get("/api/decisions/" + id + "/letter"))
+                        mockMvc.perform(get(API_DECISIONS + id + "/letter"))
                                         .andExpect(status().isNotFound());
                 }
         }
@@ -390,7 +390,7 @@ class DecisionControllerContractTest {
         @Test
         @DisplayName("GET /health — retourne 200 OK")
         void health_returns200() throws Exception {
-                mockMvc.perform(get("/api/decisions/health"))
+                mockMvc.perform(get(API_DECISIONS + "health"))
                                 .andExpect(status().isOk())
                                 .andExpect(content().string("OK"));
         }

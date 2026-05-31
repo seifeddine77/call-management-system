@@ -69,8 +69,8 @@ class RuleControllerIntegrationTest {
                                 .id(RULE_ID)
                                 .nom(RULE_NOM)
                                 .description("Règle de test")
-                                .conditions(Map.of("operator", "AND",
-                                                "conditions", List.of(
+                                .conditions(Map.of(KEY_OPERATOR, "AND",
+                                                KEY_CONDITIONS, List.of(
                                                                 Map.of("field", "typePiece", "op", "EQ", "value",
                                                                                 "ELECTRONIQUE"),
                                                                 Map.of("field", "ageVehiculeAns", "op", "LTE", "value",
@@ -97,7 +97,7 @@ class RuleControllerIntegrationTest {
 
         CreateRuleRequest request = new CreateRuleRequest();
         request.setNom(RULE_NOM);
-        request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
+        request.setConditions(Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of()));
         request.setAction(ACTION_FAVORABLE);
         request.setActionMotif("Pièce électronique sous garantie constructeur");
         request.setPriorite((short) 7);
@@ -189,8 +189,8 @@ class RuleControllerIntegrationTest {
                 RuleResponse updated = RuleResponse.builder()
                                 .id(RULE_ID)
                                 .nom("Test Intégration — Pièce électronique (modifiée)")
-                                .conditions(Map.of("operator", "AND",
-                                                "conditions", List.of(
+                                .conditions(Map.of(KEY_OPERATOR, "AND",
+                                                KEY_CONDITIONS, List.of(
                                                                 Map.of("field", "typePiece", "op", "EQ", "value",
                                                                                 "ELECTRONIQUE"),
                                                                 Map.of("field", "ageVehiculeAns", "op", "LTE", "value",
@@ -211,7 +211,7 @@ class RuleControllerIntegrationTest {
 
                 UpdateRuleRequest request = new UpdateRuleRequest();
                 request.setNom("Test Intégration — Pièce électronique (modifiée)");
-                request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
+                request.setConditions(Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of()));
                 request.setAction(ACTION_FAVORABLE);
                 request.setActionMotif("Garantie étendue");
                 request.setPriorite((short) 8);
@@ -231,7 +231,7 @@ class RuleControllerIntegrationTest {
                 RuleVersion version = new RuleVersion();
                 version.setVersion((short) 1);
                 version.setChangedByName(TEST_ADMIN);
-                version.setConditions(Map.of("operator", "AND"));
+                version.setConditions(Map.of(KEY_OPERATOR, "AND"));
                 version.setChangedAt(LocalDateTime.now());
 
                 when(ruleService.getHistory(RULE_ID)).thenReturn(List.of(version));
@@ -483,7 +483,7 @@ class RuleControllerIntegrationTest {
 
         CreateRuleRequest request = new CreateRuleRequest();
         request.setNom("Test Rule");
-        request.setConditions(Map.of("operator", "AND", "conditions", List.of()));
+        request.setConditions(Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of()));
         request.setAction(ACTION_FAVORABLE);
         request.setActionMotif("Test");
 

@@ -791,7 +791,7 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
                     return text, "gpt-4o-mini"
 
         except Exception as e:
-            logger.error("❌ OpenAI fallback also failed: %s", sanitize_log(str(e)))
+            logger.exception("❌ OpenAI fallback also failed")
 
     return "", "none"
 

@@ -120,7 +120,7 @@ def _save_transcription_to_db(ticket_id: str, full_text: str, duration: float):
         finally:
             db.close()
     except Exception as e:
-        logger.error("❌ [STREAM] DB save failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+        logger.exception("❌ [STREAM] DB save failed for ticket %s", sanitize_log(ticket_id))
 
 
 @router.websocket("/ws/transcribe/{ticket_id}")
@@ -155,7 +155,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     except WebSocketDisconnect:
         logger.info("🔌 [STREAM] Client disconnected for ticket %s", sanitize_log(ticket_id))
     except Exception as e:
-        logger.error("❌ [STREAM] Error for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+        logger.exception("❌ [STREAM] Error for ticket %s", sanitize_log(ticket_id))
         try:
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json({"type": "error", "detail": str(e)})

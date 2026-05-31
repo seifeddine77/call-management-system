@@ -155,7 +155,13 @@ def extract_keywords_spacy(text: str, nlp) -> List[str]:
 
 # ── Endpoint ────────────────────────────────────────────────────
 
-@router.post("/", response_model=AnalysisResponse)
+@router.post(
+    "/",
+    response_model=AnalysisResponse,
+    responses={
+        400: {"description": "Le texte à analyser est vide"}
+    }
+)
 def analyze_text(
     request_body: AnalysisRequest,
     request: Request,
@@ -221,7 +227,13 @@ def analyze_text(
     )
 
 
-@router.get("/{ticket_id}", response_model=AnalysisResultResponse)
+@router.get(
+    "/{ticket_id}",
+    response_model=AnalysisResultResponse,
+    responses={
+        404: {"description": "Aucune analyse pour le ticket"}
+    }
+)
 def get_analysis(ticket_id: str, db: Annotated[Session, Depends(get_db)]):
     """Retrieve an existing analysis by ticket ID."""
     result = db.query(AnalysisResult).filter(AnalysisResult.ticket_id == ticket_id).first()

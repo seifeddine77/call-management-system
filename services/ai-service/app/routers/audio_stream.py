@@ -68,7 +68,13 @@ def _read_and_decrypt(file_path: str) -> tuple[bytes, str]:
     return raw_bytes, mime_type
 
 
-@router.get("/{ticket_id}/{filename}")
+@router.get(
+    "/{ticket_id}/{filename}",
+    responses={
+        400: {"description": "Invalid path segment"},
+        404: {"description": "Audio file not found"}
+    }
+)
 def stream_audio_by_filename(ticket_id: str, filename: str):
     """
     Stream a specific audio file for a ticket.
@@ -90,7 +96,13 @@ def stream_audio_by_filename(ticket_id: str, filename: str):
     )
 
 
-@router.get("/{ticket_id}")
+@router.get(
+    "/{ticket_id}",
+    responses={
+        400: {"description": "Invalid path segment"},
+        404: {"description": "Audio directory or file not found"}
+    }
+)
 def stream_audio_by_ticket(ticket_id: str):
     """
     Stream the audio file for a ticket (auto-resolves the filename).

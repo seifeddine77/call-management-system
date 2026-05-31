@@ -85,7 +85,9 @@ function getAuthHeaders(): Record<string, string> {
       const { accessToken } = JSON.parse(stored);
       if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
     }
-  } catch { /* ignore */ }
+  } catch (_err: unknown) {
+    /* localStorage may be unavailable (private mode) — auth headers simply omitted */
+  }
   return headers;
 }
 
@@ -323,7 +325,7 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
           } else if (data.type === 'error') {
             toast.error(`Erreur STT: ${data.detail}`);
           }
-        } catch {
+        } catch (_err: unknown) {
           // Ignore malformed WebSocket messages — connection remains active
         }
       };
@@ -790,7 +792,9 @@ export default function TicketDetailPage() {
       try {
         const d = await decisionService.getByTicket(id);
         setDecision(d);
-      } catch { /* no decision yet */ }
+      } catch (_err: unknown) {
+        /* No decision yet for this ticket — not an error */
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ticket introuvable');
     } finally {

@@ -160,8 +160,8 @@ export default function AgencesPage() {
       {/* Grid Layout of Cards instead of boring table */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-60 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+          {Array.from({ length: 3 }, (_, idx) => idx).map((idx) => (
+            <div key={idx} className="h-60 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : agences.length === 0 ? (

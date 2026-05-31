@@ -226,8 +226,8 @@ export default function UsersPage() {
             <AnimatePresence mode="popLayout">
               {loading ? (
                 <div className="p-5 space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+                  {Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
+                    <div key={idx} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
               ) : users.length === 0 ? (
@@ -358,11 +358,11 @@ export default function UsersPage() {
                   <div className="mt-3">
                     {selectedUser.planning ? (
                       <div className="space-y-2">
-                        {selectedUser.planning.split(',').map((segment: string, i: number) => {
+                        {selectedUser.planning.split(',').map((segment: string) => {
                           const trimmed = segment.trim();
                           const [days, hours] = trimmed.split(' ');
                           return (
-                            <div key={`planning-segment-${i}-${trimmed}`} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
+                            <div key={`planning-segment-${trimmed}`} className="flex items-center justify-between p-2.5 bg-[var(--elevated)] border border-border/60 rounded-xl hover:border-indigo-500/20 transition-all duration-200">
                               <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{days}</span>
                               <span className="text-xs font-semibold text-txt tracking-wide">{hours || ''}</span>
                             </div>

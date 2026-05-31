@@ -93,7 +93,7 @@ async def _encrypt_and_save_audio(content: bytes, ticket_id: str, filename: str)
             content = audio_crypto.encrypt(content)
             logger.info("Plaintext audio file encrypted before saving on disk (%d bytes).", len(content))
         except Exception as e:
-            logger.error("Failed to encrypt file on save: %s", sanitize_log(str(e)))
+            logger.exception("Failed to encrypt file on save")
             raise HTTPException(status_code=500, detail=f"Erreur de chiffrement: {e}")
 
     async with aiofiles.open(file_path, "wb") as f:
@@ -171,7 +171,16 @@ async def _run_whisper_transcription(file_path: str, ticket_dir: str, whisper_mo
                                sanitize_log(str(temp_path)), sanitize_log(str(cleanup_err)))
 
 
-@router.post("/", response_model=TranscribeResponse)
+@router.post(
+    "/",
+    response_model=TranscribeResponse,
+    responses={
+        400: {"description": "Invalid file type, file too large, or path traversal detected"},
+        409: {"description": "Une transcription existe déjà pour le ticket"},
+        500: {"description": "Erreur de chiffrement ou de transcription"},
+        503: {"description": "Le modèle Whisper n'est pas chargé"}
+    }
+)
 async def transcribe_audio(
     request: Request,
     file: Annotated[UploadFile, File(...)],
@@ -238,7 +247,7 @@ async def transcribe_audio(
         )
 
     except Exception as e:
-        logger.error("Whisper transcription failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+        logger.exception("Whisper transcription failed for ticket %s", sanitize_log(ticket_id))
         record.status = "FAILED"
         record.error_message = str(e)
         db.commit()
@@ -247,7 +256,14 @@ async def transcribe_audio(
 
 
 
-@router.post("/quick")
+@router.post(
+    "/quick",
+    responses={
+        400: {"description": "Fichier trop volumineux"},
+        500: {"description": "Erreur lors de la transcription rapide"},
+        503: {"description": "Le modèle Whisper n'est pas chargé"}
+    }
+)
 async def quick_transcribe(
     request: Request,
     file: Annotated[UploadFile, File(...)],
@@ -292,7 +308,7 @@ async def quick_transcribe(
         logger.info("Quick transcription: %d chars, %ss", len(text), duration)
         return {"text": text, "duration_seconds": duration}
     except Exception as e:
-        logger.error("Quick transcription failed: %s", sanitize_log(e))
+        logger.exception("Quick transcription failed")
         raise HTTPException(status_code=500, detail=f"Erreur: {e}")
     finally:
         # Cleanup temp file
@@ -302,7 +318,13 @@ async def quick_transcribe(
             pass
 
 
-@router.get("/{ticket_id}", response_model=AudioRecordResponse)
+@router.get(
+    "/{ticket_id}",
+    response_model=AudioRecordResponse,
+    responses={
+        404: {"description": "Aucune transcription pour le ticket"}
+    }
+)
 def get_transcription(ticket_id: str, db: Annotated[Session, Depends(get_db)]):
     """Retrieve an existing transcription by ticket ID."""
     record = db.query(AudioRecord).filter(AudioRecord.ticket_id == ticket_id).first()
