@@ -58,6 +58,15 @@ class AudioTranscriptionControllerIT {
         private static final UUID AGENCE_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
         private static final UUID OPERATOR_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
 
+        private static final String HEADER_USER_ID = "X-User-Id";
+        private static final String HEADER_USER_ROLE = "X-User-Role";
+        private static final String ROLE_ADMIN = "ADMIN";
+        private static final String AUDIO_WAV_MIME = "audio/wav";
+        private static final String API_TICKETS_AUDIO = "/api/tickets/{id}/audio";
+        private static final String API_TICKETS_TRANSCRIPTION = "/api/tickets/{id}/transcription";
+        private static final String SAMPLE_TRANSCRIBE_TEXT = "Bonjour, mon alternateur est en panne depuis hier matin.";
+        private static final String MULTIPART_FILE_PARAM = "file";
+
         @BeforeEach
         void cleanup() {
                 actionRepository.deleteAll();
@@ -81,7 +90,7 @@ class AudioTranscriptionControllerIT {
         // POST /api/tickets/{id}/audio — Upload audio + transcription
         // ===========================================================
         @Nested
-        @DisplayName("POST /api/tickets/{id}/audio")
+        @DisplayName("POST " + API_TICKETS_AUDIO)
         class AudioUploadIT {
 
                 @Test
@@ -95,7 +104,7 @@ class AudioTranscriptionControllerIT {
                         when(aiServiceClient.transcribeAudio(any(), anyString()))
                                         .thenReturn(Map.of(
                                                         "text",
-                                                        "Bonjour, mon alternateur est en panne depuis hier matin.",
+                                                        SAMPLE_TRANSCRIBE_TEXT,
                                                         "confidence", 0.87,
                                                         "duration_seconds", 5.2,
                                                         "file_path", "/audio/" + ticketId + "/recording.wav"));
@@ -110,28 +119,28 @@ class AudioTranscriptionControllerIT {
                                                         "confidence", 0.9));
 
                         MockMultipartFile audioFile = new MockMultipartFile(
-                                        "file",
+                                        MULTIPART_FILE_PARAM,
                                         "call_recording.wav",
-                                        "audio/wav",
+                                        AUDIO_WAV_MIME,
                                         new byte[] { 0x00, 0x01, 0x02, 0x03 } // fake WAV content
                         );
 
                         // When
-                        mockMvc.perform(multipart("/api/tickets/{id}/audio", ticketId)
+                        mockMvc.perform(multipart(API_TICKETS_AUDIO, ticketId)
                                         .file(audioFile)
-                                        .header("X-User-Id", OPERATOR_ID)
+                                        .header(HEADER_USER_ID, OPERATOR_ID)
                                         .header("X-User-Email", "operator@test.com"))
                                         // Then
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.id").value(ticketId.toString()))
                                         .andExpect(jsonPath("$.audioPath").isNotEmpty())
                                         .andExpect(jsonPath("$.transcription")
-                                                        .value("Bonjour, mon alternateur est en panne depuis hier matin."));
+                                                        .value(SAMPLE_TRANSCRIBE_TEXT));
 
                         // Verify ticket updated in DB
                         Ticket updated = ticketRepository.findById(ticketId).orElseThrow();
                         assertThat(updated.getTranscription())
-                                        .isEqualTo("Bonjour, mon alternateur est en panne depuis hier matin.");
+                                        .isEqualTo(SAMPLE_TRANSCRIBE_TEXT);
                         assertThat(updated.getAudioPath()).isNotNull();
 
                         // Verify AI service was called: once for transcription, once for NLP
@@ -151,15 +160,15 @@ class AudioTranscriptionControllerIT {
                                         .thenThrow(new RuntimeException("ai-service connection refused"));
 
                         MockMultipartFile audioFile = new MockMultipartFile(
-                                        "file",
+                                        MULTIPART_FILE_PARAM,
                                         "recording.wav",
-                                        "audio/wav",
+                                        AUDIO_WAV_MIME,
                                         new byte[] { 0x00, 0x01 });
 
                         // When — should NOT throw 500, fallback stores audioPath only
-                        mockMvc.perform(multipart("/api/tickets/{id}/audio", ticketId)
+                        mockMvc.perform(multipart(API_TICKETS_AUDIO, ticketId)
                                         .file(audioFile)
-                                        .header("X-User-Id", OPERATOR_ID))
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         // Then — 200 with fallback audioPath stored
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.id").value(ticketId.toString()))
@@ -177,11 +186,11 @@ class AudioTranscriptionControllerIT {
                         UUID fakeId = UUID.randomUUID();
 
                         MockMultipartFile audioFile = new MockMultipartFile(
-                                        "file", "test.wav", "audio/wav", new byte[] { 0x00 });
+                                        MULTIPART_FILE_PARAM, "test.wav", AUDIO_WAV_MIME, new byte[] { 0x00 });
 
-                        mockMvc.perform(multipart("/api/tickets/{id}/audio", fakeId)
+                        mockMvc.perform(multipart(API_TICKETS_AUDIO, fakeId)
                                         .file(audioFile)
-                                        .header("X-User-Id", OPERATOR_ID))
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         .andExpect(status().isNotFound());
                 }
         }
@@ -190,7 +199,7 @@ class AudioTranscriptionControllerIT {
         // GET /api/tickets/{id}/transcription
         // ===========================================================
         @Nested
-        @DisplayName("GET /api/tickets/{id}/transcription")
+        @DisplayName("GET " + API_TICKETS_TRANSCRIPTION)
         class GetTranscriptionIT {
 
                 @Test
@@ -204,9 +213,9 @@ class AudioTranscriptionControllerIT {
                         ticketRepository.save(ticket);
 
                         // When
-                        mockMvc.perform(get("/api/tickets/{id}/transcription", ticket.getId())
-                                        .header("X-User-Role", "ADMIN")
-                                        .header("X-User-Id", OPERATOR_ID))
+                        mockMvc.perform(get(API_TICKETS_TRANSCRIPTION, ticket.getId())
+                                        .header(HEADER_USER_ROLE, ROLE_ADMIN)
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         // Then
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.ticketId").value(ticket.getId().toString()))
@@ -223,9 +232,9 @@ class AudioTranscriptionControllerIT {
                         Ticket ticket = createAndSaveTicket();
 
                         // When
-                        mockMvc.perform(get("/api/tickets/{id}/transcription", ticket.getId())
-                                        .header("X-User-Role", "ADMIN")
-                                        .header("X-User-Id", OPERATOR_ID))
+                        mockMvc.perform(get(API_TICKETS_TRANSCRIPTION, ticket.getId())
+                                        .header(HEADER_USER_ROLE, ROLE_ADMIN)
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         // Then
                                         .andExpect(status().isNotFound())
                                         .andExpect(jsonPath("$.message")
@@ -237,9 +246,9 @@ class AudioTranscriptionControllerIT {
                 void getTranscription_ticketNotFound_returns404() throws Exception {
                         UUID fakeId = UUID.randomUUID();
 
-                        mockMvc.perform(get("/api/tickets/{id}/transcription", fakeId)
-                                        .header("X-User-Role", "ADMIN")
-                                        .header("X-User-Id", OPERATOR_ID))
+                        mockMvc.perform(get(API_TICKETS_TRANSCRIPTION, fakeId)
+                                        .header(HEADER_USER_ROLE, ROLE_ADMIN)
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         .andExpect(status().isNotFound());
                 }
         }
@@ -263,8 +272,8 @@ class AudioTranscriptionControllerIT {
 
                         // When
                         mockMvc.perform(get("/api/tickets/{id}", ticket.getId())
-                                        .header("X-User-Role", "ADMIN")
-                                        .header("X-User-Id", OPERATOR_ID))
+                                        .header(HEADER_USER_ROLE, ROLE_ADMIN)
+                                        .header(HEADER_USER_ID, OPERATOR_ID))
                                         // Then
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.audioPath").value(containsString("call.wav")))
