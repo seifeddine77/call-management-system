@@ -44,6 +44,8 @@ class AuthServiceImplTest {
         private static final String ACCESS_TOKEN      = "access-token-123";
         private static final String REFRESH_TOKEN     = "refresh-token-456";
         private static final String TOKEN_BEARER      = "Bearer";
+        private static final String NEW_USER_EMAIL    = "new@test.com";
+        private static final String REGISTER_ACCESS_TOKEN = "access-token";
 
         @Mock
         private RefreshTokenRepository refreshTokenRepository;
@@ -120,7 +122,7 @@ class AuthServiceImplTest {
                 @DisplayName("Login avec un email inexistant lève UnauthorizedException")
                 void login_userNotFound_throws() {
                         // Given
-                        LoginRequest request = new LoginRequest("unknown@test.com", "password123");
+                        LoginRequest request = new LoginRequest("unknown@test.com", PASSWORD_RAW);
                         Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
                                         new RequestTemplate());
                         when(userServiceClient.findByEmail("unknown@test.com"))
@@ -176,26 +178,26 @@ class AuthServiceImplTest {
                 void register_success() {
                         // Given
                         RegisterRequest request = new RegisterRequest();
-                        request.setEmail("new@test.com");
-                        request.setPassword("password123");
+                        request.setEmail(NEW_USER_EMAIL);
+                        request.setPassword(PASSWORD_RAW);
                         request.setNom("Nouveau User"); /* prenom set below */
-                        request.setRole("OPERATOR");
+                        request.setRole(ROLE_OPERATOR);
 
                         Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
                                         new RequestTemplate());
-                        when(userServiceClient.findByEmail("new@test.com"))
+                        when(userServiceClient.findByEmail(NEW_USER_EMAIL))
                                         .thenThrow(new FeignException.NotFound("Not Found", feignRequest, null, null));
-                        when(passwordEncoder.encode("password123")).thenReturn("$2a$12$encodedPassword");
+                        when(passwordEncoder.encode(PASSWORD_RAW)).thenReturn("$2a$12$encodedPassword");
 
                         UserDto createdUser = UserDto.builder()
                                         .id(UUID.randomUUID())
-                                        .email("new@test.com")
+                                        .email(NEW_USER_EMAIL)
                                         .nom("Nouveau User").prenom("")
-                                        .role("OPERATOR")
+                                        .role(ROLE_OPERATOR)
                                         .actif(true)
                                         .build();
                         when(userServiceClient.createUser(any())).thenReturn(ResponseEntity.ok(createdUser));
-                        when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any())).thenReturn("access-token");
+                        when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any())).thenReturn(REGISTER_ACCESS_TOKEN);
                         when(jwtUtils.generateRefreshToken(any(), anyString(), anyString(), any()))
                                         .thenReturn("refresh-token");
                         when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
@@ -207,8 +209,8 @@ class AuthServiceImplTest {
 
                         // Then
                         assertThat(response).isNotNull();
-                        assertThat(response.getAccessToken()).isEqualTo("access-token");
-                        assertThat(response.getUser().getEmail()).isEqualTo("new@test.com");
+                        assertThat(response.getAccessToken()).isEqualTo(REGISTER_ACCESS_TOKEN);
+                        assertThat(response.getUser().getEmail()).isEqualTo(NEW_USER_EMAIL);
                 }
 
                 @Test
@@ -217,9 +219,9 @@ class AuthServiceImplTest {
                         // Given
                         RegisterRequest request = new RegisterRequest();
                         request.setEmail("existing@test.com");
-                        request.setPassword("password123");
+                        request.setPassword(PASSWORD_RAW);
                         request.setNom("Existing User"); /* prenom set below */
-                        request.setRole("OPERATOR");
+                        request.setRole(ROLE_OPERATOR);
 
                         when(userServiceClient.findByEmail("existing@test.com"))
                                         .thenReturn(ResponseEntity.ok(testUser));
@@ -262,7 +264,7 @@ class AuthServiceImplTest {
                                         .thenReturn(Optional.of(storedToken));
                         when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-                        when(userServiceClient.findByEmail("operator@test.com"))
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
                                         .thenReturn(ResponseEntity.ok(testUser));
 
                         when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any()))
