@@ -133,7 +133,7 @@ public class TicketController {
 
         String transcription = null;
         String keywordsJson = null;
-        String audioPath = "/audio/" + id + "/" + file.getOriginalFilename();
+        String audioPath = java.io.File.separator + "audio" + java.io.File.separator + id + java.io.File.separator + file.getOriginalFilename();
 
         try {
             // Step 1: Send audio to AI service for transcription

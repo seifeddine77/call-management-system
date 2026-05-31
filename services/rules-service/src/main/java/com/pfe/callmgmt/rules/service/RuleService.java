@@ -46,8 +46,8 @@ public class RuleService {
         }
         
         Object operator = conditions.get("operator");
-        if (operator != null && !(operator instanceof String && 
-            (((String) operator).equalsIgnoreCase("AND") || ((String) operator).equalsIgnoreCase("OR")))) {
+        if (operator != null && !(operator instanceof String opStr && 
+            (opStr.equalsIgnoreCase("AND") || opStr.equalsIgnoreCase("OR")))) {
             throw new IllegalArgumentException("L'opérateur global des conditions doit être 'AND' ou 'OR'");
         }
         
@@ -76,7 +76,7 @@ public class RuleService {
         Map<?, ?> cond = (Map<?, ?>) item;
         
         Object field = cond.get("field");
-        if (field == null || !(field instanceof String) || ((String) field).isBlank()) {
+        if (!(field instanceof String fieldStr) || fieldStr.isBlank()) {
             throw new IllegalArgumentException("Chaque condition doit avoir un champ 'field' valide");
         }
         
@@ -84,17 +84,17 @@ public class RuleService {
         if (op == null) {
             op = cond.get("op");
         }
-        if (op == null || !(op instanceof String) || ((String) op).isBlank()) {
+        if (!(op instanceof String opStr) || opStr.isBlank()) {
             throw new IllegalArgumentException("Chaque condition doit avoir un opérateur 'operator' ou 'op' valide");
         }
         
-        String opStr = ((String) op).trim().toUpperCase();
+        String opStrVal = opStr.trim().toUpperCase();
         List<String> validOps = List.of(
             "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "CONTAINS", "IN", "NOT_IN", "NOT IN",
             "=", "!=", "<", ">", "<=", ">="
         );
-        if (!validOps.contains(opStr)) {
-            throw new IllegalArgumentException("Opérateur inconnu ou non supporté : " + opStr);
+        if (!validOps.contains(opStrVal)) {
+            throw new IllegalArgumentException("Opérateur inconnu ou non supporté : " + opStrVal);
         }
         
         if (!cond.containsKey("value")) {
@@ -105,8 +105,8 @@ public class RuleService {
             throw new IllegalArgumentException("Le champ 'value' ne peut pas être null");
         }
         
-        if ((opStr.equals("IN") || opStr.equals("NOT_IN") || opStr.equals("NOT IN")) && !(val instanceof List)) {
-            throw new IllegalArgumentException("La valeur de l'opérateur " + opStr + " doit être une liste (ex: [\"VIP\", \"PREMIUM\"])");
+        if ((opStrVal.equals("IN") || opStrVal.equals("NOT_IN") || opStrVal.equals("NOT IN")) && !(val instanceof List)) {
+            throw new IllegalArgumentException("La valeur de l'opérateur " + opStrVal + " doit être une liste (ex: [\"VIP\", \"PREMIUM\"])");
         }
     }
 
@@ -233,7 +233,7 @@ public class RuleService {
         rule.setUpdatedAt(LocalDateTime.now());
         rule = ruleRepository.save(rule);
 
-        log.info("🔄 Règle '{}' → {}", rule.getNom(), rule.getActif() ? "ACTIVÉE" : "DÉSACTIVÉE");
+        log.info("🔄 Règle '{}' → {}", rule.getNom(), Boolean.TRUE.equals(rule.getActif()) ? "ACTIVÉE" : "DÉSACTIVÉE");
         return toResponse(rule);
     }
 
@@ -341,7 +341,13 @@ public class RuleService {
 
         } else {
             // Un seul type dominant (FAVORABLE, DEFAVORABLE ou toutes les règles sont ETUDE)
-            finalDecision = hasFavorable ? DECISION_FAVORABLE : (hasDefavorable ? DECISION_DEFAVORABLE : DECISION_ETUDE);
+            if (hasFavorable) {
+                finalDecision = DECISION_FAVORABLE;
+            } else if (hasDefavorable) {
+                finalDecision = DECISION_DEFAVORABLE;
+            } else {
+                finalDecision = DECISION_ETUDE;
+            }
             ambiguous = DECISION_ETUDE.equals(finalDecision);
             score = calculateScore(finalDecision, matchedRules, request.getTranscriptionText());
             motif = matchedRules.get(0).getActionMotif();
