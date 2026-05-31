@@ -360,7 +360,7 @@ function LoginFormHeader({ isDark, tagline }: Readonly<LoginFormHeaderProps>) {
   );
 }
 
-export default function LoginPage() {
+function useLoginState() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
@@ -460,6 +460,76 @@ export default function LoginPage() {
     }
     finally { setLoading(false); }
   };
+
+  return {
+    email,
+    password,
+    loading,
+    showPwd,
+    focused,
+    isDark,
+    sx,
+    sy,
+    tagline,
+    touched,
+    authError,
+    handleBlur,
+    getEmailError,
+    getPasswordError,
+    handleEmailChange,
+    handlePasswordChange,
+    getInputStyle,
+    getIconColor,
+    getBoxShadow,
+    cardRef,
+    mousePos,
+    isHovered,
+    rotateX,
+    rotateY,
+    handleMouseMove,
+    handleMouseEnter,
+    handleMouseLeave,
+    handleSubmit,
+    toggleTheme,
+    setShowPwd,
+    setFocused
+  };
+}
+
+export default function LoginPage() {
+  const {
+    email,
+    password,
+    loading,
+    showPwd,
+    focused,
+    isDark,
+    sx,
+    sy,
+    tagline,
+    touched,
+    authError,
+    handleBlur,
+    getEmailError,
+    getPasswordError,
+    handleEmailChange,
+    handlePasswordChange,
+    getInputStyle,
+    getIconColor,
+    getBoxShadow,
+    cardRef,
+    mousePos,
+    isHovered,
+    rotateX,
+    rotateY,
+    handleMouseMove,
+    handleMouseEnter,
+    handleMouseLeave,
+    handleSubmit,
+    toggleTheme,
+    setShowPwd,
+    setFocused
+  } = useLoginState();
 
   return (
     <div className="min-h-screen flex relative overflow-hidden" style={{ background: isDark ? '#060b18' : '#f0f4f8' }}>

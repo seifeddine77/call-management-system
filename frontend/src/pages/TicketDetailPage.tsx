@@ -701,7 +701,7 @@ const getDecisionSourceLabel = (source: string): string => {
   return '⚡ Disjoncteur Fallback';
 };
 
-export default function TicketDetailPage() {
+function useTicketDetailsState() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -930,6 +930,80 @@ export default function TicketDetailPage() {
       toast.error('Erreur changement statut');
     }
   };
+
+  return {
+    id,
+    navigate,
+    ticket,
+    decision,
+    loading,
+    error,
+    analyzing,
+    accepting,
+    rejecting,
+    downloading,
+    motif,
+    formData,
+    fieldRefs,
+    photoFiles,
+    photoPreviews,
+    uploadingPhotos,
+    existingPhotos,
+    photoInputRef,
+    agenceName,
+    operateurName,
+    lightboxIndex,
+    setMotif,
+    setFormData,
+    setLightboxIndex,
+    handlePhotoSelect,
+    removePhoto,
+    handleUploadPhotos,
+    fetchTicket,
+    handleAnalyze,
+    handleAccept,
+    handleReject,
+    handleDownloadPDF,
+    handleChangeStatut
+  };
+}
+
+export default function TicketDetailPage() {
+  const {
+    id,
+    navigate,
+    ticket,
+    decision,
+    loading,
+    error,
+    analyzing,
+    accepting,
+    rejecting,
+    downloading,
+    motif,
+    formData,
+    fieldRefs,
+    photoFiles,
+    photoPreviews,
+    uploadingPhotos,
+    existingPhotos,
+    photoInputRef,
+    agenceName,
+    operateurName,
+    lightboxIndex,
+    setMotif,
+    setFormData,
+    setLightboxIndex,
+    handlePhotoSelect,
+    removePhoto,
+    handleUploadPhotos,
+    fetchTicket,
+    handleAnalyze,
+    handleAccept,
+    handleReject,
+    handleDownloadPDF,
+    handleChangeStatut
+  } = useTicketDetailsState();
 
   if (loading) {
     return (
