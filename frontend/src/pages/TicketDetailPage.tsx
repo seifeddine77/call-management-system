@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, User, Phone, Mail, Award, Clock, Sparkles, Brain,
@@ -208,8 +208,9 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
     if (keywords.length === 0) return <span>{t}</span>;
     const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\/]/g, String.raw`\\$&`)).join('|')})`, 'gi');
     const frags = t.split(pattern);
+    const lowercasedKeywords = keywords.map(k => k.toLowerCase());
     return frags.map((frag, i) =>
-      keywords.some(k => k.toLowerCase() === frag.toLowerCase()) ? (
+      lowercasedKeywords.includes(frag.toLowerCase()) ? (
         <mark key={`frag-${i}`} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">
           {frag}
         </mark>
@@ -561,7 +562,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
     }
   };
 
-  const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScrubberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(audio.duration)) return;
     const val = Number.parseFloat(e.target.value);

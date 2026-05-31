@@ -519,7 +519,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
 
                 // In AND, the path to the next condition is active (green) ONLY IF ALL conditions up to here are true!
                 const allPrevTrue = evaluatedConds.slice(0, i + 1).every(v => v === true);
-                const anyPrevFalse = evaluatedConds.slice(0, i + 1).some(v => v === false);
+                const anyPrevFalse = evaluatedConds.slice(0, i + 1).includes(false);
 
                 let strokeColor = 'var(--border)';
                 let isAnimated = false;

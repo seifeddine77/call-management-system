@@ -81,6 +81,11 @@ const getConsentLabel = (canal: string): string => {
   return 'Consentement explicite (formulaire)';
 };
 
+const getConsentRecommendation = (hasConsent: boolean, isCall: boolean): string | undefined => {
+  if (hasConsent) return undefined;
+  return isCall ? 'Vérifier le message IVR de consentement' : 'Le client doit accepter les conditions de traitement';
+};
+
 const getPdfBadgeLabel = (isNa: boolean | undefined, isOk: boolean | null): string => {
   if (isNa) return 'N/A';
   if (isOk) return '✓ CONFORME';
@@ -441,6 +446,185 @@ const drawPDFRgpd = (doc: jsPDF, rgpd: ReadonlyArray<{ na?: boolean; ok: boolean
   return y;
 };
 
+/* ── Subcomponents extracted for reducing cognitive complexity (SonarCloud S3776) ── */
+
+interface AuditTimelineProps {
+  timeline: TimelineEvent[];
+}
+
+function AuditTimeline({ timeline }: AuditTimelineProps) {
+  return (
+    <motion.div variants={item} className="card-aurora rounded-2xl p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Clock size={14} className="text-[var(--primary)]" />
+        <h3 className="text-sm font-bold">Timeline unifiée cross-service</h3>
+        <span className="font-mono text-[9px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">{timeline.length} événements</span>
+      </div>
+
+      <div className="flex flex-col">
+        {timeline.map((ev, i) => (
+          <motion.div key={ev.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }} className="flex gap-3 pb-4 last:pb-0 group">
+            {/* Vertical line + dot */}
+            <div className="flex flex-col items-center w-6 flex-shrink-0">
+              <div className="w-3 h-3 rounded-full flex items-center justify-center mt-1 z-[1] ring-2 ring-[var(--surface)]" style={{ background: ev.color }}>
+                <span className="text-white text-[6px]">{SOURCE_ABBREV[ev.source] || 'N'}</span>
+              </div>
+              {i < timeline.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: `${ev.color}30` }} />}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-1 text-xs font-bold" style={{ color: ev.color }}>{ev.icon} {ev.title}</span>
+                <span className="font-mono text-[8px] px-1.5 py-0.5 rounded" style={{ background: `${ev.color}12`, color: ev.color, border: `1px solid ${ev.color}25` }}>
+                  {SOURCE_SERVICE[ev.source] || ev.source}
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--text-2)] mt-0.5 leading-relaxed">{ev.detail}</p>
+              <span className="font-mono text-[9px] text-[var(--text-3)] mt-0.5 block">
+                {new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR')}
+              </span>
+            </div>
+          </motion.div>
+        ))}
+        {timeline.length === 0 && (
+          <div className="text-center py-8 text-xs text-[var(--text-3)]">Aucun événement enregistré</div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+interface AuditPipelineIaProps {
+  decision: DecisionResult | null;
+  pipelineSteps: Array<{
+    label: string;
+    sub: string;
+    active: boolean;
+    hit: boolean;
+    icon: React.ReactNode;
+  }> | null;
+}
+
+function AuditPipelineIa({ decision, pipelineSteps }: AuditPipelineIaProps) {
+  return (
+    <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-400 to-indigo-500" />
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Bot size={14} className="text-[var(--primary)]" />
+          <h3 className="text-sm font-bold">Pipeline décisionnel</h3>
+        </div>
+
+        {pipelineSteps ? (
+          <>
+            <div className="space-y-2">
+              {pipelineSteps.map((step, i) => (
+                <motion.div key={step.label} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.12 }}>
+                  <div className={`p-3 rounded-xl border transition-all ${getStepBorderClass(step.active, step.hit)}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${getStepIconClass(step.active, step.hit)}`}>
+                        {step.icon}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-bold">{step.label}</div>
+                        <div className="font-mono text-[9px] text-[var(--text-3)]">{step.sub}</div>
+                      </div>
+                      <span className={`text-[10px] font-mono font-bold ${getStepTextClass(step.active, step.hit)}`}>
+                        {getStepStatusText(step.active, step.hit)}
+                      </span>
+                    </div>
+                  </div>
+                  {i < pipelineSteps.length - 1 && (
+                    <div className="flex justify-center py-1"><div className="w-px h-3 bg-[var(--border)]" /></div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Final decision */}
+            {decision?.finalDecision && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                className="mt-3 p-3 rounded-xl border text-center"
+                style={{
+                  background: decision.finalDecision === 'FAVORABLE' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                  borderColor: decision.finalDecision === 'FAVORABLE' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
+                }}>
+                <UserCheck size={16} className="mx-auto mb-1" style={{ color: decision.finalDecision === 'FAVORABLE' ? '#10B981' : '#EF4444' }} />
+                <div className="text-xs font-bold" style={{ color: decision.finalDecision === 'FAVORABLE' ? '#10B981' : '#EF4444' }}>
+                  Superviseur: {decision.finalDecision}
+                </div>
+                {decision.overrideMotif && <div className="text-[10px] text-[var(--text-2)] mt-0.5">{decision.overrideMotif}</div>}
+              </motion.div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-6 text-xs text-[var(--text-3)]">
+            <Bot size={24} className="mx-auto mb-2 opacity-30" />
+            Aucune décision IA pour ce ticket
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+interface AuditRgpdComplianceProps {
+  rgpd: Array<{
+    label: string;
+    desc: string;
+    ok: boolean | null;
+    icon: React.ReactNode;
+    recommendation?: string;
+    na?: boolean;
+  }>;
+  rgpdScore: number;
+}
+
+function AuditRgpdCompliance({ rgpd, rgpdScore }: AuditRgpdComplianceProps) {
+  return (
+    <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-rose-500" />
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield size={14} className="text-amber-400" />
+          <h3 className="text-sm font-bold">Conformité RGPD</h3>
+        </div>
+        {/* Score global */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-mono text-[10px] text-[var(--text-3)]">Score de conformité</span>
+            <span className={`font-mono text-sm font-extrabold ${getRgpdScoreClass(rgpdScore)}`}>{rgpdScore}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${rgpdScore}%` }} transition={{ duration: 1, ease: 'easeOut' }}
+              className="h-full rounded-full" style={{ background: getRgpdScoreColor(rgpdScore) }} />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          {rgpd.map(r => (
+            <div key={r.label} className={`p-2.5 rounded-lg border ${getRgpdItemBorderClass(r.na, r.ok)}`}>
+              <div className="flex items-center gap-2">
+                <span style={{ color: getRgpdItemIconColor(r.na, r.ok) }}>{r.icon}</span>
+                <span className="text-[11px] font-medium flex-1">{r.label}</span>
+                <span className={`font-mono text-[8px] font-bold ${getRgpdItemStatusClass(r.na, r.ok)}`}>
+                  {getRgpdItemStatusText(r.na, r.ok)}
+                </span>
+              </div>
+              <div className="font-mono text-[8px] text-[var(--text-3)] mt-0.5 ml-[22px]">{r.desc}</div>
+              {r.recommendation && (
+                <div className="mt-1 ml-[22px] text-[9px] text-amber-400 flex items-center gap-1">
+                  <AlertTriangle size={9} /> {r.recommendation}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function AuditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -594,87 +778,94 @@ export default function AuditPage() {
     const dataMinimization = !ticket.description || ticket.description.length < 2000;
     const isClosed = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
 
-    const checks = [
-      // 1. Consentement
-      {
-        label: getConsentLabel(ticket.canal),
-        desc: 'Art. 6 RGPD — Base légale du traitement',
-        ok: hasConsent,
-        icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
-        recommendation: hasConsent ? undefined : (isCall ? 'Vérifier le message IVR de consentement' : 'Le client doit accepter les conditions de traitement'),
-      },
-      // 2. Audio & Transcription (only if isCall)
-      ...(isCall ? [
-        {
-          label: 'Audio enregistré & stocké',
-          desc: 'Art. 32 — Sécurité du traitement des données vocales',
-          ok: hasAudio,
-          icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
-          recommendation: hasAudio ? undefined : 'Aucun enregistrement audio associé à cet appel',
-        },
-        {
-          label: 'Chiffrement audio (AES-256-GCM)',
-          desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
-          ok: hasAudio,
-          icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
-          recommendation: hasAudio ? undefined : 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements',
-        },
-        {
-          label: 'Transcription générée (Whisper)',
-          desc: 'Art. 22 — Transparence du traitement automatisé',
-          ok: hasTranscription,
-          icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
-          recommendation: hasTranscription ? undefined : 'Lancer la transcription pour documenter l\'échange',
-        }
-      ] : []),
-      // 3. Photos (only if not CALL and not EMAIL)
-      ...(!isCall && !isEmail ? [
-        {
-          label: 'Photos sinistre sécurisées',
-          desc: 'Art. 32 — Protection des données visuelles',
-          ok: (ticket.photosPaths && ticket.photosPaths !== '[]') ? true : null,
-          icon: (ticket.photosPaths && ticket.photosPaths !== '[]') ? <Camera size={14} /> : <AlertTriangle size={14} />,
-          na: !(ticket.photosPaths && ticket.photosPaths !== '[]'),
-          recommendation: undefined,
-        }
-      ] : []),
-      // 4. Traçabilité décisionnelle
-      {
-        label: 'Traçabilité décisionnelle IA',
-        desc: 'Art. 22 — Décision automatisée explicable',
-        ok: hasDecisionTrace,
-        icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
-        recommendation: hasDecisionTrace ? undefined : 'Lancer l\'analyse IA pour documenter la décision',
-      },
-      // 5. Notifications
-      {
-        label: 'Notification client envoyée',
-        desc: 'Art. 13/14 — Droit à l\'information',
-        ok: hasNotif,
-        icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
-        recommendation: hasNotif ? undefined : 'Informer le client du traitement de sa demande',
-      },
-      // 6. Minimisation des données
-      {
-        label: 'Minimisation des données',
-        desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
-        ok: dataMinimization,
-        icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
-        recommendation: dataMinimization ? undefined : 'Réduire le volume de données collectées',
-      },
-      // 7. Droit à l'effacement (if isClosed)
-      ...(isClosed ? (() => {
-        const closedDays = Math.floor((Date.now() - parseSafeDate(ticket.updatedAt)) / 86400000);
-        const needsDeletion = closedDays > 90;
-        return [{
-          label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
-          desc: 'Art. 17 — Suppression après délai de rétention',
-          ok: !needsDeletion,
-          icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
-          recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
-        }];
-      })() : [])
-    ];
+    const checks = [];
+
+    // 1. Consentement
+    checks.push({
+      label: getConsentLabel(ticket.canal),
+      desc: 'Art. 6 RGPD — Base légale du traitement',
+      ok: hasConsent,
+      icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
+      recommendation: getConsentRecommendation(hasConsent, isCall),
+    });
+
+    // 2. Audio & Transcription (only if isCall)
+    if (isCall) {
+      checks.push({
+        label: 'Audio enregistré & stocké',
+        desc: 'Art. 32 — Sécurité du traitement des données vocales',
+        ok: hasAudio,
+        icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
+        recommendation: hasAudio ? undefined : 'Aucun enregistrement audio associé à cet appel',
+      });
+      checks.push({
+        label: 'Chiffrement audio (AES-256-GCM)',
+        desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
+        ok: hasAudio,
+        icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
+        recommendation: hasAudio ? undefined : 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements',
+      });
+      checks.push({
+        label: 'Transcription générée (Whisper)',
+        desc: 'Art. 22 — Transparence du traitement automatisé',
+        ok: hasTranscription,
+        icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
+        recommendation: hasTranscription ? undefined : 'Lancer la transcription pour documenter l\'échange',
+      });
+    }
+
+    // 3. Photos (only if not CALL and not EMAIL)
+    if (!isCall && !isEmail) {
+      const hasPhotos = !!(ticket.photosPaths && ticket.photosPaths !== '[]');
+      checks.push({
+        label: 'Photos sinistre sécurisées',
+        desc: 'Art. 32 — Protection des données visuelles',
+        ok: hasPhotos ? true : null,
+        icon: hasPhotos ? <Camera size={14} /> : <AlertTriangle size={14} />,
+        na: !hasPhotos,
+        recommendation: undefined,
+      });
+    }
+
+    // 4. Traçabilité décisionnelle
+    checks.push({
+      label: 'Traçabilité décisionnelle IA',
+      desc: 'Art. 22 — Décision automatisée explicable',
+      ok: hasDecisionTrace,
+      icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
+      recommendation: hasDecisionTrace ? undefined : 'Lancer l\'analyse IA pour documenter la décision',
+    });
+
+    // 5. Notifications
+    checks.push({
+      label: 'Notification client envoyée',
+      desc: 'Art. 13/14 — Droit à l\'information',
+      ok: hasNotif,
+      icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
+      recommendation: hasNotif ? undefined : 'Informer le client du traitement de sa demande',
+    });
+
+    // 6. Minimisation des données
+    checks.push({
+      label: 'Minimisation des données',
+      desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
+      ok: dataMinimization,
+      icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
+      recommendation: dataMinimization ? undefined : 'Réduire le volume de données collectées',
+    });
+
+    // 7. Droit à l'effacement (if isClosed)
+    if (isClosed) {
+      const closedDays = Math.floor((Date.now() - parseSafeDate(ticket.updatedAt)) / 86400000);
+      const needsDeletion = closedDays > 90;
+      checks.push({
+        label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
+        desc: 'Art. 17 — Suppression après délai de rétention',
+        ok: !needsDeletion,
+        icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
+        recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
+      });
+    }
 
     return checks;
   }, [ticket, notifications, decision]);
@@ -913,147 +1104,15 @@ export default function AuditPage() {
       {/* ── Main grid: Timeline + Panels ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
         {/* LEFT: Timeline */}
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={14} className="text-[var(--primary)]" />
-            <h3 className="text-sm font-bold">Timeline unifiée cross-service</h3>
-            <span className="font-mono text-[9px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">{timeline.length} événements</span>
-          </div>
-
-          <div className="flex flex-col">
-            {timeline.map((ev, i) => (
-              <motion.div key={ev.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }} className="flex gap-3 pb-4 last:pb-0 group">
-                {/* Vertical line + dot */}
-                <div className="flex flex-col items-center w-6 flex-shrink-0">
-                  <div className="w-3 h-3 rounded-full flex items-center justify-center mt-1 z-[1] ring-2 ring-[var(--surface)]" style={{ background: ev.color }}>
-                    <span className="text-white text-[6px]">{SOURCE_ABBREV[ev.source] || 'N'}</span>
-                  </div>
-                  {i < timeline.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: `${ev.color}30` }} />}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0 pb-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="flex items-center gap-1 text-xs font-bold" style={{ color: ev.color }}>{ev.icon} {ev.title}</span>
-                    <span className="font-mono text-[8px] px-1.5 py-0.5 rounded" style={{ background: `${ev.color}12`, color: ev.color, border: `1px solid ${ev.color}25` }}>
-                      {SOURCE_SERVICE[ev.source] || ev.source}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-2)] mt-0.5 leading-relaxed">{ev.detail}</p>
-                  <span className="font-mono text-[9px] text-[var(--text-3)] mt-0.5 block">
-                    {new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR')}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-            {timeline.length === 0 && (
-              <div className="text-center py-8 text-xs text-[var(--text-3)]">Aucun événement enregistré</div>
-            )}
-          </div>
-        </motion.div>
+        <AuditTimeline timeline={timeline} />
 
         {/* RIGHT: Panels */}
         <div className="flex flex-col gap-4">
           {/* Pipeline IA */}
-          <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-400 to-indigo-500" />
-            <div className="p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Bot size={14} className="text-[var(--primary)]" />
-                <h3 className="text-sm font-bold">Pipeline décisionnel</h3>
-              </div>
-
-              {pipelineSteps ? (
-                <>
-                  <div className="space-y-2">
-                    {pipelineSteps.map((step, i) => (
-                      <motion.div key={step.label} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.12 }}>
-                        <div className={`p-3 rounded-xl border transition-all ${getStepBorderClass(step.active, step.hit)}`}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${getStepIconClass(step.active, step.hit)}`}>
-                              {step.icon}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-xs font-bold">{step.label}</div>
-                              <div className="font-mono text-[9px] text-[var(--text-3)]">{step.sub}</div>
-                            </div>
-                            <span className={`text-[10px] font-mono font-bold ${getStepTextClass(step.active, step.hit)}`}>
-                              {getStepStatusText(step.active, step.hit)}
-                            </span>
-                          </div>
-                        </div>
-                        {i < pipelineSteps.length - 1 && (
-                          <div className="flex justify-center py-1"><div className="w-px h-3 bg-[var(--border)]" /></div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Final decision */}
-                  {decision?.finalDecision && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-                      className="mt-3 p-3 rounded-xl border text-center"
-                      style={{
-                        background: decision.finalDecision === 'FAVORABLE' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
-                        borderColor: decision.finalDecision === 'FAVORABLE' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-                      }}>
-                      <UserCheck size={16} className="mx-auto mb-1" style={{ color: decision.finalDecision === 'FAVORABLE' ? '#10B981' : '#EF4444' }} />
-                      <div className="text-xs font-bold" style={{ color: decision.finalDecision === 'FAVORABLE' ? '#10B981' : '#EF4444' }}>
-                        Superviseur: {decision.finalDecision}
-                      </div>
-                      {decision.overrideMotif && <div className="text-[10px] text-[var(--text-2)] mt-0.5">{decision.overrideMotif}</div>}
-                    </motion.div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-6 text-xs text-[var(--text-3)]">
-                  <Bot size={24} className="mx-auto mb-2 opacity-30" />
-                  Aucune décision IA pour ce ticket
-                </div>
-              )}
-            </div>
-          </motion.div>
+          <AuditPipelineIa decision={decision} pipelineSteps={pipelineSteps} />
 
           {/* RGPD Compliance — Enhanced */}
-          <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-rose-500" />
-            <div className="p-5">
-              <div className="flex items-center gap-2 mb-1">
-                <Shield size={14} className="text-amber-400" />
-                <h3 className="text-sm font-bold">Conformité RGPD</h3>
-              </div>
-              {/* Score global */}
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-[10px] text-[var(--text-3)]">Score de conformité</span>
-                  <span className={`font-mono text-sm font-extrabold ${getRgpdScoreClass(rgpdScore)}`}>{rgpdScore}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${rgpdScore}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full rounded-full" style={{ background: getRgpdScoreColor(rgpdScore) }} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {rgpd.map(r => (
-                  <div key={r.label} className={`p-2.5 rounded-lg border ${getRgpdItemBorderClass(r.na, r.ok)}`}>
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: getRgpdItemIconColor(r.na, r.ok) }}>{r.icon}</span>
-                      <span className="text-[11px] font-medium flex-1">{r.label}</span>
-                      <span className={`font-mono text-[8px] font-bold ${getRgpdItemStatusClass(r.na, r.ok)}`}>
-                        {getRgpdItemStatusText(r.na, r.ok)}
-                      </span>
-                    </div>
-                    <div className="font-mono text-[8px] text-[var(--text-3)] mt-0.5 ml-[22px]">{r.desc}</div>
-                    {r.recommendation && (
-                      <div className="mt-1 ml-[22px] text-[9px] text-amber-400 flex items-center gap-1">
-                        <AlertTriangle size={9} /> {r.recommendation}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          <AuditRgpdCompliance rgpd={rgpd} rgpdScore={rgpdScore} />
 
           {/* Navigate to ticket detail */}
           <motion.div variants={item}>

@@ -46,6 +46,98 @@ import DecisionsChart from '../components/analytics/DecisionsChart';
 import ChannelsChart from '../components/analytics/ChannelsChart';
 import OperatorLeaderboard from '../components/analytics/OperatorLeaderboard';
 
+function KpiTrend({ trendUp, trend }: { trendUp: boolean | null | undefined; trend?: string }) {
+  if (trendUp === undefined) return null;
+  if (trendUp === null) {
+    return (
+      <span className="flex items-center gap-0.5 font-mono text-[10px] text-[var(--text-3)]">
+        <Minus size={10} /> {trend || 'Stable'}
+      </span>
+    );
+  }
+  return (
+    <span className={`flex items-center gap-0.5 font-mono text-[10px] ${trendUp ? 'text-emerald-400' : 'text-[var(--danger)]'}`}>
+      {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {trend || ''}
+    </span>
+  );
+}
+
+interface KpiCardsGridProps {
+  kpis: KpiResponse;
+  comparison: KpiComparison;
+  totalDecisions: number;
+  scoreMoyen: number;
+  scoreTrendText: string | undefined;
+}
+
+function KpiCardsGrid({ kpis, comparison, totalDecisions, scoreMoyen, scoreTrendText }: KpiCardsGridProps) {
+  const cards = [
+    {
+      label: 'Total tickets',
+      value: kpis.totalTickets,
+      icon: <BarChart3 size={14} />,
+      trend: formatPercent(comparison.deltaTickets),
+      trendUp: getTrendDirection(comparison.deltaTickets)
+    },
+    {
+      label: 'Résolution',
+      value: kpis.tauxResolution,
+      suffix: '%',
+      decimals: 1,
+      icon: <CheckCircle2 size={14} />,
+      trend: formatPercent(comparison.deltaResolution),
+      trendUp: getTrendDirection(comparison.deltaResolution)
+    },
+    {
+      label: 'Temps moyen',
+      value: kpis.tempsMoyenMinutes,
+      suffix: 'min',
+      icon: <Clock size={14} />,
+      trend: comparison.deltaTempsMoyen === 0 ? undefined : formatPercent(comparison.deltaTempsMoyen),
+      trendUp: getTrendDirection(-comparison.deltaTempsMoyen)
+    },
+    {
+      label: 'Décisions IA',
+      value: totalDecisions,
+      icon: <Bot size={14} />,
+      trend: formatPercent(comparison.deltaDecisions),
+      trendUp: getTrendDirection(comparison.deltaDecisions)
+    },
+    {
+      label: 'Score favorable',
+      value: scoreMoyen,
+      suffix: '%',
+      icon: <Target size={14} />,
+      trendUp: getScoreTrendDirection(scoreMoyen),
+      subtitle: getScoreSubtitle(scoreMoyen),
+      trend: scoreTrendText
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {cards.map((kpi) => (
+        <motion.div key={kpi.label} variants={item} className="card-aurora rounded-2xl p-4 group hover:-translate-y-0.5 transition-all duration-150 relative overflow-hidden">
+          <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-[var(--primary)] opacity-[0.04] group-hover:opacity-[0.08] transition-opacity blur-xl" />
+          <div className="relative">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="flex items-center">{kpi.icon}</span>
+              <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">{kpi.label}</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <AnimatedCounter value={kpi.value} suffix={kpi.suffix} decimals={kpi.decimals} className="text-xl font-extrabold tracking-tighter" />
+              <KpiTrend trendUp={kpi.trendUp} trend={kpi.trend} />
+            </div>
+            {kpi.subtitle && (
+              <p className="font-mono text-[8px] text-[var(--text-3)] mt-1">{kpi.subtitle}</p>
+            )}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const [kpis, setKpis] = useState<KpiResponse | null>(null);
   const [comparison, setComparison] = useState<KpiComparison | null>(null);
@@ -102,22 +194,6 @@ export default function AnalyticsPage() {
 
 
 
-  const renderKpiTrend = (trendUp: boolean | null | undefined, trend?: string) => {
-    if (trendUp === undefined) return null;
-    if (trendUp === null) {
-      return (
-        <span className="flex items-center gap-0.5 font-mono text-[10px] text-[var(--text-3)]">
-          <Minus size={10} /> {trend || 'Stable'}
-        </span>
-      );
-    }
-    return (
-      <span className={`flex items-center gap-0.5 font-mono text-[10px] ${trendUp ? 'text-emerald-400' : 'text-[var(--danger)]'}`}>
-        {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {trend || ''}
-      </span>
-    );
-  };
-
   const scoreDiff = scoreMoyen - prevScore;
   let scoreTrendText: string | undefined;
   if (prevScore > 0) {
@@ -155,43 +231,13 @@ export default function AnalyticsPage() {
  
       {/* KPI Row — 5 cards */}
       {loading ? <KpiSkeleton /> : kpis && comparison && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[
-            { label: 'Total tickets', value: kpis.totalTickets, icon: <BarChart3 size={14} />,
-              trend: formatPercent(comparison.deltaTickets),
-              trendUp: getTrendDirection(comparison.deltaTickets) },
-            { label: 'Résolution', value: kpis.tauxResolution, suffix: '%', decimals: 1, icon: <CheckCircle2 size={14} />,
-              trend: formatPercent(comparison.deltaResolution),
-              trendUp: getTrendDirection(comparison.deltaResolution) },
-            { label: 'Temps moyen', value: kpis.tempsMoyenMinutes, suffix: 'min', icon: <Clock size={14} />,
-              trend: comparison.deltaTempsMoyen === 0 ? undefined : formatPercent(comparison.deltaTempsMoyen),
-              trendUp: getTrendDirection(-comparison.deltaTempsMoyen) }, // lower temps moyen is good, so reverse direction
-            { label: 'Décisions IA', value: totalDecisions, icon: <Bot size={14} />,
-              trend: formatPercent(comparison.deltaDecisions),
-              trendUp: getTrendDirection(comparison.deltaDecisions) },
-            { label: 'Score favorable', value: scoreMoyen, suffix: '%', icon: <Target size={14} />,
-              trendUp: getScoreTrendDirection(scoreMoyen),
-              subtitle: getScoreSubtitle(scoreMoyen),
-              trend: scoreTrendText },
-          ].map((kpi) => (
-            <motion.div key={kpi.label} variants={item} className="card-aurora rounded-2xl p-4 group hover:-translate-y-0.5 transition-all duration-150 relative overflow-hidden">
-              <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-[var(--primary)] opacity-[0.04] group-hover:opacity-[0.08] transition-opacity blur-xl" />
-              <div className="relative">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="flex items-center">{kpi.icon}</span>
-                  <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">{kpi.label}</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <AnimatedCounter value={kpi.value} suffix={kpi.suffix} decimals={kpi.decimals} className="text-xl font-extrabold tracking-tighter" />
-                  {renderKpiTrend(kpi.trendUp, kpi.trend)}
-                </div>
-                {kpi.subtitle && (
-                  <p className="font-mono text-[8px] text-[var(--text-3)] mt-1">{kpi.subtitle}</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <KpiCardsGrid
+          kpis={kpis}
+          comparison={comparison}
+          totalDecisions={totalDecisions}
+          scoreMoyen={scoreMoyen}
+          scoreTrendText={scoreTrendText}
+        />
       )}
 
       {/* Ticket Status Split */}

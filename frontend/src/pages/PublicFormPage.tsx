@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import axios from 'axios';
 import { Car, Zap, Wrench, Phone, Sun, Moon, AlertTriangle, Camera, ArrowLeft, ArrowRight, Check, ShieldAlert, Sparkles, User, Info, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -124,7 +124,7 @@ export default function PublicFormPage() {
     return parts.join(' ');
   };
 
-  const handleTelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTelChange = (e: ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setForm(f => ({ ...f, telephone: formatted }));
     setTouched(prev => ({ ...prev, telephone: true }));
@@ -205,7 +205,7 @@ export default function PublicFormPage() {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     if (!form.consentementTraitement) {
