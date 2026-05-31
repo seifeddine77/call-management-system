@@ -468,7 +468,7 @@ export default function AnalyticsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono font-bold uppercase" style={{ color: colors.bg }}>
-                        {a.type.replace(/_/g, ' ')}
+                        {a.type.replaceAll('_', ' ')}
                       </span>
                       {a.count > 0 && (
                         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold"

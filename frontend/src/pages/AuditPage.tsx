@@ -167,7 +167,7 @@ export default function AuditPage() {
         timestamp: n.createdAt,
         source: 'notification',
         type: n.type,
-        title: `Email: ${n.type.replace(/_/g, ' ')}`,
+        title: `Email: ${n.type.replaceAll('_', ' ')}`,
         detail: `→ ${n.destinataire} · ${n.statut === 'SENT' ? '✓ Envoyé' : n.statut === 'FAILED' ? '✕ Échec' : '◷ En attente'}${n.sujet ? ` · ${n.sujet}` : ''}`,
         color: '#3B82F6',
         icon: <Mail size={12} />,

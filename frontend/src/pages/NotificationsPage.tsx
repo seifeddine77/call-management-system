@@ -66,7 +66,7 @@ export default function NotificationsPage() {
             Console des Transmissions
           </h1>
           <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />{' '}
             Suivi des notifications sortantes (Emails et SMS) et alertes client
           </p>
         </div>

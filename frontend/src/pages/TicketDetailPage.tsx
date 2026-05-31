@@ -550,7 +550,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
   }, [audioBlobUrl, startProgressTracking, stopProgressTracking]);
 
   const formatTime = (time: number) => {
-    if (!isFinite(time) || time < 0) return '0:00';
+    if (!Number.isFinite(time) || time < 0) return '0:00';
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -568,8 +568,8 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
 
   const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current;
-    if (!audio || !isFinite(audio.duration)) return;
-    const val = parseFloat(e.target.value);
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    const val = Number.parseFloat(e.target.value);
     const newTime = (val / 100) * audio.duration;
     audio.currentTime = newTime;
     setProgress(val);
@@ -578,7 +578,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
 
   const handleBarClick = (barIndex: number) => {
     const audio = audioRef.current;
-    if (!audio || !isFinite(audio.duration) || waveformData.length === 0) return;
+    if (!audio || !Number.isFinite(audio.duration) || waveformData.length === 0) return;
     const newTime = (barIndex / waveformData.length) * audio.duration;
     audio.currentTime = newTime;
     setProgress((newTime / audio.duration) * 100);
@@ -1470,7 +1470,7 @@ export default function TicketDetailPage() {
                         L'appel via le numéro vert AutoAssist est actif. L'enregistrement audio et l'analyse NLP Whisper démarreront automatiquement à la fin de la communication.
                       </p>
                       <div className="mt-4 inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-[9px] font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />{' '}
                         Canal Twilio Connecté
                       </div>
                     </div>
@@ -1571,9 +1571,9 @@ export default function TicketDetailPage() {
                         <div className="text-xs font-semibold text-txt">
                           {action.action === 'STATUT_CHANGE' && action.oldValue && action.newValue ? (
                             <span className="flex items-center gap-1.5">
-                              Changement Statut:
-                              <span className="font-mono text-[9px] bg-zinc-500/10 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-500/20">{action.oldValue}</span>
-                              <span className="text-txt-3">➔</span>
+                              Changement Statut:{' '}
+                              <span className="font-mono text-[9px] bg-zinc-500/10 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-500/20">{action.oldValue}</span>{' '}
+                              <span className="text-txt-3">➔</span>{' '}
                               <span className="font-mono text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">{action.newValue}</span>
                             </span>
                           ) : (
@@ -1867,7 +1867,11 @@ export default function TicketDetailPage() {
             role="button"
             tabIndex={0}
             className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
-            onClick={() => setLightboxIndex(null)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setLightboxIndex(null);
+              }
+            }}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(null); } }}
           >
             <button 
@@ -1878,8 +1882,6 @@ export default function TicketDetailPage() {
             </button>
             <div 
               className="relative max-w-4xl max-h-[85vh] w-full flex items-center justify-center" 
-              onClick={e => e.stopPropagation()}
-              onKeyDown={e => e.stopPropagation()}
             >
               {existingPhotos[lightboxIndex] && (
                 <motion.img 
