@@ -119,7 +119,11 @@ export default function AnalyticsPage() {
   };
 
   const scoreDiff = scoreMoyen - prevScore;
-  const scoreTrendText = prevScore > 0 ? `${scoreDiff >= 0 ? '+' : ''}${scoreDiff}pts` : undefined;
+  let scoreTrendText: string | undefined;
+  if (prevScore > 0) {
+    const sign = scoreDiff >= 0 ? '+' : '';
+    scoreTrendText = `${sign}${scoreDiff}pts`;
+  }
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">

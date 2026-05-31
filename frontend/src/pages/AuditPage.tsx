@@ -70,6 +70,83 @@ const statusLabels: Record<string, string> = {
 
 const getStatusLabel = (status: string) => statusLabels[status] || '◷ En attente';
 
+/* ── Helpers to eliminate nested ternaries (SonarCloud S3358) ── */
+
+const SOURCE_ABBREV: Record<string, string> = { ticket: 'T', decision: 'D', notification: 'N' };
+const SOURCE_SERVICE: Record<string, string> = { ticket: 'ticket-service', decision: 'decision-service', notification: 'notification-service' };
+
+const getConsentLabel = (canal: string): string => {
+  if (canal === 'CALL') return 'Consentement enregistrement (IVR)';
+  if (canal === 'EMAIL') return 'Consentement implicite (email initié)';
+  return 'Consentement explicite (formulaire)';
+};
+
+const getPdfBadgeLabel = (isNa: boolean | undefined, isOk: boolean | null): string => {
+  if (isNa) return 'N/A';
+  if (isOk) return '✓ CONFORME';
+  return '✕ REFUSÉ';
+};
+
+const getStepBorderClass = (active: boolean, hit: boolean): string => {
+  if (active) return 'border-[var(--primary)] bg-[var(--primary-soft)]';
+  if (hit) return 'border-emerald-500/20 bg-emerald-500/5';
+  return 'border-[var(--border)] bg-[var(--elevated)]';
+};
+
+const getStepIconClass = (active: boolean, hit: boolean): string => {
+  if (active) return 'bg-[var(--primary)] text-white';
+  if (hit) return 'bg-emerald-500/20 text-emerald-400';
+  return 'bg-[var(--muted)] text-[var(--text-3)]';
+};
+
+const getStepTextClass = (active: boolean, hit: boolean): string => {
+  if (active) return 'text-[var(--primary)]';
+  if (hit) return 'text-emerald-400';
+  return 'text-[var(--text-3)]';
+};
+
+const getStepStatusText = (active: boolean, hit: boolean): string => {
+  if (active) return '● ACTIF';
+  if (hit) return '✓';
+  return '○ SKIP';
+};
+
+const getRgpdScoreClass = (score: number): string => {
+  if (score >= 80) return 'text-emerald-400';
+  if (score >= 50) return 'text-amber-400';
+  return 'text-rose-400';
+};
+
+const getRgpdScoreColor = (score: number): string => {
+  if (score >= 80) return '#10B981';
+  if (score >= 50) return '#F59E0B';
+  return '#EF4444';
+};
+
+const getRgpdItemBorderClass = (na: boolean | undefined, ok: boolean | null): string => {
+  if (na) return 'bg-zinc-500/5 border-zinc-500/10';
+  if (ok) return 'bg-emerald-500/5 border-emerald-500/15';
+  return 'bg-rose-500/5 border-rose-500/15';
+};
+
+const getRgpdItemIconColor = (na: boolean | undefined, ok: boolean | null): string => {
+  if (na) return 'var(--text-3)';
+  if (ok) return '#10B981';
+  return '#EF4444';
+};
+
+const getRgpdItemStatusClass = (na: boolean | undefined, ok: boolean | null): string => {
+  if (na) return 'text-[var(--text-3)]';
+  if (ok) return 'text-emerald-400';
+  return 'text-rose-400';
+};
+
+const getRgpdItemStatusText = (na: boolean | undefined, ok: boolean | null): string => {
+  if (na) return 'N/A';
+  if (ok) return '✓ CONFORME';
+  return '✕ NON';
+};
+
 const drawPDFGeneralInfo = (doc: jsPDF, ticket: Ticket, _W: number, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
   y = drawSectionTitle("1. INFORMATIONS GÉNÉRALES DU DOSSIER", y);
   
@@ -343,7 +420,7 @@ const drawPDFRgpd = (doc: jsPDF, rgpd: ReadonlyArray<{ na?: boolean; ok: boolean
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     
-    const badgeLabel = isNa ? "N/A" : isOk ? "✓ CONFORME" : "✕ REFUSÉ";
+    const badgeLabel = getPdfBadgeLabel(isNa, isOk);
     doc.text(badgeLabel, M + 4, y + 4.2);
 
     // Description title
@@ -520,7 +597,7 @@ export default function AuditPage() {
     const checks = [
       // 1. Consentement
       {
-        label: isCall ? 'Consentement enregistrement (IVR)' : isEmail ? 'Consentement implicite (email initié)' : 'Consentement explicite (formulaire)',
+        label: getConsentLabel(ticket.canal),
         desc: 'Art. 6 RGPD — Base légale du traitement',
         ok: hasConsent,
         icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
@@ -629,7 +706,7 @@ export default function AuditPage() {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const W = 210; const M = 15; const CW = W - 2 * M;
-      let y = 20;
+      let y: number;
 
       // Page numbers & Header/Footer builder
       const drawHeaderFooter = (pdfDoc: typeof doc, pageNum: number, totalPages: number) => {
@@ -732,7 +809,7 @@ export default function AuditPage() {
 
       // ── Section 5: GDPR / RGPD Compliance ──
       if (y > 210) { doc.addPage(); y = 20; }
-      y = drawPDFRgpd(doc, rgpd, rgpdScore, M, CW, y, drawSectionTitle);
+      drawPDFRgpd(doc, rgpd, rgpdScore, M, CW, y, drawSectionTitle);
 
       // Apply dynamic Page Numbers & Header/Footers on all pages
       const totalPages = doc.getNumberOfPages();
@@ -849,7 +926,7 @@ export default function AuditPage() {
                 {/* Vertical line + dot */}
                 <div className="flex flex-col items-center w-6 flex-shrink-0">
                   <div className="w-3 h-3 rounded-full flex items-center justify-center mt-1 z-[1] ring-2 ring-[var(--surface)]" style={{ background: ev.color }}>
-                    <span className="text-white text-[6px]">{ev.source === 'ticket' ? 'T' : ev.source === 'decision' ? 'D' : 'N'}</span>
+                    <span className="text-white text-[6px]">{SOURCE_ABBREV[ev.source] || 'N'}</span>
                   </div>
                   {i < timeline.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: `${ev.color}30` }} />}
                 </div>
@@ -859,7 +936,7 @@ export default function AuditPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="flex items-center gap-1 text-xs font-bold" style={{ color: ev.color }}>{ev.icon} {ev.title}</span>
                     <span className="font-mono text-[8px] px-1.5 py-0.5 rounded" style={{ background: `${ev.color}12`, color: ev.color, border: `1px solid ${ev.color}25` }}>
-                      {ev.source === 'ticket' ? 'ticket-service' : ev.source === 'decision' ? 'decision-service' : 'notification-service'}
+                      {SOURCE_SERVICE[ev.source] || ev.source}
                     </span>
                   </div>
                   <p className="text-[11px] text-[var(--text-2)] mt-0.5 leading-relaxed">{ev.detail}</p>
@@ -891,17 +968,17 @@ export default function AuditPage() {
                   <div className="space-y-2">
                     {pipelineSteps.map((step, i) => (
                       <motion.div key={step.label} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.12 }}>
-                        <div className={`p-3 rounded-xl border transition-all ${step.active ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : step.hit ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-[var(--border)] bg-[var(--elevated)]'}`}>
+                        <div className={`p-3 rounded-xl border transition-all ${getStepBorderClass(step.active, step.hit)}`}>
                           <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${step.active ? 'bg-[var(--primary)] text-white' : step.hit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[var(--muted)] text-[var(--text-3)]'}`}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${getStepIconClass(step.active, step.hit)}`}>
                               {step.icon}
                             </div>
                             <div className="flex-1">
                               <div className="text-xs font-bold">{step.label}</div>
                               <div className="font-mono text-[9px] text-[var(--text-3)]">{step.sub}</div>
                             </div>
-                            <span className={`text-[10px] font-mono font-bold ${step.active ? 'text-[var(--primary)]' : step.hit ? 'text-emerald-400' : 'text-[var(--text-3)]'}`}>
-                              {step.active ? '● ACTIF' : step.hit ? '✓' : '○ SKIP'}
+                            <span className={`text-[10px] font-mono font-bold ${getStepTextClass(step.active, step.hit)}`}>
+                              {getStepStatusText(step.active, step.hit)}
                             </span>
                           </div>
                         </div>
@@ -949,21 +1026,21 @@ export default function AuditPage() {
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-mono text-[10px] text-[var(--text-3)]">Score de conformité</span>
-                  <span className={`font-mono text-sm font-extrabold ${rgpdScore >= 80 ? 'text-emerald-400' : rgpdScore >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{rgpdScore}%</span>
+                  <span className={`font-mono text-sm font-extrabold ${getRgpdScoreClass(rgpdScore)}`}>{rgpdScore}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${rgpdScore}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full rounded-full" style={{ background: rgpdScore >= 80 ? '#10B981' : rgpdScore >= 50 ? '#F59E0B' : '#EF4444' }} />
+                    className="h-full rounded-full" style={{ background: getRgpdScoreColor(rgpdScore) }} />
                 </div>
               </div>
               <div className="space-y-1.5">
                 {rgpd.map(r => (
-                  <div key={r.label} className={`p-2.5 rounded-lg border ${r.na ? 'bg-zinc-500/5 border-zinc-500/10' : r.ok ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-rose-500/5 border-rose-500/15'}`}>
+                  <div key={r.label} className={`p-2.5 rounded-lg border ${getRgpdItemBorderClass(r.na, r.ok)}`}>
                     <div className="flex items-center gap-2">
-                      <span style={{ color: r.na ? 'var(--text-3)' : r.ok ? '#10B981' : '#EF4444' }}>{r.icon}</span>
+                      <span style={{ color: getRgpdItemIconColor(r.na, r.ok) }}>{r.icon}</span>
                       <span className="text-[11px] font-medium flex-1">{r.label}</span>
-                      <span className={`font-mono text-[8px] font-bold ${r.na ? 'text-[var(--text-3)]' : r.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {r.na ? 'N/A' : r.ok ? '✓ CONFORME' : '✕ NON'}
+                      <span className={`font-mono text-[8px] font-bold ${getRgpdItemStatusClass(r.na, r.ok)}`}>
+                        {getRgpdItemStatusText(r.na, r.ok)}
                       </span>
                     </div>
                     <div className="font-mono text-[8px] text-[var(--text-3)] mt-0.5 ml-[22px]">{r.desc}</div>

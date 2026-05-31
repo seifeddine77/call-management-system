@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import type { FormEvent } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from '../components/ui/Logo';
@@ -327,7 +326,7 @@ export default function LoginPage() {
     cardY.set(0);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setAuthError(null);

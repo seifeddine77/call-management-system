@@ -595,7 +595,7 @@ export default function PublicFormPage() {
                 { icon: <Phone size={18} />, title: "Assistance 24/7", subtitle: "Toujours à vos côtés" }
               ].map((feat, idx) => (
                 <motion.div 
-                  key={idx}
+                  key={feat.title}
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.3 + idx * 0.1, duration: 0.4 }}
@@ -753,7 +753,7 @@ export default function PublicFormPage() {
                         </div>
 
                         {/* Agence select dropdown */}
-                        <div className={`cf-field select-field ${touched.agenceId ? (form.agenceId ? 'is-valid' : 'has-error') : ''}`}>
+                        <div className={`cf-field select-field ${touched.agenceId && form.agenceId ? 'is-valid' : ''}${touched.agenceId && !form.agenceId ? 'has-error' : ''}`}>
                           <label htmlFor="pf-agence" className="cf-label">Votre agence de référence <span className="cf-required">*</span></label>
                           <select id="pf-agence" className="cf-select" value={form.agenceId}
                             onChange={e => { setForm(f => ({...f, agenceId: e.target.value})); setTouched(p => ({...p, agenceId: true})); }} required>
@@ -785,7 +785,7 @@ export default function PublicFormPage() {
                         </div>
 
                          {/* Description textarea */}
-                        <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''} ${touched.description ? (getDescError() ? 'has-error' : 'is-valid') : ''}`}>
+                        <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''} ${touched.description && getDescError() ? 'has-error' : ''}${touched.description && !getDescError() ? 'is-valid' : ''}`}>
                           <label htmlFor="pf-desc" className="cf-label">Description des circonstances <span className="cf-required">*</span></label>
                           <textarea id="pf-desc" className="cf-textarea" value={form.description}
                             onChange={e => { setForm(f => ({...f, description: e.target.value})); setTouched(p => ({...p, description: true})); }}

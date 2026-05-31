@@ -4,16 +4,18 @@ import type { OperatorPerformance } from '../../types/analytics';
 
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } } };
 
-const getColorForMetric = (value: number, thresholdGood: number, thresholdAvg: number, isLowerBetter = false) => {
-  if (isLowerBetter) {
-    if (value <= thresholdGood) return 'var(--success)';
-    if (value <= thresholdAvg) return 'var(--warning)';
-    return 'var(--danger)';
-  } else {
-    if (value >= thresholdGood) return 'var(--success)';
-    if (value >= thresholdAvg) return 'var(--warning)';
-    return 'var(--danger)';
-  }
+/** Higher value is better (e.g. resolution rate, SLA compliance, score). */
+const getColorForHigherBetter = (value: number, thresholdGood: number, thresholdAvg: number): string => {
+  if (value >= thresholdGood) return 'var(--success)';
+  if (value >= thresholdAvg) return 'var(--warning)';
+  return 'var(--danger)';
+};
+
+/** Lower value is better (e.g. average handling time). */
+const getColorForLowerBetter = (value: number, thresholdGood: number, thresholdAvg: number): string => {
+  if (value <= thresholdGood) return 'var(--success)';
+  if (value <= thresholdAvg) return 'var(--warning)';
+  return 'var(--danger)';
 };
 
 const getScoreSymbol = (score: number) => {
@@ -52,10 +54,10 @@ export default function OperatorLeaderboard({ operators }: Readonly<OperatorLead
               const medal = `${i + 1}`;
               const maxTickets = operators[0]?.ticketsTraites || 1;
               const barPct = (op.ticketsTraites / maxTickets) * 100;
-              const resColor = getColorForMetric(op.tauxResolution, 80, 50);
-              const tempsColor = getColorForMetric(op.tempsMoyenMinutes, 30, 120, true);
-              const scoreColor = getColorForMetric(op.scoreComposite, 75, 50);
-              const slaColor = getColorForMetric(op.slaCompliance, 80, 60);
+              const resColor = getColorForHigherBetter(op.tauxResolution, 80, 50);
+              const tempsColor = getColorForLowerBetter(op.tempsMoyenMinutes, 30, 120);
+              const scoreColor = getColorForHigherBetter(op.scoreComposite, 75, 50);
+              const slaColor = getColorForHigherBetter(op.slaCompliance, 80, 60);
               const totalCanal = op.ticketsCall + op.ticketsEmail + op.ticketsWeb || 1;
               const circumference = 2 * Math.PI * 12;
               const scoreDash = (op.scoreComposite / 100) * circumference;
