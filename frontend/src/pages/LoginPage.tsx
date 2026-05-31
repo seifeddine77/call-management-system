@@ -220,6 +220,62 @@ function AnimatedScene({ isDark, sx, sy }: Readonly<{ isDark: boolean; sx: Motio
 const stagger = { hidden:{opacity:0},show:{opacity:1,transition:{staggerChildren:0.08,delayChildren:0.2}} } as const;
 const pop = { hidden:{opacity:0,y:20,scale:0.95},show:{opacity:1,y:0,scale:1,transition:{type:'spring' as const,stiffness:300,damping:24}} };
 
+const computeInputStyle = (
+  field: 'email' | 'password',
+  error: string | null,
+  touched: Record<string, boolean>,
+  focused: string | null,
+  authError: string | null,
+  isDark: boolean
+) => {
+  const isTouched = touched[field];
+  const isFocused = focused === field;
+  
+  let borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  if (isFocused) {
+    borderColor = '#2563eb';
+  } else if (authError) {
+    borderColor = '#ef4444';
+  } else if (isTouched) {
+    borderColor = error ? '#ef4444' : '#10b981';
+  }
+  
+  return {
+    background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+    border: `1.5px solid ${borderColor}`,
+    color: isDark ? '#f1f5f9' : '#0f172a'
+  };
+};
+
+const computeIconColor = (
+  field: 'email' | 'password',
+  error: string | null,
+  touched: Record<string, boolean>,
+  focused: string | null,
+  authError: string | null
+) => {
+  const isTouched = touched[field];
+  const isFocused = focused === field;
+  if (isFocused) return '#2563eb';
+  if (authError) return '#ef4444';
+  if (isTouched) return error ? '#ef4444' : '#10b981';
+  return '#64748b';
+};
+
+const computeBoxShadow = (
+  field: 'email' | 'password',
+  error: string | null,
+  touched: Record<string, boolean>,
+  focused: string | null,
+  authError: string | null
+) => {
+  if (focused === field) return '0 0 0 3px rgba(37,99,235,0.12)';
+  if (touched[field] || authError) {
+    return (error || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)';
+  }
+  return '0 0 0 0px transparent';
+};
+
 export default function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -261,42 +317,14 @@ export default function LoginPage() {
     setAuthError(null);
   };
 
-  const getInputStyle = (field: 'email' | 'password', error: string | null) => {
-    const isTouched = touched[field];
-    const isFocused = focused === field;
-    
-    let borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    if (isFocused) {
-      borderColor = '#2563eb';
-    } else if (authError) {
-      borderColor = '#ef4444';
-    } else if (isTouched) {
-      borderColor = error ? '#ef4444' : '#10b981';
-    }
-    
-    return {
-      background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-      border: `1.5px solid ${borderColor}`,
-      color: isDark ? '#f1f5f9' : '#0f172a'
-    };
-  };
+  const getInputStyle = (field: 'email' | 'password', error: string | null) => 
+    computeInputStyle(field, error, touched, focused, authError, isDark);
 
-  const getIconColor = (field: 'email' | 'password', error: string | null) => {
-    const isTouched = touched[field];
-    const isFocused = focused === field;
-    if (isFocused) return '#2563eb';
-    if (authError) return '#ef4444';
-    if (isTouched) return error ? '#ef4444' : '#10b981';
-    return '#64748b';
-  };
+  const getIconColor = (field: 'email' | 'password', error: string | null) => 
+    computeIconColor(field, error, touched, focused, authError);
 
-  const getBoxShadow = (field: 'email' | 'password', error: string | null) => {
-    if (focused === field) return '0 0 0 3px rgba(37,99,235,0.12)';
-    if (touched[field] || authError) {
-      return (error || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)';
-    }
-    return '0 0 0 0px transparent';
-  };
+  const getBoxShadow = (field: 'email' | 'password', error: string | null) => 
+    computeBoxShadow(field, error, touched, focused, authError);
 
   // Ref and Motion values for 3D Tilt Card & Spotlight Glow
   const cardRef = useRef<HTMLDivElement>(null);

@@ -112,16 +112,59 @@ function buildRuleTestPayload(
   };
 }
 
-function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: Readonly<{
-  id: string; cond: RuleCondition; index: number; refs: ReferenceData | null;
-  formErrors: { conditions?: string }; onChange: (i: number, c: RuleCondition) => void; onRemove: (i: number) => void;
-}>) {
+interface ConditionValueInputProps {
+  cond: RuleCondition;
+  fieldDef: FieldDef | undefined;
+  formErrors: { conditions?: string };
+  index: number;
+  onChange: (i: number, c: RuleCondition) => void;
+}
+
+function ConditionValueInput({ cond, fieldDef, formErrors, index, onChange }: Readonly<ConditionValueInputProps>) {
+  const isEnum = fieldDef?.type === 'enum' && fieldDef.values && fieldDef.values.length > 0;
+  const isErr = formErrors.conditions && !cond.value;
+  const className = `${isErr ? 'border-rose-500/60' : ''}`;
+
+  if (isEnum) {
+    return (
+      <select
+        className={`aurora-select text-xs ${className}`}
+        value={cond.value}
+        onChange={e => onChange(index, { ...cond, value: e.target.value })}
+      >
+        <option value="">Valeur…</option>
+        {fieldDef.values!.map(v => <option key={v} value={v}>{v}</option>)}
+      </select>
+    );
+  }
+
+  return (
+    <input
+      className={`aurora-input text-xs ${className}`}
+      type={fieldDef?.type === 'number' ? 'number' : 'text'}
+      value={cond.value}
+      onChange={e => onChange(index, { ...cond, value: e.target.value })}
+      placeholder={fieldDef?.type === 'number' ? 'Ex: 5' : 'Valeur'}
+    />
+  );
+}
+
+interface SortableConditionRowProps {
+  id: string;
+  cond: RuleCondition;
+  index: number;
+  refs: ReferenceData | null;
+  formErrors: { conditions?: string };
+  onChange: (i: number, c: RuleCondition) => void;
+  onRemove: (i: number) => void;
+}
+
+function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onRemove }: Readonly<SortableConditionRowProps>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 'auto' };
 
   // Find field definition for smart value input
   const fieldDef = refs?.fields.find((f: FieldDef) => f.field === cond.field);
-  const isEnum = fieldDef?.type === 'enum' && fieldDef.values && fieldDef.values.length > 0;
 
   return (
     <div ref={setNodeRef} style={style} className="grid grid-cols-[28px_1fr_80px_1fr_28px] gap-2 mb-2 items-center">
@@ -137,17 +180,13 @@ function SortableConditionRow({ id, cond, index, refs, formErrors, onChange, onR
         onChange={e => onChange(index, { ...cond, operator: e.target.value })}>
         {(refs?.operators || ['=', '!=', '<', '>', '<=', '>=']).map(o => <option key={o} value={o}>{o}</option>)}
       </select>
-      {isEnum ? (
-        <select className={`aurora-select text-xs ${formErrors.conditions && !cond.value ? 'border-rose-500/60' : ''}`}
-          value={cond.value} onChange={e => onChange(index, { ...cond, value: e.target.value })}>
-          <option value="">Valeur…</option>
-          {fieldDef.values!.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-      ) : (
-        <input className={`aurora-input text-xs ${formErrors.conditions && !cond.value ? 'border-rose-500/60' : ''}`}
-          type={fieldDef?.type === 'number' ? 'number' : 'text'}
-          value={cond.value} onChange={e => onChange(index, { ...cond, value: e.target.value })} placeholder={fieldDef?.type === 'number' ? 'Ex: 5' : 'Valeur'} />
-      )}
+      <ConditionValueInput
+        cond={cond}
+        fieldDef={fieldDef}
+        formErrors={formErrors}
+        index={index}
+        onChange={onChange}
+      />
       <button type="button" onClick={() => onRemove(index)} className="text-txt-3 hover:text-rose-400 cursor-pointer text-center text-sm">✕</button>
     </div>
   );

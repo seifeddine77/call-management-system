@@ -79,6 +79,50 @@ function readPublicFileAsDataURL(file: File): Promise<string> {
   });
 }
 
+const formatPhoneNumber = (val: string) => {
+  let clean = val.replace(/[^\d+]/g, '');
+  if (clean.startsWith('+')) {
+    return clean.slice(0, 16);
+  }
+  if (clean.length > 10) clean = clean.slice(0, 10);
+  const parts = [];
+  for (let i = 0; i < clean.length; i += 2) {
+    parts.push(clean.slice(i, i + 2));
+  }
+  return parts.join(' ');
+};
+
+const computeFieldClassName = (
+  name: string,
+  errorMsg: string | null,
+  touched: Record<string, boolean>,
+  formValue: string | boolean,
+  isFieldActive: boolean
+) => {
+  let classes = `cf-field ${isFieldActive ? 'active' : ''}`;
+  if (touched[name]) {
+    if (errorMsg) {
+      classes += ' has-error';
+    } else if (formValue) {
+      classes += ' is-valid';
+    }
+  }
+  return classes;
+};
+
+const validateFormStep1 = (selectedType: string | null, agenceId: string): string | null => {
+  if (!selectedType) return 'Veuillez sélectionner un type de sinistre.';
+  if (!agenceId) return 'Veuillez sélectionner votre agence de référence.';
+  return null;
+};
+
+const validateFormStep2 = (description: string): string | null => {
+  if (!description.trim() || description.trim().length < 15) {
+    return 'La description des circonstances doit comporter au moins 15 caractères.';
+  }
+  return null;
+};
+
 export default function PublicFormPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', description: '', agenceId: '', consentementTraitement: false });
@@ -99,29 +143,7 @@ export default function PublicFormPage() {
   };
 
   const getFieldClassName = (name: string, errorMsg: string) => {
-    let classes = `cf-field ${isFieldActive(name) ? 'active' : ''}`;
-    if (touched[name]) {
-      if (errorMsg) {
-        classes += ' has-error';
-      } else if (form[name as keyof typeof form]) {
-        classes += ' is-valid';
-      }
-    }
-    return classes;
-  };
-
-  // ── Phone formatting spacing helper ──
-  const formatPhoneNumber = (val: string) => {
-    let clean = val.replace(/[^\d+]/g, '');
-    if (clean.startsWith('+')) {
-      return clean.slice(0, 16);
-    }
-    if (clean.length > 10) clean = clean.slice(0, 10);
-    const parts = [];
-    for (let i = 0; i < clean.length; i += 2) {
-      parts.push(clean.slice(i, i + 2));
-    }
-    return parts.join(' ');
+    return computeFieldClassName(name, errorMsg, touched, form[name as keyof typeof form], isFieldActive(name));
   };
 
   const handleTelChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -181,20 +203,12 @@ export default function PublicFormPage() {
       const err = validateStep0(form);
       if (err) { setError(err); return; }
     } else if (currentStep === 1) {
-      if (!selectedType) {
-        setError('Veuillez sélectionner un type de sinistre.');
-        return;
-      }
-      if (!form.agenceId) {
-        setError('Veuillez sélectionner votre agence de référence.');
-        return;
-      }
+      const err = validateFormStep1(selectedType, form.agenceId);
+      if (err) { setError(err); return; }
     } else if (currentStep === 2) {
       setTouched(prev => ({ ...prev, description: true }));
-      if (!form.description.trim() || form.description.trim().length < 15) {
-        setError('La description des circonstances doit comporter au moins 15 caractères.');
-        return;
-      }
+      const err = validateFormStep2(form.description);
+      if (err) { setError(err); return; }
     }
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };

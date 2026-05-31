@@ -21,6 +21,70 @@ const getPriorityBadgeClass = (priorite: number) => {
   return 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10';
 };
 
+const getCanalIcon = (canal: string) => {
+  const map: Record<string, { icon: React.ReactNode; cls: string }> = {
+    CALL: { icon: <PhoneCall size={15} />, cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+    EMAIL: { icon: <Mail size={15} />, cls: 'bg-blue-400/10 text-blue-400 border-blue-400/20' },
+    WEB: { icon: <Globe size={15} />, cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  };
+  return map[canal] || { icon: <Globe size={15} />, cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' };
+};
+
+const getTimeSince = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+};
+
+const getStatutBadge = (statut?: string) => {
+  const map: Record<string, { label: string; cls: string }> = {
+    NOUVEAU: { label: 'Nouveau', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    EN_COURS: { label: 'En cours', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    RESOLU: { label: 'Résolu', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    FERME: { label: 'Fermé', cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+  };
+  return statut ? map[statut] : null;
+};
+
+const ticketToItem = (t: Ticket, i: number): DisplayItem => ({
+  ticketId: t.id,
+  ticketNumero: t.numero,
+  clientNom: t.clientNom,
+  canal: t.canal,
+  priorite: t.priorite,
+  createdAt: t.createdAt,
+  statut: t.statut,
+  operateurName: t.operateurName,
+  position: i + 1,
+});
+
+const queueToItem = (q: QueueEntry): DisplayItem => ({
+  ticketId: q.ticketId,
+  ticketNumero: q.ticketNumero,
+  clientNom: q.clientNom,
+  canal: q.canal,
+  priorite: q.priorite,
+  createdAt: q.createdAt,
+  position: q.position,
+});
+
+const compareDisplayItems = (a: DisplayItem, b: DisplayItem, sortBy: SortOption): number => {
+  if (sortBy === 'PRIO_SLA') {
+    if (a.priorite !== b.priorite) {
+      return a.priorite - b.priorite;
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  }
+  if (sortBy === 'NEWEST') {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }
+  if (sortBy === 'OLDEST') {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  }
+  return 0;
+};
+
 /* Unified item so we can display queue entries AND filtered tickets in the same list */
 interface DisplayItem {
   ticketId: string;
@@ -213,9 +277,6 @@ interface TicketRowProps {
   assigning: string | null;
   onAssign: (ticketId: string) => void;
   onNavigate: (ticketId: string) => void;
-  canalIcon: (canal: string) => { icon: React.ReactNode; cls: string };
-  timeSince: (dateStr: string) => string;
-  statutBadge: (statut?: string) => { label: string; cls: string } | null;
 }
 
 function TicketRow({
@@ -225,14 +286,11 @@ function TicketRow({
   assigning,
   onAssign,
   onNavigate,
-  canalIcon,
-  timeSince,
-  statutBadge,
 }: Readonly<TicketRowProps>) {
-  const c = canalIcon(t.canal);
-  const wait = timeSince(t.createdAt);
+  const c = getCanalIcon(t.canal);
+  const wait = getTimeSince(t.createdAt);
   const isUrgent = t.priorite === 1;
-  const sBadge = statutBadge(t.statut);
+  const sBadge = getStatutBadge(t.statut);
 
   return (
     <motion.div
@@ -354,29 +412,7 @@ export default function QueuePage() {
   const [sortBy, setSortBy] = useState<SortOption>('PRIO_SLA');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  /* ── Map Ticket → DisplayItem ── */
-  const ticketToItem = (t: Ticket, i: number): DisplayItem => ({
-    ticketId: t.id,
-    ticketNumero: t.numero,
-    clientNom: t.clientNom,
-    canal: t.canal,
-    priorite: t.priorite,
-    createdAt: t.createdAt,
-    statut: t.statut,
-    operateurName: t.operateurName,
-    position: i + 1,
-  });
 
-  /* ── Map QueueEntry → DisplayItem ── */
-  const queueToItem = (q: QueueEntry): DisplayItem => ({
-    ticketId: q.ticketId,
-    ticketNumero: q.ticketNumero,
-    clientNom: q.clientNom,
-    canal: q.canal,
-    priorite: q.priorite,
-    createdAt: q.createdAt,
-    position: q.position,
-  });
 
   const fetchData = useCallback(async (activeFilter: FilterKey) => {
     setLoading(true);
@@ -482,23 +518,8 @@ export default function QueuePage() {
       result = result.filter(t => t.priorite === priorityFilter);
     }
 
-    // 4. Sort order
-    result.sort((a, b) => {
-      if (sortBy === 'PRIO_SLA') {
-        if (a.priorite !== b.priorite) {
-          return a.priorite - b.priorite; // 1 (Urgent) first, then 2, then 3
-        }
-        // Older first within equal priority level to prevent SLA breach
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      if (sortBy === 'NEWEST') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === 'OLDEST') {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      return 0;
-    });
+    // 4. Sort order using external comparator
+    result.sort((a, b) => compareDisplayItems(a, b, sortBy));
 
     // Re-index position cleanly based on the final filtered & sorted list
     return result.map((item, idx) => ({
@@ -506,22 +527,6 @@ export default function QueuePage() {
       position: idx + 1
     }));
   }, [items, search, channelFilter, priorityFilter, sortBy]);
-
-  const canalIcon = (canal: string) => {
-    const map: Record<string, { icon: React.ReactNode; cls: string }> = {
-      CALL: { icon: <PhoneCall size={15} />, cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
-      EMAIL: { icon: <Mail size={15} />, cls: 'bg-blue-400/10 text-blue-400 border-blue-400/20' },
-      WEB: { icon: <Globe size={15} />, cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    };
-    return map[canal] || { icon: <Globe size={15} />, cls: 'bg-[var(--muted)] text-txt-3 border-border-subtle' };
-  };
-
-  const timeSince = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins} min`;
-    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-  };
 
   const filters: { key: FilterKey; label: string; icon: React.ReactNode; color: string; activeColor: string; value: number | null }[] = [
     { key: 'QUEUE',    label: 'File d\'attente', icon: <ClipboardList size={14} />, color: 'text-indigo-400',  activeColor: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400', value: queueCount },
@@ -537,16 +542,6 @@ export default function QueuePage() {
     EN_COURS: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} en cours d'instruction`,
     RESOLU: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} résolu${filteredItems.length > 1 ? 's' : ''}`,
     FERME: `${filteredItems.length} ticket${filteredItems.length > 1 ? 's' : ''} clos définitivement`,
-  };
-
-  const statutBadge = (statut?: string) => {
-    const map: Record<string, { label: string; cls: string }> = {
-      NOUVEAU: { label: 'Nouveau', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-      EN_COURS: { label: 'En cours', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-      RESOLU: { label: 'Résolu', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-      FERME: { label: 'Fermé', cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
-    };
-    return statut ? map[statut] : null;
   };
 
   if (error) return <ErrorState message={error} onRetry={handleRefresh} />;
@@ -677,9 +672,6 @@ export default function QueuePage() {
                   assigning={assigning}
                   onAssign={handleAssign}
                   onNavigate={(id) => navigate(`/tickets/${id}`)}
-                  canalIcon={canalIcon}
-                  timeSince={timeSince}
-                  statutBadge={statutBadge}
                 />
               ))
             )}
