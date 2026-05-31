@@ -287,9 +287,7 @@ export default function AgencesPage() {
       </div>
 
       {/* Grid Layout of Cards instead of boring table */}
-      {renderAgencesContent()}  </AnimatePresence>
-        </div>
-      )}
+      {renderAgencesContent()}
 
       {/* Create/Edit Modal */}
       <Modal open={showCreate || !!editingId} onClose={() => { setShowCreate(false); setEditingId(null); setFormErrors({}); }} title={showCreate ? 'Création d\'une Agence' : 'Modification de l\'Agence'}>
