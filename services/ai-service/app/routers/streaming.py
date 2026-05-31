@@ -34,6 +34,95 @@ MIN_BUFFER_BYTES = 48_000
 MAX_BUFFER_BYTES = 960_000
 
 
+async def _read_audio_chunks(websocket: WebSocket, whisper_model, ticket_id: str, session_start: float) -> tuple[list[str], int, bytearray]:
+    audio_buffer = bytearray()
+    full_transcription_parts: list[str] = []
+    chunk_count = 0
+
+    while True:
+        message = await websocket.receive()
+
+        if message.get("type") == "websocket.disconnect":
+            break
+
+        # Text message = control command
+        if "text" in message:
+            text_data = message["text"]
+            if text_data.strip().upper() == "STOP":
+                logger.info("🛑 [STREAM] STOP received for ticket %s", sanitize_log(ticket_id))
+                break
+            continue
+
+        # Binary message = audio chunk
+        if "bytes" in message:
+            audio_chunk = message["bytes"]
+            audio_buffer.extend(audio_chunk)
+            chunk_count += 1
+
+            # Transcribe when buffer is large enough
+            if len(audio_buffer) >= MIN_BUFFER_BYTES:
+                # Cap buffer size
+                if len(audio_buffer) > MAX_BUFFER_BYTES:
+                    audio_buffer = bytearray(audio_buffer[-MAX_BUFFER_BYTES:])
+
+                partial_text = _transcribe_buffer(
+                    whisper_model, bytes(audio_buffer), ticket_id
+                )
+
+                if partial_text:
+                    elapsed = round(time.time() - session_start, 1)
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.send_json({
+                            "type": "partial",
+                            "text": partial_text,
+                            "elapsed": elapsed,
+                            "chunks": chunk_count,
+                        })
+                    full_transcription_parts.append(partial_text)
+
+                # Reset buffer for next segment
+                audio_buffer = bytearray()
+
+    return full_transcription_parts, chunk_count, audio_buffer
+
+
+def _save_transcription_to_db(ticket_id: str, full_text: str, duration: float):
+    if not full_text:
+        return
+    try:
+        from app.core.database import SessionLocal
+        from app.models import AudioRecord
+
+        db = SessionLocal()
+        try:
+            record = db.query(AudioRecord).filter(
+                AudioRecord.ticket_id == ticket_id
+            ).first()
+
+            if record:
+                # Append to existing transcription
+                existing = record.transcription or ""
+                record.transcription = (existing + " " + full_text).strip()
+                record.status = "DONE"
+            else:
+                record = AudioRecord(
+                    ticket_id=ticket_id,
+                    transcription=full_text,
+                    duration_seconds=duration,
+                    status="DONE",
+                    file_path=f"streaming/{ticket_id}",
+                    original_filename="live-stream",
+                )
+                db.add(record)
+
+            db.commit()
+            logger.info("💾 [STREAM] Transcription saved for ticket %s", sanitize_log(ticket_id))
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("❌ [STREAM] DB save failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+
+
 @router.websocket("/ws/transcribe/{ticket_id}")
 async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     """
@@ -54,57 +143,15 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
         await websocket.close(code=1011)
         return
 
-    audio_buffer = bytearray()
-    full_transcription_parts: list[str] = []
     session_start = time.time()
+    full_transcription_parts: list[str] = []
     chunk_count = 0
+    audio_buffer = bytearray()
 
     try:
-        while True:
-            # Receive data (binary audio or text command)
-            message = await websocket.receive()
-
-            if message.get("type") == "websocket.disconnect":
-                break
-
-            # Text message = control command
-            if "text" in message:
-                text_data = message["text"]
-                if text_data.strip().upper() == "STOP":
-                    logger.info("🛑 [STREAM] STOP received for ticket %s", sanitize_log(ticket_id))
-                    break
-                continue
-
-            # Binary message = audio chunk
-            if "bytes" in message:
-                audio_chunk = message["bytes"]
-                audio_buffer.extend(audio_chunk)
-                chunk_count += 1
-
-                # Transcribe when buffer is large enough
-                if len(audio_buffer) >= MIN_BUFFER_BYTES:
-                    # Cap buffer size
-                    if len(audio_buffer) > MAX_BUFFER_BYTES:
-                        audio_buffer = bytearray(audio_buffer[-MAX_BUFFER_BYTES:])
-
-                    partial_text = _transcribe_buffer(
-                        whisper_model, bytes(audio_buffer), ticket_id
-                    )
-
-                    if partial_text:
-                        elapsed = round(time.time() - session_start, 1)
-                        if websocket.client_state == WebSocketState.CONNECTED:
-                            await websocket.send_json({
-                                "type": "partial",
-                                "text": partial_text,
-                                "elapsed": elapsed,
-                                "chunks": chunk_count,
-                            })
-                        full_transcription_parts.append(partial_text)
-
-                    # Reset buffer for next segment
-                    audio_buffer = bytearray()
-
+        full_transcription_parts, chunk_count, audio_buffer = await _read_audio_chunks(
+            websocket, whisper_model, ticket_id, session_start
+        )
     except WebSocketDisconnect:
         logger.info("🔌 [STREAM] Client disconnected for ticket %s", sanitize_log(ticket_id))
     except Exception as e:
@@ -142,40 +189,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     except Exception as send_err:  # noqa: BLE001
         logger.debug("[STREAM] Could not send final result: %s", send_err)
 
-    # Save to database if we have content
-    if full_text:
-        try:
-            from app.core.database import SessionLocal
-            from app.models import AudioRecord
-
-            db = SessionLocal()
-            try:
-                record = db.query(AudioRecord).filter(
-                    AudioRecord.ticket_id == ticket_id
-                ).first()
-
-                if record:
-                    # Append to existing transcription
-                    existing = record.transcription or ""
-                    record.transcription = (existing + " " + full_text).strip()
-                    record.status = "DONE"
-                else:
-                    record = AudioRecord(
-                        ticket_id=ticket_id,
-                        transcription=full_text,
-                        duration_seconds=duration,
-                        status="DONE",
-                        file_path=f"streaming/{ticket_id}",
-                        original_filename="live-stream",
-                    )
-                    db.add(record)
-
-                db.commit()
-                logger.info("💾 [STREAM] Transcription saved for ticket %s", sanitize_log(ticket_id))
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error("❌ [STREAM] DB save failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+    _save_transcription_to_db(ticket_id, full_text, duration)
 
     # Clean close
     try:
@@ -183,6 +197,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
             await websocket.close()
     except Exception as close_err:  # noqa: BLE001
         logger.debug("[STREAM] WebSocket already closed: %s", close_err)
+
 
 
 def _transcribe_buffer(whisper_model, audio_bytes: bytes, ticket_id: str) -> str:

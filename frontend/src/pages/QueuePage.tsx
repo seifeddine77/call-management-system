@@ -27,6 +27,314 @@ interface DisplayItem {
   position?: number;
 }
 
+interface KpiCardProps {
+  f: {
+    key: FilterKey;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+    activeColor: string;
+    value: number | null;
+  };
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function KpiCard({ f, isActive, onClick }: Readonly<KpiCardProps>) {
+  return (
+    <motion.button
+      whileHover={{ y: -2, scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 cursor-pointer border flex flex-col justify-between h-[110px]
+        ${isActive
+          ? `${f.activeColor} shadow-[0_0_20px_rgba(99,102,241,0.06)] border-[var(--border)]`
+          : 'card-aurora border-transparent hover:border-border/60'
+        }`}
+    >
+      {isActive && (
+        <div className="absolute -right-6 -bottom-6 w-16 h-16 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
+      )}
+      
+      <div className="flex items-center justify-between w-full">
+        <span className={`p-1.5 rounded-lg border bg-[var(--surface)]/60 ${isActive ? 'border-indigo-500/20 text-indigo-400' : 'border-border/60 text-txt-3'}`}>
+          {f.icon}
+        </span>
+        {isActive && (
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]" />
+        )}
+      </div>
+
+      <div className="mt-2">
+        <div className="font-mono text-[9px] uppercase tracking-wider text-txt-3 font-semibold mb-0.5">
+          {f.label}
+        </div>
+        <div className={`text-2xl font-extrabold ${isActive ? 'text-txt' : f.color} tracking-tight`}>
+          {f.value ?? '—'}
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+
+interface AdvancedFiltersPanelProps {
+  search: string;
+  setSearch: (s: string) => void;
+  channelFilter: string;
+  setChannelFilter: (c: string) => void;
+  priorityFilter: number | 'ALL';
+  setPriorityFilter: (p: number | 'ALL') => void;
+  sortBy: 'PRIO_SLA' | 'NEWEST' | 'OLDEST';
+  setSortBy: (s: 'PRIO_SLA' | 'NEWEST' | 'OLDEST') => void;
+  showAdvancedFilters: boolean;
+  setShowAdvancedFilters: (b: boolean) => void;
+}
+
+function AdvancedFiltersPanel({
+  search,
+  setSearch,
+  channelFilter,
+  setChannelFilter,
+  priorityFilter,
+  setPriorityFilter,
+  sortBy,
+  setSortBy,
+  showAdvancedFilters,
+  setShowAdvancedFilters,
+}: Readonly<AdvancedFiltersPanelProps>) {
+  return (
+    <div className="px-5 py-3 border-b border-border/60 bg-[var(--surface)]/40 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3" />
+          <input
+            type="text"
+            placeholder="Rechercher par client ou par numéro de ticket..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="aurora-input pl-10"
+          />
+        </div>
+
+        <button
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className={`btn-ghost h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer font-semibold border ${
+            showAdvancedFilters ? 'bg-primary-soft text-primary border-primary/20' : 'bg-[var(--surface)] text-txt-2 border-border'
+          }`}
+        >
+          <SlidersHorizontal size={12} />
+          Filtres avancés
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAdvancedFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden flex flex-col gap-3 pt-3 border-t border-border/40"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Canal de communication</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { k: 'ALL', l: 'Tous' },
+                    { k: 'CALL', l: '📞 Vocal' },
+                    { k: 'EMAIL', l: '✉️ Email' },
+                    { k: 'WEB', l: '🌐 Web' }
+                  ].map(ch => (
+                    <button
+                      key={ch.k}
+                      onClick={() => setChannelFilter(ch.k)}
+                      className={`chip font-semibold ${channelFilter === ch.k ? 'active' : ''}`}
+                    >
+                      {ch.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Niveau de priorité</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { k: 'ALL', l: 'Toutes' },
+                    { k: 1, l: '🔴 Prio 1 (Urgent)' },
+                    { k: 2, l: '🟡 Prio 2 (Moyen)' },
+                    { k: 3, l: '🔵 Prio 3 (Faible)' }
+                  ].map(prio => (
+                    <button
+                      key={prio.k}
+                      onClick={() => setPriorityFilter(prio.k as number | 'ALL')}
+                      className={`chip font-semibold ${priorityFilter === prio.k ? 'active' : ''}`}
+                    >
+                      {prio.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Ordre de tri</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'PRIO_SLA' | 'NEWEST' | 'OLDEST')}
+                  className="aurora-select"
+                >
+                  <option value="PRIO_SLA">Priorité & SLA (Urgent + FIFO)</option>
+                  <option value="NEWEST">Plus récents d'abord</option>
+                  <option value="OLDEST">Plus anciens d'abord</option>
+                </select>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+
+interface TicketRowProps {
+  t: DisplayItem;
+  idx: number;
+  filter: FilterKey;
+  assigning: string | null;
+  onAssign: (ticketId: string) => void;
+  onNavigate: (ticketId: string) => void;
+  canalIcon: (canal: string) => { icon: React.ReactNode; cls: string };
+  timeSince: (dateStr: string) => string;
+  statutBadge: (statut?: string) => { label: string; cls: string } | null;
+}
+
+function TicketRow({
+  t,
+  idx,
+  filter,
+  assigning,
+  onAssign,
+  onNavigate,
+  canalIcon,
+  timeSince,
+  statutBadge,
+}: Readonly<TicketRowProps>) {
+  const c = canalIcon(t.canal);
+  const wait = timeSince(t.createdAt);
+  const isUrgent = t.priorite === 1;
+  const sBadge = statutBadge(t.statut);
+
+  return (
+    <motion.div
+      role="button"
+      tabIndex={0}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2, delay: idx * 0.02 }}
+      className="group flex flex-wrap md:flex-nowrap items-center justify-between gap-4 px-5 py-4 border-b border-border/50 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden"
+      onClick={() => onNavigate(t.ticketId)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onNavigate(t.ticketId);
+        }
+      }}
+    >
+      {isUrgent && (
+        <div className="absolute left-0 top-0 bottom-0 w-[3.5px] bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]" />
+      )}
+
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <span className="font-mono text-[10px] text-txt-3 w-6 text-center font-bold">
+          #{t.position || idx + 1}
+        </span>
+
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base flex-shrink-0 border transition-transform group-hover:scale-105 duration-300 ${c.cls}`}>
+          {c.icon}
+        </div>
+
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors flex items-center gap-2">
+            {t.clientNom}
+            {isUrgent && (
+              <span className="flex items-center gap-0.5 text-[8px] font-extrabold font-mono uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded shadow-sm">
+                <ShieldAlert size={8} /> Urgent
+              </span>
+            )}
+          </div>
+          <div className="font-mono text-[9px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-2">
+            <span>{t.ticketNumero}</span>
+            <span className="text-border/80">•</span>
+            <span>Créé il y a {wait}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3.5 flex-wrap">
+        <span className={`font-mono text-[9.5px] font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 shadow-sm bg-[var(--surface)] ${c.cls}`}>
+          {c.icon}
+          <span className="uppercase text-[8px] tracking-wider font-bold">
+            {t.canal === 'CALL' ? 'Vocal' : t.canal}
+          </span>
+        </span>
+
+        {sBadge && filter !== 'QUEUE' && (
+          <span className={`font-mono text-[8px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${sBadge.cls}`}>
+            {sBadge.label}
+          </span>
+        )}
+
+        <span className={`font-mono text-[9.5px] px-2.5 py-1 rounded-xl border flex items-center gap-1 bg-[var(--surface)]/40 border-border/80 text-txt-2
+          ${isUrgent ? 'text-rose-400 border-rose-500/10' : ''}`}
+        >
+          <Clock size={10} className={isUrgent ? 'animate-pulse text-rose-400' : 'text-txt-3'} /> 
+          {wait}
+        </span>
+
+        <span className={`font-mono text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border shadow-sm
+          ${t.priorite === 1 
+            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+            : t.priorite === 2 
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
+              : 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10'
+          }`}
+        >
+          PRIO {t.priorite}
+        </span>
+
+        {(filter === 'QUEUE' || filter === 'NOUVEAU') ? (
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={(e) => { e.stopPropagation(); onAssign(t.ticketId); }}
+            disabled={assigning === t.ticketId}
+            className="font-mono text-[9px] font-extrabold uppercase tracking-widest rounded-xl px-4.5 h-8 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-500 dark:hover:text-indigo-300 hover:border-indigo-400/40 transition-all flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {assigning === t.ticketId ? (
+              <RefreshCw size={9} className="animate-spin text-indigo-400" />
+            ) : (
+              <>
+                Traiter
+                <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+              </>
+            )}
+          </motion.button>
+        ) : t.operateurName && (
+          <span className="font-mono text-[10px] text-txt-3 truncate max-w-[120px] flex items-center gap-1.5 bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
+            <User size={10} className="text-indigo-400" />
+            {t.operateurName}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+
 export default function QueuePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -280,40 +588,12 @@ export default function QueuePage() {
           {filters.map((f) => {
             const isActive = filter === f.key;
             return (
-              <motion.button
+              <KpiCard
                 key={f.key}
-                whileHover={{ y: -2, scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                f={f}
+                isActive={isActive}
                 onClick={() => handleFilterClick(f.key)}
-                className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 cursor-pointer border flex flex-col justify-between h-[110px]
-                  ${isActive
-                    ? `${f.activeColor} shadow-[0_0_20px_rgba(99,102,241,0.06)] border-[var(--border)]`
-                    : 'card-aurora border-transparent hover:border-border/60'
-                  }`}
-              >
-                {/* Backdrop ambient glow when active */}
-                {isActive && (
-                  <div className="absolute -right-6 -bottom-6 w-16 h-16 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
-                )}
-                
-                <div className="flex items-center justify-between w-full">
-                  <span className={`p-1.5 rounded-lg border bg-[var(--surface)]/60 ${isActive ? 'border-indigo-500/20 text-indigo-400' : 'border-border/60 text-txt-3'}`}>
-                    {f.icon}
-                  </span>
-                  {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]" />
-                  )}
-                </div>
-
-                <div className="mt-2">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-txt-3 font-semibold mb-0.5">
-                    {f.label}
-                  </div>
-                  <div className={`text-2xl font-extrabold ${isActive ? 'text-txt' : f.color} tracking-tight`}>
-                    {f.value ?? '—'}
-                  </div>
-                </div>
-              </motion.button>
+              />
             );
           })}
         </div>
@@ -349,102 +629,18 @@ export default function QueuePage() {
         </div>
 
         {/* Advanced Filters Panel */}
-        <div className="px-5 py-3 border-b border-border/60 bg-[var(--surface)]/40 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Real-time search query */}
-            <div className="relative flex-1 min-w-[240px]">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3" />
-              <input
-                type="text"
-                placeholder="Rechercher par client ou par numéro de ticket..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="aurora-input pl-10"
-              />
-            </div>
-
-            {/* Filter Toggle Button */}
-            <button
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`btn-ghost h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer font-semibold border ${
-                showAdvancedFilters ? 'bg-primary-soft text-primary border-primary/20' : 'bg-[var(--surface)] text-txt-2 border-border'
-              }`}
-            >
-              <SlidersHorizontal size={12} />
-              Filtres avancés
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {showAdvancedFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden flex flex-col gap-3 pt-3 border-t border-border/40"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Channel Filter */}
-                  <div className="space-y-1.5">
-                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Canal de communication</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        { k: 'ALL', l: 'Tous' },
-                        { k: 'CALL', l: '📞 Vocal' },
-                        { k: 'EMAIL', l: '✉️ Email' },
-                        { k: 'WEB', l: '🌐 Web' }
-                      ].map(ch => (
-                        <button
-                          key={ch.k}
-                          onClick={() => setChannelFilter(ch.k)}
-                          className={`chip font-semibold ${channelFilter === ch.k ? 'active' : ''}`}
-                        >
-                          {ch.l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Priority Filter */}
-                  <div className="space-y-1.5">
-                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Niveau de priorité</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        { k: 'ALL', l: 'Toutes' },
-                        { k: 1, l: '🔴 Prio 1 (Urgent)' },
-                        { k: 2, l: '🟡 Prio 2 (Moyen)' },
-                        { k: 3, l: '🔵 Prio 3 (Faible)' }
-                      ].map(prio => (
-                        <button
-                          key={prio.k}
-                          onClick={() => setPriorityFilter(prio.k as number | 'ALL')}
-                          className={`chip font-semibold ${priorityFilter === prio.k ? 'active' : ''}`}
-                        >
-                          {prio.l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Sorting Options */}
-                  <div className="space-y-1.5">
-                    <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Ordre de tri</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'PRIO_SLA' | 'NEWEST' | 'OLDEST')}
-                      className="aurora-select"
-                    >
-                      <option value="PRIO_SLA">Priorité & SLA (Urgent + FIFO)</option>
-                      <option value="NEWEST">Plus récents d'abord</option>
-                      <option value="OLDEST">Plus anciens d'abord</option>
-                    </select>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AdvancedFiltersPanel
+          search={search}
+          setSearch={setSearch}
+          channelFilter={channelFilter}
+          setChannelFilter={setChannelFilter}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          showAdvancedFilters={showAdvancedFilters}
+          setShowAdvancedFilters={setShowAdvancedFilters}
+        />
 
         <div className="divide-y divide-border/60">
           <AnimatePresence mode="popLayout">
@@ -471,120 +667,20 @@ export default function QueuePage() {
                 />
               </motion.div>
             ) : (
-              filteredItems.map((t, idx) => {
-                const c = canalIcon(t.canal);
-                const wait = timeSince(t.createdAt);
-                const isUrgent = t.priorite === 1;
-                const sBadge = statutBadge(t.statut);
-                
-                return (
-                  <motion.div
-                    key={t.ticketId}
-                    role="button"
-                    tabIndex={0}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2, delay: idx * 0.02 }}
-                    className={`group flex flex-wrap md:flex-nowrap items-center justify-between gap-4 px-5 py-4 border-b border-border/50 cursor-pointer transition-all duration-300 hover:bg-indigo-500/[0.02] relative overflow-hidden`}
-                    onClick={() => navigate(`/tickets/${t.ticketId}`)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/tickets/${t.ticketId}`); } }}
-                  >
-                    {/* Left boundary accent for high priority */}
-                    {isUrgent && (
-                      <div className="absolute left-0 top-0 bottom-0 w-[3.5px] bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]" />
-                    )}
-
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      {/* Position / Index indicator */}
-                      <span className="font-mono text-[10px] text-txt-3 w-6 text-center font-bold">
-                        #{t.position || idx + 1}
-                      </span>
-
-                      {/* Icon for communication channel */}
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base flex-shrink-0 border transition-transform group-hover:scale-105 duration-300 ${c.cls}`}>
-                        {c.icon}
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-semibold text-txt tracking-wide group-hover:text-indigo-400 transition-colors flex items-center gap-2">
-                          {t.clientNom}
-                          {isUrgent && (
-                            <span className="flex items-center gap-0.5 text-[8px] font-extrabold font-mono uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded shadow-sm">
-                              <ShieldAlert size={8} /> Urgent
-                            </span>
-                          )}
-                        </div>
-                        <div className="font-mono text-[9px] text-txt-3 mt-0.5 tracking-wider flex items-center gap-2">
-                          <span>{t.ticketNumero}</span>
-                          <span className="text-border/80">•</span>
-                          <span>Créé il y a {wait}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Channel & Badge metadata block */}
-                    <div className="flex items-center gap-3.5 flex-wrap">
-                      <span className={`font-mono text-[9.5px] font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 shadow-sm bg-[var(--surface)] ${c.cls}`}>
-                        {c.icon}
-                        <span className="uppercase text-[8px] tracking-wider font-bold">
-                          {t.canal === 'CALL' ? 'Vocal' : t.canal}
-                        </span>
-                      </span>
-
-                      {/* Show status badge in non-queue view */}
-                      {sBadge && filter !== 'QUEUE' && (
-                        <span className={`font-mono text-[8px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-xl border ${sBadge.cls}`}>
-                          {sBadge.label}
-                        </span>
-                      )}
-
-                      <span className={`font-mono text-[9.5px] px-2.5 py-1 rounded-xl border flex items-center gap-1 bg-[var(--surface)]/40 border-border/80 text-txt-2
-                        ${isUrgent ? 'text-rose-400 border-rose-500/10' : ''}`}
-                      >
-                        <Clock size={10} className={isUrgent ? 'animate-pulse text-rose-400' : 'text-txt-3'} /> 
-                        {wait}
-                      </span>
-
-                      <span className={`font-mono text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border shadow-sm
-                        ${t.priorite === 1 
-                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-                          : t.priorite === 2 
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                            : 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10'
-                        }`}
-                      >
-                        PRIO {t.priorite}
-                      </span>
-
-                      {/* CTA Button "Prendre" */}
-                      {(filter === 'QUEUE' || filter === 'NOUVEAU') ? (
-                        <motion.button
-                          whileHover={{ scale: 1.04 }}
-                          whileTap={{ scale: 0.96 }}
-                          onClick={(e) => { e.stopPropagation(); handleAssign(t.ticketId); }}
-                          disabled={assigning === t.ticketId}
-                          className="font-mono text-[9px] font-extrabold uppercase tracking-widest rounded-xl px-4.5 h-8 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-500 dark:hover:text-indigo-300 hover:border-indigo-400/40 transition-all flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                          {assigning === t.ticketId ? (
-                            <RefreshCw size={9} className="animate-spin text-indigo-400" />
-                          ) : (
-                            <>
-                              Traiter
-                              <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
-                            </>
-                          )}
-                        </motion.button>
-                      ) : t.operateurName && (
-                        <span className="font-mono text-[10px] text-txt-3 truncate max-w-[120px] flex items-center gap-1.5 bg-[var(--surface)] border border-border px-2.5 py-1 rounded-xl">
-                          <User size={10} className="text-indigo-400" />
-                          {t.operateurName}
-                        </span>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })
+              filteredItems.map((t, idx) => (
+                <TicketRow
+                  key={t.ticketId}
+                  t={t}
+                  idx={idx}
+                  filter={filter}
+                  assigning={assigning}
+                  onAssign={handleAssign}
+                  onNavigate={(id) => navigate(`/tickets/${id}`)}
+                  canalIcon={canalIcon}
+                  timeSince={timeSince}
+                  statutBadge={statutBadge}
+                />
+              ))
             )}
           </AnimatePresence>
         </div>
@@ -592,3 +688,4 @@ export default function QueuePage() {
     </div>
   );
 }
+

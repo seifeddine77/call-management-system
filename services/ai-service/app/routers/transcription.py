@@ -39,17 +39,7 @@ ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".mp4", ".webm", ".flac", ".m4a", 
 MAX_SIZE_BYTES = settings.MAX_AUDIO_SIZE_MB * 1024 * 1024
 
 
-@router.post("/", response_model=TranscribeResponse)
-async def transcribe_audio(
-    request: Request,
-    file: Annotated[UploadFile, File(...)],
-    ticket_id: Annotated[str, Form(...)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """
-    Upload an audio file, transcribe it with Whisper, and store the result.
-    """
-    # ── Validation ──────────────────────────────────────────────
+async def _validate_audio_file(file: UploadFile):
     ext = os.path.splitext(file.filename or "audio.wav")[1].lower()
     content_type = file.content_type or "application/octet-stream"
 
@@ -69,16 +59,10 @@ async def transcribe_audio(
             detail=f"Fichier trop volumineux ({len(content) // (1024*1024)} MB). "
                    f"Maximum: {settings.MAX_AUDIO_SIZE_MB} MB",
         )
+    return content
 
-    # Check Whisper model availability BEFORE saving file
-    whisper_model = request.app.state.whisper_model
-    if whisper_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Le modèle Whisper n'est pas chargé. Transcription indisponible.",
-        )
 
-    # ── Save file to disk ───────────────────────────────────────
+async def _encrypt_and_save_audio(content: bytes, ticket_id: str, filename: str) -> str:
     # Prevent path traversal (SonarCloud Blocker S2083) by resolving absolute paths
     base_dir = os.path.abspath(settings.AUDIO_STORAGE_PATH)
     ticket_dir = os.path.abspath(os.path.join(base_dir, ticket_id))
@@ -87,7 +71,7 @@ async def transcribe_audio(
 
     os.makedirs(ticket_dir, exist_ok=True)
 
-    ext = os.path.splitext(file.filename or "audio.wav")[1] or ".wav"
+    ext = os.path.splitext(filename or "audio.wav")[1] or ".wav"
     saved_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(ticket_dir, saved_filename)
 
@@ -116,26 +100,10 @@ async def transcribe_audio(
         await f.write(content)
 
     logger.info("Audio saved: %s (%d bytes)", sanitize_log(file_path), len(content))
+    return file_path
 
-    # ── Create DB record ────────────────────────────────────────
-    record = AudioRecord(
-        ticket_id=ticket_id,
-        file_path=file_path,
-        original_filename=file.filename,
-        status="PROCESSING",
-    )
-    db.add(record)
-    try:
-        db.commit()
-        db.refresh(record)
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail=f"Une transcription existe déjà pour le ticket {ticket_id}",
-        )
 
-    # ── Transcribe with Whisper ─────────────────────────────────
+async def _run_whisper_transcription(file_path: str, ticket_dir: str, whisper_model) -> dict:
     temp_transcribe_path = file_path
     temp_path = None
     try:
@@ -185,31 +153,12 @@ async def transcribe_audio(
         # Duration from last segment
         duration_seconds = round(raw_segments[-1]["end"], 2) if raw_segments else 0.0
 
-        # Update DB record
-        record.transcription = text
-        record.confidence = confidence
-        record.duration_seconds = duration_seconds
-        record.segments = segments
-        record.status = "DONE"
-        db.commit()
-
-        logger.info("Transcription done for ticket %s: %d chars, confidence=%s, duration=%ss",
-                     sanitize_log(ticket_id), len(text), confidence, duration_seconds)
-
-        return TranscribeResponse(
-            ticket_id=ticket_id,
-            text=text,
-            confidence=confidence,
-            duration_seconds=duration_seconds,
-            segments=[{"start": s["start"], "end": s["end"], "text": s["text"]} for s in segments],
-        )
-
-    except Exception as e:
-        logger.error("Whisper transcription failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
-        record.status = "FAILED"
-        record.error_message = str(e)
-        db.commit()
-        raise HTTPException(status_code=500, detail=f"Erreur de transcription: {e}")
+        return {
+            "text": text,
+            "confidence": confidence,
+            "duration_seconds": duration_seconds,
+            "segments": segments
+        }
 
     finally:
         # Securely remove temporary decrypted file if created
@@ -220,6 +169,81 @@ async def transcribe_audio(
             except OSError as cleanup_err:
                 logger.warning("Failed to delete temporary decrypted file %s: %s",
                                sanitize_log(str(temp_path)), sanitize_log(str(cleanup_err)))
+
+
+@router.post("/", response_model=TranscribeResponse)
+async def transcribe_audio(
+    request: Request,
+    file: Annotated[UploadFile, File(...)],
+    ticket_id: Annotated[str, Form(...)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Upload an audio file, transcribe it with Whisper, and store the result.
+    """
+    # ── Validation ──────────────────────────────────────────────
+    content = await _validate_audio_file(file)
+
+    # Check Whisper model availability BEFORE saving file
+    whisper_model = request.app.state.whisper_model
+    if whisper_model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Le modèle Whisper n'est pas chargé. Transcription indisponible.",
+        )
+
+    # ── Save file to disk ───────────────────────────────────────
+    file_path = await _encrypt_and_save_audio(content, ticket_id, file.filename or "audio.wav")
+    ticket_dir = os.path.dirname(file_path)
+
+    # ── Create DB record ────────────────────────────────────────
+    record = AudioRecord(
+        ticket_id=ticket_id,
+        file_path=file_path,
+        original_filename=file.filename,
+        status="PROCESSING",
+    )
+    db.add(record)
+    try:
+        db.commit()
+        db.refresh(record)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Une transcription existe déjà pour le ticket {ticket_id}",
+        )
+
+    # ── Transcribe with Whisper ─────────────────────────────────
+    try:
+        res = await _run_whisper_transcription(file_path, ticket_dir, whisper_model)
+
+        # Update DB record
+        record.transcription = res["text"]
+        record.confidence = res["confidence"]
+        record.duration_seconds = res["duration_seconds"]
+        record.segments = res["segments"]
+        record.status = "DONE"
+        db.commit()
+
+        logger.info("Transcription done for ticket %s: %d chars, confidence=%s, duration=%ss",
+                     sanitize_log(ticket_id), len(res["text"]), res["confidence"], res["duration_seconds"])
+
+        return TranscribeResponse(
+            ticket_id=ticket_id,
+            text=res["text"],
+            confidence=res["confidence"],
+            duration_seconds=res["duration_seconds"],
+            segments=[{"start": s["start"], "end": s["end"], "text": s["text"]} for s in res["segments"]],
+        )
+
+    except Exception as e:
+        logger.error("Whisper transcription failed for ticket %s: %s", sanitize_log(ticket_id), sanitize_log(e))
+        record.status = "FAILED"
+        record.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Erreur de transcription: {e}")
+
 
 
 

@@ -863,15 +863,7 @@ _USER_PATTERNS = [
 ]
 
 
-async def _fetch_live_context(question: str) -> str:
-    """
-    Detect if the question is about live data and fetch it from backend APIs.
-    Returns a string with live data to prepend to the RAG context, or empty string.
-    """
-    lower = question.lower()
-    live_parts = []
-
-    # ── Stats / Queue ──
+async def _fetch_live_stats(lower: str, live_parts: list):
     if any(p in lower for p in _STATS_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -903,7 +895,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning(f"⚠️ Could not fetch live stats: {e}")
 
-    # ── Ticket detail (T-xxxxxxxx-xxxxx) ──
+
+async def _fetch_live_ticket(lower: str, question: str, live_parts: list):
     import re as _re
     ticket_match = _re.search(r'T-\d{8}-\d+', question, _re.IGNORECASE)
     if ticket_match:
@@ -948,7 +941,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch ticket %s: %s", sanitize_log(ticket_ref), sanitize_log(e))
 
-    # ── Rules list ──
+
+async def _fetch_live_rules(lower: str, live_parts: list):
     if any(p in lower for p in _RULES_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -983,7 +977,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch live rules: %s", sanitize_log(str(e)))
 
-    # ── Reference data (pièces, sinistres, catégories) ──
+
+async def _fetch_live_reference_items(lower: str, live_parts: list):
     if any(p in lower for p in _REFERENCE_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -1008,7 +1003,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch reference data: %s", sanitize_log(str(e)))
 
-    # ── Agences ──
+
+async def _fetch_live_agences(lower: str, live_parts: list):
     if any(p in lower for p in _AGENCE_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -1030,7 +1026,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch agences: %s", sanitize_log(str(e)))
 
-    # ── Decisions stats ──
+
+async def _fetch_live_decisions(lower: str, live_parts: list):
     if any(p in lower for p in _DECISION_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -1056,7 +1053,8 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch decisions: %s", sanitize_log(str(e)))
 
-    # ── Users / équipe ──
+
+async def _fetch_live_users(lower: str, live_parts: list):
     if any(p in lower for p in _USER_PATTERNS):
         try:
             async with httpx.AsyncClient(timeout=8) as client:
@@ -1078,7 +1076,115 @@ async def _fetch_live_context(question: str) -> str:
         except Exception as e:
             logger.warning("⚠️ Could not fetch users: %s", sanitize_log(str(e)))
 
+
+async def _fetch_live_context(question: str) -> str:
+    """
+    Detect if the question is about live data and fetch it from backend APIs.
+    Returns a string with live data to prepend to the RAG context, or empty string.
+    """
+    lower = question.lower()
+    live_parts = []
+
+    await _fetch_live_stats(lower, live_parts)
+    await _fetch_live_ticket(lower, question, live_parts)
+    await _fetch_live_rules(lower, live_parts)
+    await _fetch_live_reference_items(lower, live_parts)
+    await _fetch_live_agences(lower, live_parts)
+    await _fetch_live_decisions(lower, live_parts)
+    await _fetch_live_users(lower, live_parts)
+
     return "\n".join(live_parts)
+
+
+# Helper function to handle non-RAG intents
+def _handle_no_rag_intents(intent: str, question: str, start_time: float) -> dict | None:
+    if intent == 'SMALL_TALK':
+        lang = detect_language(question)
+        if lang == 'ar':
+            msg = "👍 حسنًا! لا تتردد في طرح أسئلة أخرى. اكتب */aide* لمشاهدة الأوامر المتاحة. 😊"
+        elif lang == 'en':
+            msg = "👍 Got it! Feel free to ask more questions. Type */aide* to see available commands. 😊"
+        else:
+            msg = "👍 D'accord ! N'hésitez pas si vous avez d'autres questions. Tapez */aide* pour voir les commandes disponibles. 😊"
+        return {
+            "answer": msg,
+            "sources": [],
+            "documents_retrieved": 0,
+            "response_id": f"resp_{int(time.time())}_{_stats['total_queries']}",
+            "response_time_ms": int((time.time() - start_time) * 1000),
+            "llm_used": "intent_classifier",
+        }
+
+    if intent == 'OUT_OF_SCOPE':
+        return {
+            "answer": "🚗 Je suis *AutoAssist*, spécialisé dans la gestion des réclamations pièces auto.\n\nJe ne peux pas répondre à cette question, mais je peux vous aider avec :\n• 📊 Les statistiques → */stats*\n• 🎫 Un ticket → */ticket T-xxx*\n• 📋 La file d'attente → */queue*\n• ❓ Toute question sur la plateforme !\n\nTapez */aide* pour plus d'infos. 😊",
+            "sources": [],
+            "documents_retrieved": 0,
+            "response_id": f"resp_{int(time.time())}_{_stats['total_queries']}",
+            "response_time_ms": int((time.time() - start_time) * 1000),
+            "llm_used": "intent_classifier",
+        }
+    return None
+
+
+def _build_context_and_sources(relevant_docs: list, live_context: str) -> tuple[str, list[str]]:
+    context_parts = []
+    sources = []
+
+    if live_context:
+        # Live data takes priority — reduce KB docs to avoid exceeding context window
+        context_parts.append(live_context)
+        sources.append("📊 Données temps réel")
+        for doc in relevant_docs[:2]:
+            content = doc['content'][:250]
+            context_parts.append(f"[{doc['title']}] {content}")
+            sources.append(doc["title"])
+    else:
+        for doc in relevant_docs[:3]:
+            content = doc['content'][:CONTEXT_MAX_CHARS]
+            context_parts.append(f"[{doc['title']}] {content}")
+            sources.append(doc["title"])
+
+    context = "\n".join(context_parts)
+
+    # Hard cap — prevent context overflow that causes empty Gemma responses
+    if len(context) > 3000:
+        context = context[:3000]
+
+    return context, sources
+
+
+def _build_prompt_instructions(lang: str) -> str:
+    if lang == 'ar':
+        return (
+            "أنت AutoAssist، المساعد الذكي لإدارة شكاوى قطع غيار السيارات. "
+            "أجب بالعربية بطريقة واضحة ومهنية. "
+            "استخدم المعلومات من السياق أدناه فقط. "
+            "استخدم *خط عريض* للمصطلحات المهمة وأضف رموز تعبيرية مناسبة. "
+            "لا تخترع معلومات أبدًا."
+        )
+    elif lang == 'en':
+        return (
+            "You are AutoAssist, the AI assistant for auto parts claims management. "
+            "Reply in English clearly and professionally. "
+            "Use ONLY information from the CONTEXT below. "
+            "Use *bold* for key terms and add relevant emojis. "
+            "Never invent information."
+        )
+    else:
+        return (
+            "Tu es AutoAssist, l'assistant IA intelligent pour la gestion des réclamations pièces automobiles. "
+            "Tu aides les agents des agences à comprendre les procédures, les règles métier et le fonctionnement du système. "
+            "RÈGLES : "
+            "1. Réponds UNIQUEMENT avec les informations du CONTEXTE ci-dessous. "
+            "2. Réponds en français de manière claire, structurée et professionnelle (4-8 phrases). "
+            "3. Utilise le format WhatsApp : *gras* pour les termes importants, _italique_ pour les détails. "
+            "4. Ajoute des emojis pertinents (📋📊✅❌⚠️🔍) pour rendre la réponse visuelle. "
+            "5. Si DONNÉES TEMPS RÉEL sont fournies, cite les chiffres exacts avec contexte. "
+            "6. N'invente JAMAIS d'information. Si tu ne sais pas, dis-le honnêtement et suggère une commande (/aide). "
+            "7. Les tickets sont créés AUTOMATIQUEMENT via 3 canaux (CALL téléphone, EMAIL, WEB formulaire). "
+            "8. Adapte ton ton : professionnel mais chaleureux, comme un collègue expert qui aide."
+        )
 
 
 # MAIN CHAT — Pipeline RAG complet avec toutes les améliorations
@@ -1121,32 +1227,9 @@ async def chat(question: str, group_name: str = "") -> dict:
     })
 
     # Handle intents that don't need RAG
-    if intent == 'SMALL_TALK':
-        lang = detect_language(question)
-        if lang == 'ar':
-            msg = "👍 حسنًا! لا تتردد في طرح أسئلة أخرى. اكتب */aide* لمشاهدة الأوامر المتاحة. 😊"
-        elif lang == 'en':
-            msg = "👍 Got it! Feel free to ask more questions. Type */aide* to see available commands. 😊"
-        else:
-            msg = "👍 D'accord ! N'hésitez pas si vous avez d'autres questions. Tapez */aide* pour voir les commandes disponibles. 😊"
-        return {
-            "answer": msg,
-            "sources": [],
-            "documents_retrieved": 0,
-            "response_id": f"resp_{int(time.time())}_{_stats['total_queries']}",
-            "response_time_ms": int((time.time() - start_time) * 1000),
-            "llm_used": "intent_classifier",
-        }
-
-    if intent == 'OUT_OF_SCOPE':
-        return {
-            "answer": "🚗 Je suis *AutoAssist*, spécialisé dans la gestion des réclamations pièces auto.\n\nJe ne peux pas répondre à cette question, mais je peux vous aider avec :\n• 📊 Les statistiques → */stats*\n• 🎫 Un ticket → */ticket T-xxx*\n• 📋 La file d'attente → */queue*\n• ❓ Toute question sur la plateforme !\n\nTapez */aide* pour plus d'infos. 😊",
-            "sources": [],
-            "documents_retrieved": 0,
-            "response_id": f"resp_{int(time.time())}_{_stats['total_queries']}",
-            "response_time_ms": int((time.time() - start_time) * 1000),
-            "llm_used": "intent_classifier",
-        }
+    no_rag_res = _handle_no_rag_intents(intent, question, start_time)
+    if no_rag_res is not None:
+        return no_rag_res
 
     # ── Step 0b: Query Rewriting (fix Whisper errors) ──
     rewritten = rewrite_query(question)
@@ -1168,29 +1251,8 @@ async def chat(question: str, group_name: str = "") -> dict:
     # ── Step 1b: Smart Data Router — fetch live data if needed ──
     live_context = await _fetch_live_context(rewritten)
 
-    # ── Build context — cap size to prevent Gemma "finish=length" with 0 chars ──
-    context_parts = []
-    sources = []
-
-    if live_context:
-        # Live data takes priority — reduce KB docs to avoid exceeding context window
-        context_parts.append(live_context)
-        sources.append("📊 Données temps réel")
-        for doc in relevant_docs[:2]:
-            content = doc['content'][:250]
-            context_parts.append(f"[{doc['title']}] {content}")
-            sources.append(doc["title"])
-    else:
-        for doc in relevant_docs[:3]:
-            content = doc['content'][:CONTEXT_MAX_CHARS]
-            context_parts.append(f"[{doc['title']}] {content}")
-            sources.append(doc["title"])
-
-    context = "\n".join(context_parts)
-
-    # Hard cap — prevent context overflow that causes empty Gemma responses
-    if len(context) > 3000:
-        context = context[:3000]
+    # ── Build context ──
+    context, sources = _build_context_and_sources(relevant_docs, live_context)
 
     # ── Step 2: Add conversation memory ──
     conversation_context = _get_conversation_context(group_name)
@@ -1202,37 +1264,7 @@ async def chat(question: str, group_name: str = "") -> dict:
 
     # Detect language for adaptive response
     lang = detect_language(question)
-
-    if lang == 'ar':
-        instructions = (
-            "أنت AutoAssist، المساعد الذكي لإدارة شكاوى قطع غيار السيارات. "
-            "أجب بالعربية بطريقة واضحة ومهنية. "
-            "استخدم المعلومات من السياق أدناه فقط. "
-            "استخدم *خط عريض* للمصطلحات المهمة وأضف رموز تعبيرية مناسبة. "
-            "لا تخترع معلومات أبدًا."
-        )
-    elif lang == 'en':
-        instructions = (
-            "You are AutoAssist, the AI assistant for auto parts claims management. "
-            "Reply in English clearly and professionally. "
-            "Use ONLY information from the CONTEXT below. "
-            "Use *bold* for key terms and add relevant emojis. "
-            "Never invent information."
-        )
-    else:
-        instructions = (
-            "Tu es AutoAssist, l'assistant IA intelligent pour la gestion des réclamations pièces automobiles. "
-            "Tu aides les agents des agences à comprendre les procédures, les règles métier et le fonctionnement du système. "
-            "RÈGLES : "
-            "1. Réponds UNIQUEMENT avec les informations du CONTEXTE ci-dessous. "
-            "2. Réponds en français de manière claire, structurée et professionnelle (4-8 phrases). "
-            "3. Utilise le format WhatsApp : *gras* pour les termes importants, _italique_ pour les détails. "
-            "4. Ajoute des emojis pertinents (📋📊✅❌⚠️🔍) pour rendre la réponse visuelle. "
-            "5. Si DONNÉES TEMPS RÉEL sont fournies, cite les chiffres exacts avec contexte. "
-            "6. N'invente JAMAIS d'information. Si tu ne sais pas, dis-le honnêtement et suggère une commande (/aide). "
-            "7. Les tickets sont créés AUTOMATIQUEMENT via 3 canaux (CALL téléphone, EMAIL, WEB formulaire). "
-            "8. Adapte ton ton : professionnel mais chaleureux, comme un collègue expert qui aide."
-        )
+    instructions = _build_prompt_instructions(lang)
 
     user_prompt = f"{instructions}\n\n"
 
