@@ -386,7 +386,7 @@ function StepDescriptionPhotos({
 }
 
 interface StepRecapitulatifProps {
-  form: { nom: string; telephone: string; email: string; consentementTraitement: boolean };
+  form: { nom: string; telephone: string; email: string; agenceId: string; consentementTraitement: boolean };
   setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
   selectedType: 'accident' | 'bris' | 'panne' | 'autre' | null;
   agences: Agence[];
