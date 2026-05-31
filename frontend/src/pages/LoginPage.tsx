@@ -276,6 +276,90 @@ const computeBoxShadow = (
   return '0 0 0 0px transparent';
 };
 
+interface LeftPanelProps {
+  isDark: boolean;
+  sx: MotionValue<number>;
+  sy: MotionValue<number>;
+}
+
+function LeftPanel({ isDark, sx, sy }: Readonly<LeftPanelProps>) {
+  return (
+    <div className="hidden lg:flex flex-1 items-center justify-center relative z-10">
+      <motion.div className="flex flex-col items-center max-w-[550px] px-6 w-full"
+        variants={stagger} initial="hidden" animate="show">
+        <motion.div variants={pop} className="flex items-center gap-3.5 self-start mb-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+            <Logo size={38} animated={true} />
+          </div>
+          <span className="font-black text-2xl tracking-tight" style={{ color:isDark?'#f1f5f9':'#0f172a', letterSpacing: '-0.03em' }}>AutoAssist</span>
+          <span className="px-2 py-0.5 rounded text-[8px] font-mono tracking-widest uppercase text-emerald-500 border border-emerald-500/30 bg-emerald-500/5">v2.0</span>
+        </motion.div>
+
+        {/* Animated interactive scene */}
+        <motion.div variants={pop} className="w-full">
+          <AnimatedScene isDark={isDark} sx={sx} sy={sy} />
+        </motion.div>
+
+        <motion.h2 variants={pop} className="text-3xl font-black tracking-tight text-center leading-tight mt-2"
+          style={{ color:isDark?'#f1f5f9':'#0f172a',letterSpacing:'-0.03em' }}>
+          La plateforme qui{' '}
+          <span style={{ background:'linear-gradient(135deg,#2563eb,#06b6d4)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>révolutionne</span>
+          {' '}l'assurance auto
+        </motion.h2>
+        <motion.p variants={pop} className="text-center mt-2 text-sm" style={{ color:'#64748b' }}>
+          Centre d'appels intelligent propulsé par l'IA
+        </motion.p>
+        <motion.div variants={pop} className="flex items-center gap-2 mt-4">
+          <div className="w-2 h-2 rounded-full bg-emerald-400" style={{ animation:'loginPulseRing 2s infinite' }}/>
+          <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color:'#64748b' }}>Système opérationnel · 99.9% uptime</span>
+        </motion.div>
+
+        {/* Glowing stats cards below the title */}
+        <motion.div variants={pop} className="grid grid-cols-3 gap-3 w-full mt-8 font-mono text-[9px] text-center">
+          <div className="p-3 rounded-2xl bg-[rgba(37,99,235,0.03)] dark:bg-[rgba(37,99,235,0.05)] border border-[rgba(37,99,235,0.1)] backdrop-blur-md">
+            <div className="text-xs font-black text-blue-500">Gemma IA</div>
+            <div className="text-slate-400 mt-0.5">Moteur Décisionnel</div>
+          </div>
+          <div className="p-3 rounded-2xl bg-[rgba(6,182,212,0.03)] dark:bg-[rgba(6,182,212,0.05)] border border-[rgba(6,182,212,0.1)] backdrop-blur-md">
+            <div className="text-xs font-black text-cyan-500">Whisper AI</div>
+            <div className="text-slate-400 mt-0.5">Transcription Vocale</div>
+          </div>
+          <div className="p-3 rounded-2xl bg-[rgba(16,185,129,0.03)] dark:bg-[rgba(16,185,129,0.05)] border border-[rgba(16,185,129,0.1)] backdrop-blur-md">
+            <div className="text-xs font-black text-emerald-500">&lt; 2.5s</div>
+            <div className="text-slate-400 mt-0.5">Traitement Pipeline</div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
+interface LoginFormHeaderProps {
+  isDark: boolean;
+  tagline: string;
+}
+
+function LoginFormHeader({ isDark, tagline }: Readonly<LoginFormHeaderProps>) {
+  return (
+    <motion.div variants={pop} className="mb-6">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-lg" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+          <Logo size={44} animated={true} />
+        </div>
+        <div>
+          <div className="text-base font-black tracking-tight" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>AutoAssist</div>
+          <div className="font-mono text-[8px] text-[#64748b] tracking-wider uppercase">Système Décisionnel</div>
+        </div>
+      </div>
+      <h1 className="text-2xl font-black tracking-tighter" style={{ color:isDark?'#f1f5f9':'#0f172a' }}>Bon retour<span style={{ color:'#2563eb' }}>.</span></h1>
+      <div className="h-5 flex items-center mt-1.5">
+        <span className="text-sm" style={{ color:'#94a3b8' }}>{tagline}</span>
+        <span className="inline-block w-[2px] h-3.5 ml-0.5" style={{ background:'#2563eb',animation:'loginCursorBlink 0.8s infinite' }}/>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -381,54 +465,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex relative overflow-hidden" style={{ background: isDark ? '#060b18' : '#f0f4f8' }}>
       <AnimatedBg isDark={isDark} />
 
-      {/* ═══ LEFT — ANIMATED SVG SCENE ═══ */}
-      <div className="hidden lg:flex flex-1 items-center justify-center relative z-10">
-        <motion.div className="flex flex-col items-center max-w-[550px] px-6 w-full"
-          variants={stagger} initial="hidden" animate="show">
-          <motion.div variants={pop} className="flex items-center gap-3.5 self-start mb-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-md" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-              <Logo size={38} animated={true} />
-            </div>
-            <span className="font-black text-2xl tracking-tight" style={{ color:isDark?'#f1f5f9':'#0f172a', letterSpacing: '-0.03em' }}>AutoAssist</span>
-            <span className="px-2 py-0.5 rounded text-[8px] font-mono tracking-widest uppercase text-emerald-500 border border-emerald-500/30 bg-emerald-500/5">v2.0</span>
-          </motion.div>
-
-          {/* Animated interactive scene */}
-          <motion.div variants={pop} className="w-full">
-            <AnimatedScene isDark={isDark} sx={sx} sy={sy} />
-          </motion.div>
-
-          <motion.h2 variants={pop} className="text-3xl font-black tracking-tight text-center leading-tight mt-2"
-            style={{ color:isDark?'#f1f5f9':'#0f172a',letterSpacing:'-0.03em' }}>
-            La plateforme qui{' '}
-            <span style={{ background:'linear-gradient(135deg,#2563eb,#06b6d4)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>révolutionne</span>
-            {' '}l'assurance auto
-          </motion.h2>
-          <motion.p variants={pop} className="text-center mt-2 text-sm" style={{ color:'#64748b' }}>
-            Centre d'appels intelligent propulsé par l'IA
-          </motion.p>
-          <motion.div variants={pop} className="flex items-center gap-2 mt-4">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" style={{ animation:'loginPulseRing 2s infinite' }}/>
-            <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color:'#64748b' }}>Système opérationnel · 99.9% uptime</span>
-          </motion.div>
-
-          {/* Glowing stats cards below the title */}
-          <motion.div variants={pop} className="grid grid-cols-3 gap-3 w-full mt-8 font-mono text-[9px] text-center">
-            <div className="p-3 rounded-2xl bg-[rgba(37,99,235,0.03)] dark:bg-[rgba(37,99,235,0.05)] border border-[rgba(37,99,235,0.1)] backdrop-blur-md">
-              <div className="text-xs font-black text-blue-500">Gemma IA</div>
-              <div className="text-slate-400 mt-0.5">Moteur Décisionnel</div>
-            </div>
-            <div className="p-3 rounded-2xl bg-[rgba(6,182,212,0.03)] dark:bg-[rgba(6,182,212,0.05)] border border-[rgba(6,182,212,0.1)] backdrop-blur-md">
-              <div className="text-xs font-black text-cyan-500">Whisper AI</div>
-              <div className="text-slate-400 mt-0.5">Transcription Vocale</div>
-            </div>
-            <div className="p-3 rounded-2xl bg-[rgba(16,185,129,0.03)] dark:bg-[rgba(16,185,129,0.05)] border border-[rgba(16,185,129,0.1)] backdrop-blur-md">
-              <div className="text-xs font-black text-emerald-500">&lt; 2.5s</div>
-              <div className="text-slate-400 mt-0.5">Traitement Pipeline</div>
-            </div>
-          </motion.div>
-        </motion.div>
-      </div>
+      <LeftPanel isDark={isDark} sx={sx} sy={sy} />
 
       {/* ═══ RIGHT — FORM ═══ */}
       <div className="w-full lg:w-[480px] flex items-center justify-center relative z-10 p-6 sm:p-10">
@@ -444,22 +481,7 @@ export default function LoginPage() {
 
         {/* 3D Perspective Card Wrapper */}
         <motion.div style={{ perspective: 1000 }} className="relative z-10 w-full max-w-[370px]" variants={stagger} initial="hidden" animate="show">
-          <motion.div variants={pop} className="mb-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] relative flex-shrink-0 overflow-hidden shadow-lg" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                <Logo size={44} animated={true} />
-              </div>
-              <div>
-                <div className="text-base font-black tracking-tight" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>AutoAssist</div>
-                <div className="font-mono text-[8px] text-[#64748b] tracking-wider uppercase">Système Décisionnel</div>
-              </div>
-            </div>
-            <h1 className="text-2xl font-black tracking-tighter" style={{ color:isDark?'#f1f5f9':'#0f172a' }}>Bon retour<span style={{ color:'#2563eb' }}>.</span></h1>
-            <div className="h-5 flex items-center mt-1.5">
-              <span className="text-sm" style={{ color:'#94a3b8' }}>{tagline}</span>
-              <span className="inline-block w-[2px] h-3.5 ml-0.5" style={{ background:'#2563eb',animation:'loginCursorBlink 0.8s infinite' }}/>
-            </div>
-          </motion.div>
+          <LoginFormHeader isDark={isDark} tagline={tagline} />
           <motion.form onSubmit={handleSubmit} variants={pop}>
             
             {/* 3D Tilting Card Container */}

@@ -123,6 +123,341 @@ const validateFormStep2 = (description: string): string | null => {
   return null;
 };
 
+interface StepCoordonneesProps {
+  form: { nom: string; telephone: string; email: string };
+  setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
+  touched: Record<string, boolean>;
+  setTouched: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  setFocusedField: React.Dispatch<React.SetStateAction<string | null>>;
+  getNomError: () => string;
+  getTelError: () => string;
+  getEmailError: () => string;
+  handleBlur: (field: string) => void;
+  handleTelChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  getFieldClassName: (name: string, err: string) => string;
+}
+
+function StepCoordonnees({
+  form,
+  setForm,
+  touched,
+  setTouched,
+  setFocusedField,
+  getNomError,
+  getTelError,
+  getEmailError,
+  handleBlur,
+  handleTelChange,
+  getFieldClassName,
+}: Readonly<StepCoordonneesProps>) {
+  return (
+    <motion.div
+      key="step0"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      className="space-y-4"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <User size={16} className="text-indigo-400" />
+        <h3 className="text-sm font-bold">Vos coordonnées</h3>
+      </div>
+
+      {/* Nom */}
+      <div className={getFieldClassName('nom', getNomError())}>
+        <label htmlFor="pf-nom" className="cf-label">Nom complet <span className="cf-required">*</span></label>
+        <input id="pf-nom" className="cf-input" type="text" value={form.nom}
+          onChange={e => { setForm(f => ({...f, nom: e.target.value})); setTouched(p => ({...p, nom: true})); }}
+          onFocus={() => setFocusedField('nom')} onBlur={() => handleBlur('nom')} required />
+        {touched.nom && (
+          <div className="cf-validation-badge">
+            {getNomError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
+          </div>
+        )}
+        {getNomError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getNomError()}</div>}
+      </div>
+
+      {/* Téléphone */}
+      <div className={getFieldClassName('telephone', getTelError())}>
+        <label htmlFor="pf-tel" className="cf-label">Numéro de téléphone</label>
+        <input id="pf-tel" className="cf-input" type="tel" value={form.telephone}
+          onChange={handleTelChange}
+          onFocus={() => setFocusedField('telephone')} onBlur={() => handleBlur('telephone')} />
+        {touched.telephone && form.telephone && (
+          <div className="cf-validation-badge">
+            {getTelError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
+          </div>
+        )}
+        {getTelError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getTelError()}</div>}
+      </div>
+
+      {/* Email */}
+      <div className={getFieldClassName('email', getEmailError())}>
+        <label htmlFor="pf-email" className="cf-label">Adresse e-mail</label>
+        <input id="pf-email" className="cf-input" type="email" value={form.email}
+          onChange={e => { setForm(f => ({...f, email: e.target.value})); setTouched(p => ({...p, email: true})); }}
+          onFocus={() => setFocusedField('email')} onBlur={() => handleBlur('email')} />
+        {touched.email && form.email && (
+          <div className="cf-validation-badge">
+            {getEmailError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
+          </div>
+        )}
+        {getEmailError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getEmailError()}</div>}
+      </div>
+    </motion.div>
+  );
+}
+
+interface StepNatureSinistreProps {
+  selectedType: 'accident' | 'bris' | 'panne' | 'autre' | null;
+  form: { agenceId: string };
+  setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
+  touched: Record<string, boolean>;
+  setTouched: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  agences: Agence[];
+  handleTypeSelect: (type: 'accident' | 'bris' | 'panne' | 'autre') => void;
+}
+
+function StepNatureSinistre({
+  selectedType,
+  form,
+  setForm,
+  touched,
+  setTouched,
+  agences,
+  handleTypeSelect,
+}: Readonly<StepNatureSinistreProps>) {
+  return (
+    <motion.div
+      key="step1"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      className="space-y-4"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+         <Info size={16} className="text-indigo-400" />
+         <h3 className="text-sm font-bold">Nature du sinistre & Agence</h3>
+      </div>
+
+      {/* Tactile Cards grid */}
+      <div className="cf-type-grid">
+        {([
+          { id: 'accident', title: 'Accident / Choc', icon: <Car size={20} />, color: 'rgba(239, 68, 68, 0.15)', textC: 'text-rose-400 border-rose-500/20' },
+          { id: 'bris', title: 'Bris de glace', icon: <Zap size={20} />, color: 'rgba(59, 130, 246, 0.15)', textC: 'text-blue-400 border-blue-500/20' },
+          { id: 'panne', title: 'Panne mécanique', icon: <Wrench size={20} />, color: 'rgba(245, 158, 11, 0.15)', textC: 'text-amber-400 border-amber-500/20' },
+          { id: 'autre', title: 'Autre motif', icon: <Phone size={20} />, color: 'rgba(139, 92, 246, 0.15)', textC: 'text-violet-400 border-violet-500/20' }
+        ] as const).map(item => (
+          <button 
+            key={item.id}
+            type="button"
+            onClick={() => handleTypeSelect(item.id)}
+            className={`cf-type-card ${selectedType === item.id ? 'selected' : ''}`}
+          >
+            <div className="cf-type-card-icon" style={{ backgroundColor: item.color }}>
+              <span className={item.textC}>{item.icon}</span>
+            </div>
+            <span className="cf-type-card-title">{item.title}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Agence select dropdown */}
+      <div className={`cf-field select-field ${touched.agenceId && form.agenceId ? 'is-valid' : ''}${touched.agenceId && !form.agenceId ? 'has-error' : ''}`}>
+        <label htmlFor="pf-agence" className="cf-label">Votre agence de référence <span className="cf-required">*</span></label>
+        <select id="pf-agence" className="cf-select" value={form.agenceId}
+          onChange={e => { setForm(f => ({...f, agenceId: e.target.value})); setTouched(p => ({...p, agenceId: true})); }} required>
+          <option value="">— Choisir l'agence —</option>
+          {agences.map(a => <option key={a.id} value={a.id}>{a.nom}{a.ville ? ` — ${a.ville}` : ''}</option>)}
+        </select>
+        <span className="cf-select-arrow">▾</span>
+        {touched.agenceId && (
+          <div className="cf-validation-badge mr-6">
+            {form.agenceId ? <Check size={16} className="text-emerald-500" /> : <ShieldAlert size={16} className="text-red-500" />}
+          </div>
+        )}
+        {touched.agenceId && !form.agenceId && <div className="cf-validation-msg"><AlertTriangle size={12} /> L'agence est obligatoire.</div>}
+      </div>
+    </motion.div>
+  );
+}
+
+interface StepDescriptionPhotosProps {
+  form: { description: string };
+  setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
+  touched: Record<string, boolean>;
+  setTouched: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  setFocusedField: React.Dispatch<React.SetStateAction<string | null>>;
+  getDescError: () => string;
+  isFieldActive: (name: string) => boolean;
+  handleBlur: (field: string) => void;
+  photoPreviews: string[];
+  handlePhotoSelect: (files: FileList | null) => void;
+  removePhoto: (index: number) => void;
+  themeBorder: string;
+}
+
+function StepDescriptionPhotos({
+  form,
+  setForm,
+  touched,
+  setTouched,
+  setFocusedField,
+  getDescError,
+  isFieldActive,
+  handleBlur,
+  photoPreviews,
+  handlePhotoSelect,
+  removePhoto,
+  themeBorder,
+}: Readonly<StepDescriptionPhotosProps>) {
+  return (
+    <motion.div
+      key="step2"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      className="space-y-4"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <FileText size={16} className="text-indigo-400" />
+        <h3 className="text-sm font-bold">Description & Pièces Jointes</h3>
+      </div>
+
+       {/* Description textarea */}
+      <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''} ${touched.description && getDescError() ? 'has-error' : ''}${touched.description && !getDescError() ? 'is-valid' : ''}`}>
+        <label htmlFor="pf-desc" className="cf-label">Description des circonstances <span className="cf-required">*</span></label>
+        <textarea id="pf-desc" className="cf-textarea" value={form.description}
+          onChange={e => { setForm(f => ({...f, description: e.target.value})); setTouched(p => ({...p, description: true})); }}
+          onFocus={() => setFocusedField('description')} onBlur={() => handleBlur('description')} required />
+        {touched.description && (
+          <div className="cf-validation-badge">
+            {getDescError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
+          </div>
+        )}
+        <div className="flex justify-between items-center mt-1.5 px-1">
+          <div>
+            {getDescError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getDescError()}</div>}
+          </div>
+          <div className="text-[10px] text-txt-3 font-mono tracking-wider">
+            {form.description.length} caractères · {form.description.trim() ? form.description.trim().split(/\s+/).length : 0} mots
+          </div>
+        </div>
+      </div>
+
+      {/* Glassy Image Dropzone */}
+      <div>
+        <div className="text-[10px] uppercase font-bold text-txt-3 tracking-wider mb-2">
+          Photos du véhicule / sinistre <span className="opacity-60">(optionnel · max {MAX_PHOTOS})</span>
+        </div>
+        
+        <label
+          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#8b5cf6'; }}
+          onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = themeBorder; }}
+          onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = themeBorder; handlePhotoSelect(e.dataTransfer.files); }}
+          className="cf-dropzone"
+        >
+          <input type="file" multiple accept="image/*"
+            style={{ display: 'none' }} onChange={e => handlePhotoSelect(e.target.files)} />
+          <div className="cf-dropzone-icon"><Camera size={22} /></div>
+          <div className="text-xs font-bold text-txt-2">Glisser-déposer ou cliquer pour ajouter</div>
+          <div className="text-[9px] text-txt-3">JPEG, PNG, WebP · max {MAX_SIZE_MB}Mo par photo</div>
+        </label>
+
+        {/* Polaroid Previews */}
+        {photoPreviews.length > 0 && (
+          <div className="cf-previews-container">
+            {photoPreviews.map((src, i) => (
+              <motion.div 
+                key={`photo-preview-${i}-${src.substring(0, 50)}`}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="cf-polaroid"
+              >
+                <img src={src} alt={`Preview ${i+1}`} />
+                <button type="button" onClick={() => removePhoto(i)} className="cf-polaroid-remove">✕</button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+interface StepRecapitulatifProps {
+  form: { nom: string; telephone: string; email: string; consentementTraitement: boolean };
+  setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
+  selectedType: 'accident' | 'bris' | 'panne' | 'autre' | null;
+  agences: Agence[];
+  photoFiles: File[];
+}
+
+function StepRecapitulatif({
+  form,
+  setForm,
+  selectedType,
+  agences,
+  photoFiles,
+}: Readonly<StepRecapitulatifProps>) {
+  return (
+    <motion.div
+      key="step3"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      className="space-y-4"
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <ShieldAlert size={16} className="text-indigo-400" />
+        <h3 className="text-sm font-bold">Récapitulatif & Soumission</h3>
+      </div>
+
+      {/* Bento Summary Box */}
+      <div className="cf-summary-box">
+        <div className="cf-summary-row">
+          <span className="cf-summary-label">Déclarant</span>
+          <span className="cf-summary-val">{form.nom}</span>
+        </div>
+        {(form.telephone || form.email) && (
+          <div className="cf-summary-row">
+            <span className="cf-summary-label">Contact</span>
+            <span className="cf-summary-val">{form.telephone || form.email}</span>
+          </div>
+        )}
+        <div className="cf-summary-row">
+          <span className="cf-summary-label">Sinistre</span>
+          <span className="cf-summary-val uppercase font-bold text-indigo-400">{selectedType}</span>
+        </div>
+        <div className="cf-summary-row">
+          <span className="cf-summary-label">Agence</span>
+          <span className="cf-summary-val">
+            {agences.find(a => a.id === form.agenceId)?.nom || 'Inconnue'}
+          </span>
+        </div>
+        <div className="cf-summary-row">
+          <span className="cf-summary-label">Photos jointes</span>
+          <span className="cf-summary-val">{photoFiles.length} photo(s)</span>
+        </div>
+      </div>
+
+      {/* RGPD Consent */}
+      <label className="cf-checkbox-container">
+        <input
+          type="checkbox"
+          className="cf-checkbox-input"
+          checked={form.consentementTraitement}
+          onChange={e => setForm(f => ({ ...f, consentementTraitement: e.target.checked }))}
+          required
+        />
+        <span className="cf-checkbox-label">
+          J'accepte que mes données personnelles soient traitées dans le cadre de ma demande d'assistance conformément au RGPD.
+        </span>
+      </label>
+    </motion.div>
+  );
+}
+
 export default function PublicFormPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', description: '', agenceId: '', consentementTraitement: false });
@@ -675,244 +1010,58 @@ export default function PublicFormPage() {
                 <form onSubmit={handleSubmit}>
                   <AnimatePresence mode="wait">
                     {currentStep === 0 && (
-                      <motion.div
-                        key="step0"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <User size={16} className="text-indigo-400" />
-                          <h3 className="text-sm font-bold">Vos coordonnées</h3>
-                        </div>
-
-                        {/* Nom */}
-                        <div className={getFieldClassName('nom', getNomError())}>
-                          <label htmlFor="pf-nom" className="cf-label">Nom complet <span className="cf-required">*</span></label>
-                          <input id="pf-nom" className="cf-input" type="text" value={form.nom}
-                            onChange={e => { setForm(f => ({...f, nom: e.target.value})); setTouched(p => ({...p, nom: true})); }}
-                            onFocus={() => setFocusedField('nom')} onBlur={() => handleBlur('nom')} required />
-                          {touched.nom && (
-                            <div className="cf-validation-badge">
-                              {getNomError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
-                            </div>
-                          )}
-                          {getNomError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getNomError()}</div>}
-                        </div>
-
-                        {/* Téléphone */}
-                        <div className={getFieldClassName('telephone', getTelError())}>
-                          <label htmlFor="pf-tel" className="cf-label">Numéro de téléphone</label>
-                          <input id="pf-tel" className="cf-input" type="tel" value={form.telephone}
-                            onChange={handleTelChange}
-                            onFocus={() => setFocusedField('telephone')} onBlur={() => handleBlur('telephone')} />
-                          {touched.telephone && form.telephone && (
-                            <div className="cf-validation-badge">
-                              {getTelError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
-                            </div>
-                          )}
-                          {getTelError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getTelError()}</div>}
-                        </div>
-
-                        {/* Email */}
-                        <div className={getFieldClassName('email', getEmailError())}>
-                          <label htmlFor="pf-email" className="cf-label">Adresse e-mail</label>
-                          <input id="pf-email" className="cf-input" type="email" value={form.email}
-                            onChange={e => { setForm(f => ({...f, email: e.target.value})); setTouched(p => ({...p, email: true})); }}
-                            onFocus={() => setFocusedField('email')} onBlur={() => handleBlur('email')} />
-                          {touched.email && form.email && (
-                            <div className="cf-validation-badge">
-                              {getEmailError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
-                            </div>
-                          )}
-                          {getEmailError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getEmailError()}</div>}
-                        </div>
-                      </motion.div>
+                      <StepCoordonnees
+                        form={form}
+                        setForm={setForm}
+                        touched={touched}
+                        setTouched={setTouched}
+                        setFocusedField={setFocusedField}
+                        getNomError={getNomError}
+                        getTelError={getTelError}
+                        getEmailError={getEmailError}
+                        handleBlur={handleBlur}
+                        handleTelChange={handleTelChange}
+                        getFieldClassName={getFieldClassName}
+                      />
                     )}
 
                     {currentStep === 1 && (
-                      <motion.div
-                        key="step1"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                           <Info size={16} className="text-indigo-400" />
-                           <h3 className="text-sm font-bold">Nature du sinistre & Agence</h3>
-                        </div>
-
-                        {/* Tactile Cards grid */}
-                        <div className="cf-type-grid">
-                          {([
-                            { id: 'accident', title: 'Accident / Choc', icon: <Car size={20} />, color: 'rgba(239, 68, 68, 0.15)', textC: 'text-rose-400 border-rose-500/20' },
-                            { id: 'bris', title: 'Bris de glace', icon: <Zap size={20} />, color: 'rgba(59, 130, 246, 0.15)', textC: 'text-blue-400 border-blue-500/20' },
-                            { id: 'panne', title: 'Panne mécanique', icon: <Wrench size={20} />, color: 'rgba(245, 158, 11, 0.15)', textC: 'text-amber-400 border-amber-500/20' },
-                            { id: 'autre', title: 'Autre motif', icon: <Phone size={20} />, color: 'rgba(139, 92, 246, 0.15)', textC: 'text-violet-400 border-violet-500/20' }
-                          ] as const).map(item => (
-                            <button 
-                              key={item.id}
-                              type="button"
-                              onClick={() => handleTypeSelect(item.id)}
-                              className={`cf-type-card ${selectedType === item.id ? 'selected' : ''}`}
-                            >
-                              <div className="cf-type-card-icon" style={{ backgroundColor: item.color }}>
-                                <span className={item.textC}>{item.icon}</span>
-                              </div>
-                              <span className="cf-type-card-title">{item.title}</span>
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Agence select dropdown */}
-                        <div className={`cf-field select-field ${touched.agenceId && form.agenceId ? 'is-valid' : ''}${touched.agenceId && !form.agenceId ? 'has-error' : ''}`}>
-                          <label htmlFor="pf-agence" className="cf-label">Votre agence de référence <span className="cf-required">*</span></label>
-                          <select id="pf-agence" className="cf-select" value={form.agenceId}
-                            onChange={e => { setForm(f => ({...f, agenceId: e.target.value})); setTouched(p => ({...p, agenceId: true})); }} required>
-                            <option value="">— Choisir l'agence —</option>
-                            {agences.map(a => <option key={a.id} value={a.id}>{a.nom}{a.ville ? ` — ${a.ville}` : ''}</option>)}
-                          </select>
-                          <span className="cf-select-arrow">▾</span>
-                          {touched.agenceId && (
-                            <div className="cf-validation-badge mr-6">
-                              {form.agenceId ? <Check size={16} className="text-emerald-500" /> : <ShieldAlert size={16} className="text-red-500" />}
-                            </div>
-                          )}
-                          {touched.agenceId && !form.agenceId && <div className="cf-validation-msg"><AlertTriangle size={12} /> L'agence est obligatoire.</div>}
-                        </div>
-                      </motion.div>
+                      <StepNatureSinistre
+                        selectedType={selectedType}
+                        form={form}
+                        setForm={setForm}
+                        touched={touched}
+                        setTouched={setTouched}
+                        agences={agences}
+                        handleTypeSelect={handleTypeSelect}
+                      />
                     )}
 
                     {currentStep === 2 && (
-                      <motion.div
-                        key="step2"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <FileText size={16} className="text-indigo-400" />
-                          <h3 className="text-sm font-bold">Description & Pièces Jointes</h3>
-                        </div>
-
-                         {/* Description textarea */}
-                        <div className={`cf-field textarea-field ${isFieldActive('description') ? 'active' : ''} ${touched.description && getDescError() ? 'has-error' : ''}${touched.description && !getDescError() ? 'is-valid' : ''}`}>
-                          <label htmlFor="pf-desc" className="cf-label">Description des circonstances <span className="cf-required">*</span></label>
-                          <textarea id="pf-desc" className="cf-textarea" value={form.description}
-                            onChange={e => { setForm(f => ({...f, description: e.target.value})); setTouched(p => ({...p, description: true})); }}
-                            onFocus={() => setFocusedField('description')} onBlur={() => handleBlur('description')} required />
-                          {touched.description && (
-                            <div className="cf-validation-badge">
-                              {getDescError() ? <ShieldAlert size={16} className="text-red-500" /> : <Check size={16} className="text-emerald-500" />}
-                            </div>
-                          )}
-                          <div className="flex justify-between items-center mt-1.5 px-1">
-                            <div>
-                              {getDescError() && <div className="cf-validation-msg"><AlertTriangle size={12} /> {getDescError()}</div>}
-                            </div>
-                            <div className="text-[10px] text-txt-3 font-mono tracking-wider">
-                              {form.description.length} caractères · {form.description.trim() ? form.description.trim().split(/\s+/).length : 0} mots
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Glassy Image Dropzone */}
-                        <div>
-                          <div className="text-[10px] uppercase font-bold text-txt-3 tracking-wider mb-2">
-                            Photos du véhicule / sinistre <span className="opacity-60">(optionnel · max {MAX_PHOTOS})</span>
-                          </div>
-                          
-                          <label
-                            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#8b5cf6'; }}
-                            onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; }}
-                            onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; handlePhotoSelect(e.dataTransfer.files); }}
-                            className="cf-dropzone"
-                          >
-                            <input type="file" multiple accept="image/*"
-                              style={{ display: 'none' }} onChange={e => handlePhotoSelect(e.target.files)} />
-                            <div className="cf-dropzone-icon"><Camera size={22} /></div>
-                            <div className="text-xs font-bold text-txt-2">Glisser-déposer ou cliquer pour ajouter</div>
-                            <div className="text-[9px] text-txt-3">JPEG, PNG, WebP · max {MAX_SIZE_MB}Mo par photo</div>
-                          </label>
-
-                          {/* Polaroid Previews */}
-                          {photoPreviews.length > 0 && (
-                            <div className="cf-previews-container">
-                              {photoPreviews.map((src, i) => (
-                                <motion.div 
-                                  key={`photo-preview-${i}-${src.substring(0, 50)}`}
-                                  initial={{ scale: 0.8, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1 }}
-                                  className="cf-polaroid"
-                                >
-                                  <img src={src} alt={`Preview ${i+1}`} />
-                                  <button type="button" onClick={() => removePhoto(i)} className="cf-polaroid-remove">✕</button>
-                                </motion.div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
+                      <StepDescriptionPhotos
+                        form={form}
+                        setForm={setForm}
+                        touched={touched}
+                        setTouched={setTouched}
+                        setFocusedField={setFocusedField}
+                        getDescError={getDescError}
+                        isFieldActive={isFieldActive}
+                        handleBlur={handleBlur}
+                        photoPreviews={photoPreviews}
+                        handlePhotoSelect={handlePhotoSelect}
+                        removePhoto={removePhoto}
+                        themeBorder={t.border}
+                      />
                     )}
 
                     {currentStep === 3 && (
-                      <motion.div
-                        key="step3"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <ShieldAlert size={16} className="text-indigo-400" />
-                          <h3 className="text-sm font-bold">Récapitulatif & Soumission</h3>
-                        </div>
-
-                        {/* Bento Summary Box */}
-                        <div className="cf-summary-box">
-                          <div className="cf-summary-row">
-                            <span className="cf-summary-label">Déclarant</span>
-                            <span className="cf-summary-val">{form.nom}</span>
-                          </div>
-                          {(form.telephone || form.email) && (
-                            <div className="cf-summary-row">
-                              <span className="cf-summary-label">Contact</span>
-                              <span className="cf-summary-val">{form.telephone || form.email}</span>
-                            </div>
-                          )}
-                          <div className="cf-summary-row">
-                            <span className="cf-summary-label">Sinistre</span>
-                            <span className="cf-summary-val uppercase font-bold text-indigo-400">{selectedType}</span>
-                          </div>
-                          <div className="cf-summary-row">
-                            <span className="cf-summary-label">Agence</span>
-                            <span className="cf-summary-val">
-                              {agences.find(a => a.id === form.agenceId)?.nom || 'Inconnue'}
-                            </span>
-                          </div>
-                          <div className="cf-summary-row">
-                            <span className="cf-summary-label">Photos jointes</span>
-                            <span className="cf-summary-val">{photoFiles.length} photo(s)</span>
-                          </div>
-                        </div>
-
-                        {/* RGPD Consent */}
-                        <label className="cf-checkbox-container">
-                          <input
-                            type="checkbox"
-                            className="cf-checkbox-input"
-                            checked={form.consentementTraitement}
-                            onChange={e => setForm(f => ({ ...f, consentementTraitement: e.target.checked }))}
-                            required
-                          />
-                          <span className="cf-checkbox-label">
-                            J'accepte que mes données personnelles soient traitées dans le cadre de ma demande d'assistance conformément au RGPD.
-                          </span>
-                        </label>
-                      </motion.div>
+                      <StepRecapitulatif
+                        form={form}
+                        setForm={setForm}
+                        selectedType={selectedType}
+                        agences={agences}
+                        photoFiles={photoFiles}
+                      />
                     )}
                   </AnimatePresence>
 
