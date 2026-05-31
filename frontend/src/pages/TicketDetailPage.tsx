@@ -47,7 +47,7 @@ function buildAnalyzePayload(
   for (const fd of (fieldRefs?.fields ?? [])) {
     const val = formData[fd.field];
     if (val !== undefined && val !== '') {
-      data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
+      data[fd.field] = fd.type === 'number' ? Number.parseInt(val, 10) : val;
     }
   }
   return {

@@ -57,7 +57,7 @@ function AnimatedBg({ isDark }: Readonly<{ isDark: boolean }>) {
         { id: 'blur-3', w:'35vw',h:'35vw',top:'40%',left:'30%',c:isDark?'rgba(16,185,129,0.08)':'rgba(16,185,129,0.04)',dur:30,dx:40,dy:70 },
       ].map((b) => (
         <motion.div key={b.id} className="absolute rounded-full" style={{ width:b.w,height:b.h,top:b.top,bottom:b.bottom,left:b.left,right:b.right,
-          background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' } as React.CSSProperties}
+          background:`radial-gradient(circle, ${b.c} 0%, transparent 70%)`,filter:'blur(60px)' }}
           animate={{ x:[0,b.dx,-b.dx/2,0], y:[0,b.dy/2,-b.dy,0] }}
           transition={{ duration:b.dur, repeat:Infinity, ease:'easeInOut' }} />
       ))}
@@ -140,7 +140,7 @@ function TravelingDots({ claimColor, accent }: Readonly<{ claimColor: string; ac
           initial={{ offsetDistance: '0%' }}
           animate={{ offsetDistance: ['0%', '100%'] }}
           transition={{ duration: 2.5, repeat: Infinity, delay: i*0.6, ease: 'linear' }}
-          style={{ offsetPath: `path('${d}')` } as React.CSSProperties & { offsetPath: string }} />
+          style={{ offsetPath: `path('${d}')` }} />
       ))}
     </>
   );
@@ -468,13 +468,13 @@ export default function LoginPage() {
                   
                   {/* Email Input with Validation */}
                   <div>
-                    <label className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Identifiant</label>
+                    <label htmlFor="email-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Identifiant</label>
                     <div className="relative group">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
                         style={{ color: getIconColor('email', getEmailError()) }}>
                         <Mail size={16} />
                       </div>
-                      <motion.input type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
+                      <motion.input id="email-input" type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
                         style={getInputStyle('email', getEmailError())}
                         animate={{ boxShadow: focused==='email' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.email || authError) ? ((getEmailError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
                         transition={{ type:'spring',stiffness:300,damping:25 }}
@@ -510,13 +510,13 @@ export default function LoginPage() {
 
                   {/* Password Input with Validation */}
                   <div>
-                    <label className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Mot de passe</label>
+                    <label htmlFor="password-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Mot de passe</label>
                     <div className="relative group">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
                         style={{ color: getIconColor('password', getPasswordError()) }}>
                         <Lock size={16} />
                       </div>
-                      <motion.input type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
+                      <motion.input id="password-input" type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
                         style={getInputStyle('password', getPasswordError())}
                         animate={{ boxShadow: focused==='password' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.password || authError) ? ((getPasswordError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
                         transition={{ type:'spring',stiffness:300,damping:25 }}

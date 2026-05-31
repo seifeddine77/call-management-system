@@ -119,6 +119,135 @@ export default function AgencesPage() {
     setEditingId(a.id);
   };
 
+  const getSaveButtonText = () => {
+    if (saving) return 'Sauvegarde...';
+    return showCreate ? "Créer l'agence" : 'Enregistrer';
+  };
+
+  const renderAgencesContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }, (_, idx) => idx).map((idx) => (
+            <div key={idx} className="h-60 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      );
+    }
+    if (agences.length === 0) {
+      return (
+        <div className="card-aurora rounded-2xl border border-border p-8">
+          <EmptyState icon={<Building2 size={36} />} title="Aucune agence active" subtitle="Enregistrez votre première agence régionale pour organiser les interventions techniques." />
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AnimatePresence mode="popLayout">
+          {agences.map((a, idx) => {
+            const initials = a.responsableName 
+              ? a.responsableName.split(' ').map(n => n[0]).join('').toUpperCase()
+              : '—';
+              
+            return (
+              <motion.div
+                key={a.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.25, delay: idx * 0.03 }}
+                whileHover={{ y: -4, scale: 1.01 }}
+                className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-lg p-5 flex flex-col justify-between h-[280px] relative transition-shadow duration-300 hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.2)]"
+              >
+                <div className="space-y-4">
+                  {/* Card Top Title & Actions */}
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-[15px] text-txt tracking-wide flex items-center gap-1.5">
+                        <Building2 size={15} className="text-emerald-400" />
+                        {a.nom}
+                      </div>
+                      <div className="text-[10.5px] text-txt-3 flex items-center gap-1">
+                        <MapPin size={11} className="text-emerald-400/60" />
+                        <span className="truncate max-w-[200px]">{a.adresse || 'Adresse non spécifiée'}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Dropdown/Quick buttons */}
+                    <div className="flex items-center gap-1 bg-[var(--surface)] border border-border rounded-xl p-0.5">
+                      <button 
+                        onClick={() => openEdit(a)} 
+                        className="h-7 w-7 rounded-lg text-txt-3 hover:text-txt hover:bg-[var(--elevated)] transition-colors flex items-center justify-center cursor-pointer"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button 
+                        onClick={() => setDeleteTarget(a)} 
+                        className="h-7 w-7 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center cursor-pointer"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Metadata contact grid */}
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/40">
+                    <div className="font-mono text-[9px] text-txt-3 tracking-wide space-y-0.5">
+                      <div className="uppercase font-extrabold text-[8px] text-txt-3 flex items-center gap-1">
+                        <Phone size={8} /> Téléphone
+                      </div>
+                      <div className="text-txt-2 text-[10px] font-semibold">{a.telephone || '—'}</div>
+                    </div>
+                    <div className="font-mono text-[9px] text-txt-3 tracking-wide space-y-0.5">
+                      <div className="uppercase font-extrabold text-[8px] text-txt-3 flex items-center gap-1">
+                        <Mail size={8} /> Email
+                      </div>
+                      <div className="text-txt-2 text-[10px] font-semibold truncate max-w-[120px]">{a.email || '—'}</div>
+                    </div>
+                  </div>
+
+                  {/* Stock Description Badge */}
+                  {a.stockDescription && (
+                    <div className="bg-emerald-500/[0.03] border border-emerald-500/10 p-2.5 rounded-xl flex items-start gap-2">
+                      <Package size={13} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                      <div className="space-y-0.5 leading-none">
+                        <span className="font-mono text-[8px] text-emerald-400 font-extrabold uppercase tracking-widest block">Matériel & Stock</span>
+                        <span className="text-[10px] text-txt-2 font-medium line-clamp-1">{a.stockDescription}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Bottom: Responsable & Availability metrics */}
+                <div className="border-t border-border/40 pt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10.5px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {initials}
+                    </div>
+                    <div className="leading-tight">
+                      <span className="text-[9px] text-txt-3 font-mono block">RESPONSABLE</span>
+                      <span className="text-[11px] font-semibold text-txt truncate max-w-[120px] block">
+                        {a.responsableName || 'Non assigné'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Simulated occupancy / active workload rating */}
+                  <div className="text-right leading-tight">
+                    <span className="text-[9px] text-txt-3 font-mono block">DISPONIBILITÉ</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 inline-block mt-0.5">
+                      100% OK
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
@@ -158,119 +287,7 @@ export default function AgencesPage() {
       </div>
 
       {/* Grid Layout of Cards instead of boring table */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 3 }, (_, idx) => idx).map((idx) => (
-            <div key={idx} className="h-60 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
-          ))}
-        </div>
-      ) : agences.length === 0 ? (
-        <div className="card-aurora rounded-2xl border border-border p-8">
-          <EmptyState icon={<Building2 size={36} />} title="Aucune agence active" subtitle="Enregistrez votre première agence régionale pour organiser les interventions techniques." />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence mode="popLayout">
-            {agences.map((a, idx) => {
-              const initials = a.responsableName 
-                ? a.responsableName.split(' ').map(n => n[0]).join('').toUpperCase()
-                : '—';
-                
-              return (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.25, delay: idx * 0.03 }}
-                  whileHover={{ y: -4, scale: 1.01 }}
-                  className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-lg p-5 flex flex-col justify-between h-[280px] relative transition-shadow duration-300 hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.2)]"
-                >
-                  <div className="space-y-4">
-                    {/* Card Top Title & Actions */}
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-[15px] text-txt tracking-wide flex items-center gap-1.5">
-                          <Building2 size={15} className="text-emerald-400" />
-                          {a.nom}
-                        </div>
-                        <div className="text-[10.5px] text-txt-3 flex items-center gap-1">
-                          <MapPin size={11} className="text-emerald-400/60" />
-                          <span className="truncate max-w-[200px]">{a.adresse || 'Adresse non spécifiée'}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Dropdown/Quick buttons */}
-                      <div className="flex items-center gap-1 bg-[var(--surface)] border border-border rounded-xl p-0.5">
-                        <button 
-                          onClick={() => openEdit(a)} 
-                          className="h-7 w-7 rounded-lg text-txt-3 hover:text-txt hover:bg-[var(--elevated)] transition-colors flex items-center justify-center cursor-pointer"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button 
-                          onClick={() => setDeleteTarget(a)} 
-                          className="h-7 w-7 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center cursor-pointer"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Metadata contact grid */}
-                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border/40">
-                      <div className="font-mono text-[9px] text-txt-3 tracking-wide space-y-0.5">
-                        <div className="uppercase font-extrabold text-[8px] text-txt-3 flex items-center gap-1">
-                          <Phone size={8} /> Téléphone
-                        </div>
-                        <div className="text-txt-2 text-[10px] font-semibold">{a.telephone || '—'}</div>
-                      </div>
-                      <div className="font-mono text-[9px] text-txt-3 tracking-wide space-y-0.5">
-                        <div className="uppercase font-extrabold text-[8px] text-txt-3 flex items-center gap-1">
-                          <Mail size={8} /> Email
-                        </div>
-                        <div className="text-txt-2 text-[10px] font-semibold truncate max-w-[120px]">{a.email || '—'}</div>
-                      </div>
-                    </div>
-
-                    {/* Stock Description Badge */}
-                    {a.stockDescription && (
-                      <div className="bg-emerald-500/[0.03] border border-emerald-500/10 p-2.5 rounded-xl flex items-start gap-2">
-                        <Package size={13} className="text-emerald-400 mt-0.5 flex-shrink-0" />
-                        <div className="space-y-0.5 leading-none">
-                          <span className="font-mono text-[8px] text-emerald-400 font-extrabold uppercase tracking-widest block">Matériel & Stock</span>
-                          <span className="text-[10px] text-txt-2 font-medium line-clamp-1">{a.stockDescription}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Bottom: Responsable & Availability metrics */}
-                  <div className="border-t border-border/40 pt-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10.5px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {initials}
-                      </div>
-                      <div className="leading-tight">
-                        <span className="text-[9px] text-txt-3 font-mono block">RESPONSABLE</span>
-                        <span className="text-[11px] font-semibold text-txt truncate max-w-[120px] block">
-                          {a.responsableName || 'Non assigné'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Simulated occupancy / active workload rating */}
-                    <div className="text-right leading-tight">
-                      <span className="text-[9px] text-txt-3 font-mono block">DISPONIBILITÉ</span>
-                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20 inline-block mt-0.5">
-                        100% OK
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+      {renderAgencesContent()}  </AnimatePresence>
         </div>
       )}
 
@@ -325,7 +342,7 @@ export default function AgencesPage() {
               disabled={saving} 
               className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {saving ? 'Sauvegarde...' : showCreate ? 'Créer l\'agence' : 'Enregistrer'}
+              {getSaveButtonText()}
             </motion.button>
           </div>
         </div>

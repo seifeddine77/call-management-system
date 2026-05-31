@@ -55,7 +55,7 @@ function evalCondition(cond: RuleCondition, testForm: Record<string, string>): b
 
   const numField = Number(fieldVal);
   const numCond = Number(cond.value);
-  const isNumeric = !isNaN(numField) && !isNaN(numCond);
+  const isNumeric = !Number.isNaN(numField) && !Number.isNaN(numCond);
   const v1 = isNumeric ? numField : String(fieldVal).trim().toLowerCase();
   const v2 = isNumeric ? numCond : String(cond.value).trim().toLowerCase();
 
@@ -86,15 +86,15 @@ function buildRuleTestPayload(
   for (const fd of (refs?.fields ?? [])) {
     const val = testForm[fd.field];
     if (val !== undefined && val !== '') {
-      data[fd.field] = fd.type === 'number' ? parseInt(val) : val;
+      data[fd.field] = fd.type === 'number' ? Number.parseInt(val, 10) : val;
     }
   }
   return {
-    typePiece: (data.typePiece as string) || undefined,
-    ageVehiculeAns: (data.ageVehiculeAns as number) || undefined,
-    kilometrage: (data.kilometrage as number) || undefined,
-    categorieClient: (data.categorieClient as string) || undefined,
-    typeSinistre: (data.typeSinistre as string) || undefined,
+    typePiece: data.typePiece || undefined,
+    ageVehiculeAns: data.ageVehiculeAns || undefined,
+    kilometrage: data.kilometrage || undefined,
+    categorieClient: data.categorieClient || undefined,
+    typeSinistre: data.typeSinistre || undefined,
     data,
   };
 }
@@ -218,11 +218,11 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
         {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: parseInt(e.target.value) || 10 }))} /></div>
+        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: Number.parseInt(e.target.value, 10) || 10 }))} /></div>
         <div>
           <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
           <span className="text-[9px] text-txt-3 font-mono block mb-1">Plage : -50 à +50</span>
-          <input id="rule-scoreImpact" className="aurora-input" type="number" min={-50} max={50} value={f.scoreImpact ?? 0} onChange={e => setF(p => ({ ...p, scoreImpact: Math.max(-50, Math.min(50, parseInt(e.target.value) || 0)) }))} placeholder="Ex: -15 ou +10" />
+          <input id="rule-scoreImpact" className="aurora-input" type="number" min={-50} max={50} value={f.scoreImpact ?? 0} onChange={e => setF(p => ({ ...p, scoreImpact: Math.max(-50, Math.min(50, Number.parseInt(e.target.value, 10) || 0)) }))} placeholder="Ex: -15 ou +10" />
         </div>
       </div>
       <div>

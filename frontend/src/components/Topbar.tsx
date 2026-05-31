@@ -22,7 +22,7 @@ export default function Topbar() {
   const { user } = useAuth();
   const { setMobileOpen } = useSidebar();
 
-  const basePath = '/' + pathname.split('/').filter(Boolean)[0];
+  const basePath = '/' + (pathname.split('/').find(Boolean) || '');
   const title = titles[basePath] || 'AutoAssist';
 
   const now = new Date();

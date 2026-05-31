@@ -24,6 +24,13 @@ class AudioEncryptionServiceTest {
         return Base64.getEncoder().encodeToString(key);
     }
 
+    @Test
+    @DisplayName("Le service d'encryption peut être instancié")
+    void contextLoads() {
+        AudioEncryptionService service = new AudioEncryptionService("");
+        assertThat(service).isNotNull();
+    }
+
     // ========================================
     // ENCRYPTION ENABLED
     // ========================================

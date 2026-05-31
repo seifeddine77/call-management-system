@@ -45,7 +45,7 @@ export default function TicketListPage() {
         size: 15,
         ...(statut && { statut: statut as Statut }),
         ...(canal && { canal: canal as Canal }),
-        ...(priorite && { priorite: parseInt(priorite) as 1 | 2 | 3 }),
+        ...(priorite && { priorite: Number.parseInt(priorite, 10) as 1 | 2 | 3 }),
         ...(search && { search }),
       };
       const data = await ticketService.getTickets(filters);

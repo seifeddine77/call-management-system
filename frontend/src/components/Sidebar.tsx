@@ -186,10 +186,8 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile overlay backdrop */}
-      <div
+      <button
         className={`sidebar-overlay md:hidden ${mobileOpen ? 'active' : ''}`}
-        role="button"
-        tabIndex={-1}
         aria-label="Fermer le menu"
         onClick={() => setMobileOpen(false)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMobileOpen(false); } }}

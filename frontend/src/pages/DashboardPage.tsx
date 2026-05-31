@@ -17,6 +17,62 @@ const statutColors: Record<string, string> = {
   NOUVEAU: 'var(--info)', EN_COURS: 'var(--warning)', RESOLU: 'var(--success)', FERME: 'var(--text-3)',
 };
 
+const getPrioriteClass = (priorite: number) => {
+  if (priorite === 1) return 'text-[var(--danger)]';
+  if (priorite === 2) return 'text-[var(--warning)]';
+  return 'text-[var(--text-3)]';
+};
+
+function ResolvedBadge({ ticketsResolu, totalTickets }: Readonly<{ ticketsResolu: number; totalTickets: number }>) {
+  if (ticketsResolu <= 0) return null;
+  const pct = ((ticketsResolu / (totalTickets || 1)) * 100).toFixed(0);
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+      <TrendingUp size={11} /> {pct}% résolus
+    </span>
+  );
+}
+
+function SparklineBars({ sparkData }: Readonly<{ sparkData: HourlyData[] }>) {
+  const data = sparkData.length > 0 ? sparkData.slice(-12).map(d => d.count) : [0];
+  const max = Math.max(...data, 1);
+  return (
+    <>
+      {data.map((v, i) => {
+        const h = Math.max(8, (v / max) * 100);
+        return (
+          <div
+            key={`spark-bar-${i}-${v}`}
+            className="flex-1 rounded-full transition-all duration-300 group-hover:animate-waveform"
+            style={{
+              height: `${h}%`,
+              background: i >= data.length - 2 ? 'var(--primary)' : 'var(--muted)',
+              opacity: 0.35 + (h / 100) * 0.65,
+              animationDelay: `${i * 0.06}s`,
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function DonutSegments({ favorable, defavorable, etude }: Readonly<{ favorable: number; defavorable: number; etude: number }>) {
+  const total = (favorable + defavorable + etude) || 1;
+  const f = (favorable / total) * 100;
+  const d = (defavorable / total) * 100;
+  return (
+    <>
+      <circle cx="36" cy="36" r="28" fill="none" stroke="var(--muted)" strokeWidth="6" />
+      <circle cx="36" cy="36" r="28" fill="none" stroke="var(--success)" strokeWidth="6"
+        strokeDasharray={`${f * 1.76} 176`} strokeLinecap="round" transform="rotate(-90 36 36)" />
+      <circle cx="36" cy="36" r="28" fill="none" stroke="var(--danger)" strokeWidth="6"
+        strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={`${-f * 1.76}`}
+        strokeLinecap="round" transform="rotate(-90 36 36)" />
+    </>
+  );
+}
+
 // Stagger variants
 const container = {
   hidden: {},
@@ -68,7 +124,7 @@ export default function DashboardPage() {
         ticketService.getTickets({
           canal: filter === 'ALL' ? undefined : filter,
           // Operators see only their own tickets on dashboard; supervisors see all
-          operateurId: !isSupervisor ? user?.userId : undefined,
+          operateurId: isSupervisor ? undefined : user?.userId,
           page, size: 8,
         }),
         analyticsService.getTicketsPerDay('30d').catch(() => []),
@@ -95,6 +151,72 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const renderTicketsTableContent = () => {
+    if (loading) {
+      return <div className="p-4"><TableSkeleton /></div>;
+    }
+    if (tickets.length === 0) {
+      return <div className="p-8"><EmptyState icon="clipboard" title="Aucun ticket" subtitle="Aucun ticket trouvé avec ces filtres" /></div>;
+    }
+    return (
+      <>
+        <div className="table-scroll-wrapper">
+        <table className="aurora-table">
+          <thead>
+            <tr>
+              <th>Numéro</th>
+              <th>Client</th>
+              <th>Canal</th>
+              <th>Statut</th>
+              <th>Priorité</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map(t => (
+              <tr 
+                key={t.id} 
+                onClick={() => navigate(`/tickets/${t.id}`)} 
+                className="cursor-pointer"
+              >
+                <td className="font-mono text-xs font-semibold text-[var(--primary)]">{t.numero}</td>
+                <td className="text-xs">{t.clientNom}</td>
+                <td>
+                  <span className="badge" style={{ background: `${canalColors[t.canal]}15`, color: canalColors[t.canal] }}>
+                    {t.canal}
+                  </span>
+                </td>
+                <td>
+                  <span className="badge" style={{ background: `${statutColors[t.statut]}15`, color: statutColors[t.statut] }}>
+                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: statutColors[t.statut] }} />
+                    {t.statut}
+                  </span>
+                </td>
+                <td>
+                  <span className={`font-mono text-xs ${getPrioriteClass(t.priorite)}`}>
+                    P{t.priorite}
+                  </span>
+                </td>
+                <td className="font-mono text-[11px] text-[var(--text-3)]">
+                  {new Date(t.createdAt).toLocaleDateString('fr-FR')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-3 border-t border-[var(--border)] flex items-center justify-center gap-2">
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="btn-ghost h-7 px-3 rounded text-xs cursor-pointer disabled:opacity-30">← Précédent</button>
+            <span className="font-mono text-[10px] text-[var(--text-3)]">{page + 1} / {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="btn-ghost h-7 px-3 rounded text-xs cursor-pointer disabled:opacity-30">Suivant →</button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   // AI Insight (generated from KPIs)
@@ -108,57 +230,15 @@ export default function DashboardPage() {
   const greeting = getGreeting(hour);
   const firstName = user?.prenom || 'Utilisateur';
 
-  // ── Resolved badge (extracted from JSX IIFE) ──
-  const resolvedBadge = kpis && (kpis.ticketsResolu || 0) > 0 ? (() => {
-    const resolved = kpis.ticketsResolu || 0;
-    const total = kpis.totalTickets || 1;
-    const pct = ((resolved / total) * 100).toFixed(0);
-    return (
-      <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-        <TrendingUp size={11} /> {pct}% résolus
-      </span>
-    );
-  })() : null;
+  const resolvedBadge = kpis && (kpis.ticketsResolu || 0) > 0 ? (
+    <ResolvedBadge ticketsResolu={kpis.ticketsResolu} totalTickets={kpis.totalTickets} />
+  ) : null;
 
-  // ── Sparkline bars (extracted from JSX IIFE) ──
-  const sparkBars = (() => {
-    const data = sparkData.length > 0
-      ? sparkData.slice(-12).map(d => d.count)
-      : [0];
-    const max = Math.max(...data, 1);
-    return data.map((v, i) => {
-      const h = Math.max(8, (v / max) * 100);
-      return (
-        <div
-          key={`spark-bar-${i}-${v}`}
-          className="flex-1 rounded-full transition-all duration-300 group-hover:animate-waveform"
-          style={{
-            height: `${h}%`,
-            background: i >= data.length - 2 ? 'var(--primary)' : 'var(--muted)',
-            opacity: 0.35 + (h / 100) * 0.65,
-            animationDelay: `${i * 0.06}s`,
-          }}
-        />
-      );
-    });
-  })();
+  const sparkBars = <SparklineBars sparkData={sparkData} />;
 
-  // ── Donut AI decisions (extracted from JSX IIFE) ──
-  const donutSegments = kpis ? (() => {
-    const total = (kpis.decisionsAiFavorable + kpis.decisionsAiDefavorable + kpis.decisionsAiEtude) || 1;
-    const f = (kpis.decisionsAiFavorable / total) * 100;
-    const d = (kpis.decisionsAiDefavorable / total) * 100;
-    return (
-      <>
-        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--muted)" strokeWidth="6" />
-        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--success)" strokeWidth="6"
-          strokeDasharray={`${f * 1.76} 176`} strokeLinecap="round" transform="rotate(-90 36 36)" />
-        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--danger)" strokeWidth="6"
-          strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={`${-f * 1.76}`}
-          strokeLinecap="round" transform="rotate(-90 36 36)" />
-      </>
-    );
-  })() : null;
+  const donutSegments = kpis ? (
+    <DonutSegments favorable={kpis.decisionsAiFavorable} defavorable={kpis.decisionsAiDefavorable} etude={kpis.decisionsAiEtude} />
+  ) : null;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
@@ -468,7 +548,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="col-span-4">
                         <span className="text-[10px] font-mono font-bold" style={{ color: severityStyles.dot }}>
-                          {a.type.replace(/_/g, ' ')}
+                          {a.type.replaceAll('_', ' ')}
                         </span>
                       </div>
                       <div className="col-span-3">
@@ -562,68 +642,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {loading ? <div className="p-4"><TableSkeleton /></div> : tickets.length === 0 ? (
-          <div className="p-8"><EmptyState icon="clipboard" title="Aucun ticket" subtitle="Aucun ticket trouvé avec ces filtres" /></div>
-        ) : (
-          <>
-            <div className="table-scroll-wrapper">
-            <table className="aurora-table">
-              <thead>
-                <tr>
-                  <th>Numéro</th>
-                  <th>Client</th>
-                  <th>Canal</th>
-                  <th>Statut</th>
-                  <th>Priorité</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tickets.map(t => (
-                  <tr 
-                    key={t.id} 
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/tickets/${t.id}`)} 
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/tickets/${t.id}`); } }}
-                    className="cursor-pointer"
-                  >
-                    <td className="font-mono text-xs font-semibold text-[var(--primary)]">{t.numero}</td>
-                    <td className="text-xs">{t.clientNom}</td>
-                    <td>
-                      <span className="badge" style={{ background: `${canalColors[t.canal]}15`, color: canalColors[t.canal] }}>
-                        {t.canal}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="badge" style={{ background: `${statutColors[t.statut]}15`, color: statutColors[t.statut] }}>
-                        <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: statutColors[t.statut] }} />
-                        {t.statut}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`font-mono text-xs ${t.priorite === 1 ? 'text-[var(--danger)]' : t.priorite === 2 ? 'text-[var(--warning)]' : 'text-[var(--text-3)]'}`}>
-                        P{t.priorite}
-                      </span>
-                    </td>
-                    <td className="font-mono text-[11px] text-[var(--text-3)]">
-                      {new Date(t.createdAt).toLocaleDateString('fr-FR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="p-3 border-t border-[var(--border)] flex items-center justify-center gap-2">
-                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="btn-ghost h-7 px-3 rounded text-xs cursor-pointer disabled:opacity-30">← Précédent</button>
-                <span className="font-mono text-[10px] text-[var(--text-3)]">{page + 1} / {totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="btn-ghost h-7 px-3 rounded text-xs cursor-pointer disabled:opacity-30">Suivant →</button>
-              </div>
-            )}
-          </>
-        )}
+        {renderTicketsTableContent()}
       </motion.div>
     </motion.div>
   );
