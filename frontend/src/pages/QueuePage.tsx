@@ -13,6 +13,13 @@ import { KpiSkeleton, ErrorState, EmptyState } from '../components/ui/States';
 import type { TicketStats, QueueEntry, Statut, Ticket } from '../types/ticket';
 
 type FilterKey = 'QUEUE' | Statut;
+type SortOption = 'PRIO_SLA' | 'NEWEST' | 'OLDEST';
+
+const getPriorityBadgeClass = (priorite: number) => {
+  if (priorite === 1) return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+  if (priorite === 2) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+  return 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10';
+};
 
 /* Unified item so we can display queue entries AND filtered tickets in the same list */
 interface DisplayItem {
@@ -85,8 +92,8 @@ interface AdvancedFiltersPanelProps {
   setChannelFilter: (c: string) => void;
   priorityFilter: number | 'ALL';
   setPriorityFilter: (p: number | 'ALL') => void;
-  sortBy: 'PRIO_SLA' | 'NEWEST' | 'OLDEST';
-  setSortBy: (s: 'PRIO_SLA' | 'NEWEST' | 'OLDEST') => void;
+  sortBy: SortOption;
+  setSortBy: (s: SortOption) => void;
   showAdvancedFilters: boolean;
   setShowAdvancedFilters: (b: boolean) => void;
 }
@@ -182,7 +189,7 @@ function AdvancedFiltersPanel({
                 <span className="field-label block font-semibold text-[9px] tracking-wider text-txt-3">Ordre de tri</span>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'PRIO_SLA' | 'NEWEST' | 'OLDEST')}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
                   className="aurora-select"
                 >
                   <option value="PRIO_SLA">Priorité & SLA (Urgent + FIFO)</option>
@@ -295,13 +302,7 @@ function TicketRow({
           {wait}
         </span>
 
-        <span className={`font-mono text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border shadow-sm
-          ${t.priorite === 1 
-            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
-            : t.priorite === 2 
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-              : 'bg-indigo-500/5 text-indigo-400 border-indigo-500/10'
-          }`}
+        <span className={`font-mono text-[9px] font-extrabold px-2.5 py-0.5 rounded-lg border shadow-sm ${getPriorityBadgeClass(t.priorite)}`}
         >
           PRIO {t.priorite}
         </span>
@@ -350,7 +351,7 @@ export default function QueuePage() {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<number | 'ALL'>('ALL');
-  const [sortBy, setSortBy] = useState<'PRIO_SLA' | 'NEWEST' | 'OLDEST'>('PRIO_SLA');
+  const [sortBy, setSortBy] = useState<SortOption>('PRIO_SLA');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   /* ── Map Ticket → DisplayItem ── */

@@ -34,6 +34,32 @@ MIN_BUFFER_BYTES = 48_000
 MAX_BUFFER_BYTES = 960_000
 
 
+async def _transcribe_and_send(
+    websocket: WebSocket,
+    whisper_model,
+    audio_buffer: bytearray,
+    ticket_id: str,
+    session_start: float,
+    chunk_count: int,
+    full_transcription_parts: list[str],
+) -> bytearray:
+    """Transcribe the current audio buffer and send a partial result to the client."""
+    capped = bytearray(audio_buffer[-MAX_BUFFER_BYTES:]) if len(audio_buffer) > MAX_BUFFER_BYTES else audio_buffer
+    partial_text = _transcribe_buffer(whisper_model, bytes(capped), ticket_id)
+    if partial_text:
+        elapsed = round(time.time() - session_start, 1)
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_json({
+                "type": "partial",
+                "text": partial_text,
+                "elapsed": elapsed,
+                "chunks": chunk_count,
+            })
+        full_transcription_parts.append(partial_text)
+    # Reset buffer
+    return bytearray()
+
+
 async def _read_audio_chunks(websocket: WebSocket, whisper_model, ticket_id: str, session_start: float) -> tuple[list[str], int, bytearray]:
     audio_buffer = bytearray()
     full_transcription_parts: list[str] = []
@@ -55,33 +81,14 @@ async def _read_audio_chunks(websocket: WebSocket, whisper_model, ticket_id: str
 
         # Binary message = audio chunk
         if "bytes" in message:
-            audio_chunk = message["bytes"]
-            audio_buffer.extend(audio_chunk)
+            audio_buffer.extend(message["bytes"])
             chunk_count += 1
 
-            # Transcribe when buffer is large enough
             if len(audio_buffer) >= MIN_BUFFER_BYTES:
-                # Cap buffer size
-                if len(audio_buffer) > MAX_BUFFER_BYTES:
-                    audio_buffer = bytearray(audio_buffer[-MAX_BUFFER_BYTES:])
-
-                partial_text = _transcribe_buffer(
-                    whisper_model, bytes(audio_buffer), ticket_id
+                audio_buffer = await _transcribe_and_send(
+                    websocket, whisper_model, audio_buffer,
+                    ticket_id, session_start, chunk_count, full_transcription_parts
                 )
-
-                if partial_text:
-                    elapsed = round(time.time() - session_start, 1)
-                    if websocket.client_state == WebSocketState.CONNECTED:
-                        await websocket.send_json({
-                            "type": "partial",
-                            "text": partial_text,
-                            "elapsed": elapsed,
-                            "chunks": chunk_count,
-                        })
-                    full_transcription_parts.append(partial_text)
-
-                # Reset buffer for next segment
-                audio_buffer = bytearray()
 
     return full_transcription_parts, chunk_count, audio_buffer
 

@@ -58,6 +58,312 @@ const actionIcon: Record<string, React.ReactNode> = {
   ANONYMISE: <Lock size={12} />,
 };
 
+const parseSafeDate = (dateStr: string) => {
+  const normalized = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+  return new Date(normalized).getTime();
+};
+
+const statusLabels: Record<string, string> = {
+  SENT: '✓ Envoyé',
+  FAILED: '✕ Échec',
+};
+
+const getStatusLabel = (status: string) => statusLabels[status] || '◷ En attente';
+
+const drawPDFGeneralInfo = (doc: jsPDF, ticket: Ticket, _W: number, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+  y = drawSectionTitle("1. INFORMATIONS GÉNÉRALES DU DOSSIER", y);
+  
+  // Background rounded card for details
+  doc.setFillColor(247, 248, 250);
+  doc.setDrawColor(230, 233, 238);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(M, y, CW, 38, 2, 2, 'FD');
+
+  doc.setTextColor(17, 19, 24);
+  doc.setFontSize(9);
+  
+  const details = [
+    ['Client référent', ticket.clientNom, 'Canal d\'entrée', ticket.canal],
+    ['Numéro de dossier', ticket.numero, 'Statut du ticket', ticket.statut],
+    ['Adresse Email', ticket.clientEmail || 'Non spécifiée', 'N° Téléphone', ticket.clientTel || 'Non spécifié'],
+    ['Date de création', new Date(ticket.createdAt).toLocaleString('fr-FR'), 'Conseiller en charge', ticket.operateurName || 'Non assigné']
+  ];
+
+  let rowY = y + 7;
+  details.forEach(([k1, v1, k2, v2]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${k1} :`, M + 5, rowY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(v1), M + 38, rowY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${k2} :`, M + 105, rowY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(v2), M + 142, rowY);
+    
+    rowY += 7;
+  });
+  return y + 46;
+};
+
+const drawPDFPerformance = (doc: jsPDF, perf: Readonly<{ totalDuration: number; assignmentDuration: number; resolutionDuration: number; slaScore: number }>, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+  y = drawSectionTitle("2. ANALYSE ET INDEX DE PERFORMANCE (SLA)", y);
+
+  // Three columns metrics layout
+  const colW = (CW - 6) / 3;
+  
+  // Box 1: Total duration
+  doc.setFillColor(247, 248, 250);
+  doc.roundedRect(M, y, colW, 18, 2, 2, 'F');
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(74, 81, 104);
+  doc.text("DURÉE TOTALE", M + 4, y + 5);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(17, 19, 24);
+  doc.text(fmtDuration(perf.totalDuration), M + 4, y + 12);
+
+  // Box 2: Assignment duration
+  doc.setFillColor(247, 248, 250);
+  doc.roundedRect(M + colW + 3, y, colW, 18, 2, 2, 'F');
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(74, 81, 104);
+  doc.text("TEMPS D'ASSIGNATION", M + colW + 7, y + 5);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(17, 19, 24);
+  doc.text(perf.assignTime ? fmtDuration(perf.assignTime) : 'Immédiat', M + colW + 7, y + 12);
+
+  // Box 3: Resolution duration
+  doc.setFillColor(247, 248, 250);
+  doc.roundedRect(M + 2 * colW + 6, y, colW, 18, 2, 2, 'F');
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(74, 81, 104);
+  doc.text("TEMPS DE RÉSOLUTION", M + 2 * colW + 10, y + 5);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(17, 19, 24);
+  doc.text(perf.resolveTime ? fmtDuration(perf.resolveTime) : 'N/A', M + 2 * colW + 10, y + 12);
+
+  y += 24;
+
+  // SLA Card
+  doc.setLineWidth(0.3);
+  if (perf.slaOk) {
+    doc.setFillColor(240, 253, 250); // Soft emerald green bg
+    doc.setDrawColor(153, 246, 228);  // Soft emerald border
+    doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
+    doc.setTextColor(15, 118, 110);   // Dark green text
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text("✓ CONFORMITÉ SLA : Dossier traité dans les temps impartis (< 4 heures)", M + 5, y + 6.5);
+  } else {
+    doc.setFillColor(254, 242, 242); // Soft red bg
+    doc.setDrawColor(254, 202, 202);  // Soft red border
+    doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
+    doc.setTextColor(185, 28, 28);    // Dark red text
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text("✕ DÉPASSEMENT SLA : Temps de traitement hors objectif (> 4 heures)", M + 5, y + 6.5);
+  }
+  return y + 18;
+};
+
+const drawPDFDecision = (doc: jsPDF, decision: DecisionResult, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+  y = drawSectionTitle("3. PIPELINE DÉCISIONNEL & INTELLIGENCE ARTIFICIELLE", y);
+
+  // General Card with Left Indigo Accent
+  doc.setFillColor(247, 248, 250);
+  doc.roundedRect(M, y, CW, 45, 2, 2, 'F');
+  doc.setFillColor(99, 91, 255);
+  doc.rect(M, y, 2.5, 45, 'F'); // Left accent line
+
+  doc.setTextColor(17, 19, 24);
+  doc.setFontSize(9);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text("Décision automatique calculée :", M + 7, y + 6);
+  doc.setFont('helvetica', 'normal');
+  
+  // Decision status color-coding
+  const isFavorable = decision.decision.toLowerCase().includes('favor') || decision.decision.toLowerCase().includes('accept');
+  const isDefavorable = decision.decision.toLowerCase().includes('défavor') || decision.decision.toLowerCase().includes('refus');
+  
+  if (isFavorable) {
+    doc.setTextColor(0, 196, 140);
+    doc.setFont('helvetica', 'bold');
+  } else if (isDefavorable) {
+    doc.setTextColor(255, 71, 87);
+    doc.setFont('helvetica', 'bold');
+  } else {
+    doc.setTextColor(255, 176, 32);
+    doc.setFont('helvetica', 'bold');
+  }
+  doc.text(decision.decision, M + 60, y + 6);
+
+  // Restore normal text color
+  doc.setTextColor(17, 19, 24);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Score de confiance IA :", M + 7, y + 13);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${decision.score} %`, M + 60, y + 13);
+
+  // Confidence Score Progress Bar Mockup
+  doc.setFillColor(220, 224, 230);
+  doc.roundedRect(M + 80, y + 10.5, 50, 2.5, 1, 1, 'F');
+  
+  if (isFavorable) doc.setFillColor(0, 196, 140);
+  else if (isDefavorable) doc.setFillColor(255, 71, 87);
+  else doc.setFillColor(255, 176, 32);
+  
+  doc.roundedRect(M + 80, y + 10.5, 50 * (decision.score / 100), 2.5, 1, 1, 'F');
+
+  doc.setTextColor(17, 19, 24);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Source de décision :", M + 7, y + 20);
+  doc.setFont('helvetica', 'normal');
+  doc.text(decision.source, M + 60, y + 20);
+
+  if (decision.rulesApplied.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text("Règles appliquées :", M + 7, y + 27);
+    doc.setFont('helvetica', 'normal');
+    doc.text(decision.rulesApplied.join(', '), M + 60, y + 27);
+  }
+
+  // Draw a clean box for the explanation Motif
+  doc.setFillColor(238, 241, 246);
+  doc.roundedRect(M + 7, y + 31, CW - 14, 11, 1.5, 1.5, 'F');
+  
+  doc.setFont('helvetica', 'oblique');
+  doc.setFontSize(8);
+  doc.setTextColor(74, 81, 104);
+  const motifLines = doc.splitTextToSize(`Explication (Motif) : ${decision.motif}`, CW - 20);
+  doc.text(motifLines, M + 10, y + 35);
+
+  return y + 52;
+};
+
+const drawPDFTimeline = (doc: jsPDF, timeline: ReadonlyArray<{ id: string; timestamp: string; title: string; detail: string }>, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+  y = drawSectionTitle(`4. HISTORIQUE & TRACABILITÉ D'AUDIT (${timeline.length} événements)`, y);
+  
+  const timelineStartY = y;
+  let timelineEndY = y;
+  
+  doc.setFontSize(8);
+  timeline.forEach((ev) => {
+    if (y > 260) {
+      // Draw connecting line for this page
+      doc.setDrawColor(226, 229, 235);
+      doc.setLineWidth(0.6);
+      doc.line(M + 4, timelineStartY, M + 4, y - 10);
+
+      doc.addPage(); 
+      y = 20;
+    }
+
+    const ts = new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR');
+    
+    // Node circle
+    doc.setFillColor(99, 91, 255);
+    doc.circle(M + 4, y + 1, 1.5, 'F');
+
+    doc.setTextColor(17, 19, 24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`[${ts}] ${ev.title}`, M + 9, y + 2);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(74, 81, 104);
+    const detailLines = doc.splitTextToSize(ev.detail, CW - 15);
+    doc.text(detailLines, M + 9, y + 5.5);
+    
+    y += 5.5 + detailLines.length * 3.5 + 4;
+    timelineEndY = y - 6;
+  });
+
+  // Draw the connecting vertical line passing behind all node dots
+  if (timelineEndY > timelineStartY) {
+    doc.setDrawColor(226, 229, 235);
+    doc.setLineWidth(0.6);
+    doc.line(M + 4, timelineStartY, M + 4, timelineEndY);
+  }
+  return y + 8;
+};
+
+const drawPDFRgpd = (doc: jsPDF, rgpd: ReadonlyArray<{ na: boolean; ok: boolean; label: string; desc?: string }>, rgpdScore: number, M: number, CW: number, y: number, drawSectionTitle: (title: string, currentY: number) => number) => {
+  y = drawSectionTitle(`5. CONFORMITÉ RÉGLEMENTAIRE & RGPD`, y);
+
+  // Score Header Box
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return { bg: [240, 253, 250], border: [153, 246, 228], text: [15, 118, 110] }; // emerald
+    if (score >= 70) return { bg: [255, 251, 235], border: [253, 230, 138], text: [180, 83, 9] };   // amber
+    return { bg: [254, 242, 242], border: [254, 202, 202], text: [185, 28, 28] };                // rose
+  };
+  
+  const scColor = getScoreColor(rgpdScore);
+  doc.setFillColor(scColor.bg[0], scColor.bg[1], scColor.bg[2]);
+  doc.setDrawColor(scColor.border[0], scColor.border[1], scColor.border[2]);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(M, y, CW, 14, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(scColor.text[0], scColor.text[1], scColor.text[2]);
+  doc.text(`INDICE GLOBAL DE CONFORMITÉ RGPD : ${rgpdScore} %`, M + 6, y + 8.5);
+
+  y += 22;
+
+  // List each compliance item
+  rgpd.forEach((r) => {
+    if (y > 262) { doc.addPage(); y = 20; }
+
+    const isNa = r.na;
+    const isOk = r.ok;
+    
+    // Draw badge box
+    if (isNa) {
+      doc.setFillColor(243, 244, 246); // gray
+      doc.setDrawColor(229, 231, 235);
+      doc.setTextColor(107, 114, 128);
+    } else if (isOk) {
+      doc.setFillColor(240, 253, 250); // emerald green
+      doc.setDrawColor(153, 246, 228);
+      doc.setTextColor(15, 118, 110);
+    } else {
+      doc.setFillColor(254, 242, 242); // rose red
+      doc.setDrawColor(254, 202, 202);
+      doc.setTextColor(185, 28, 28);
+    }
+
+    doc.setLineWidth(0.2);
+    doc.roundedRect(M, y, 32, 6, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    
+    const badgeLabel = isNa ? "N/A" : isOk ? "✓ CONFORME" : "✕ REFUSÉ";
+    doc.text(badgeLabel, M + 4, y + 4.2);
+
+    // Description title
+    doc.setTextColor(17, 19, 24);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(r.label, M + 36, y + 4.5);
+
+    // Description detail
+    doc.setTextColor(74, 81, 104);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const descLines = doc.splitTextToSize(r.desc || '', CW - 38);
+    doc.text(descLines, M + 36, y + 9);
+    
+    y += 9 + descLines.length * 3.5 + 4;
+  });
+  return y;
+};
+
 export default function AuditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -94,10 +400,10 @@ export default function AuditPage() {
       setDecision(d);
       // Filter notifications related to this ticket (by metadata or by client email)
       const related = (n || []).filter((log) => {
-        const meta = log.metadata || {};
-        return (meta as Record<string, unknown>).ticketId === ticketId
-          || (meta as Record<string, unknown>).ticketNumero === t.numero
-          || (meta as Record<string, unknown>).numero === t.numero
+        const meta = (log.metadata || {}) as Record<string, string | undefined>;
+        return meta.ticketId === ticketId
+          || meta.ticketNumero === t.numero
+          || meta.numero === t.numero
           || (t.clientEmail && log.destinataire === t.clientEmail);
       });
       setNotifications(related);
@@ -117,11 +423,24 @@ export default function AuditPage() {
 
     // 1. Ticket actions
     (ticket.actions || []).forEach((a: TicketAction) => {
-      const detail = a.action === 'STATUT_CHANGE' && a.oldValue && a.newValue
-        ? `${a.oldValue} → ${a.newValue}${a.notes ? ` · ${a.notes}` : ''}`
-        : a.action === 'ASSIGNE' && a.newValue
-          ? `Opérateur: ${a.newValue}${a.userName ? ` · Par: ${a.userName}` : ''}`
-          : `${a.userName || 'Système'}${a.notes ? ` · ${a.notes}` : ''}`;
+      let detail = '';
+      if (a.action === 'STATUT_CHANGE' && a.oldValue && a.newValue) {
+        detail = `${a.oldValue} → ${a.newValue}`;
+        if (a.notes) {
+          detail += ` · ${a.notes}`;
+        }
+      } else if (a.action === 'ASSIGNE' && a.newValue) {
+        detail = `Opérateur: ${a.newValue}`;
+        if (a.userName) {
+          detail += ` · Par: ${a.userName}`;
+        }
+      } else {
+        detail = a.userName || 'Système';
+        if (a.notes) {
+          detail += ` · ${a.notes}`;
+        }
+      }
+
       events.push({
         id: `action-${a.id}`,
         timestamp: a.createdAt,
@@ -136,13 +455,14 @@ export default function AuditPage() {
 
     // 2. Decision events
     if (decision) {
+      const rulesSuffix = decision.rulesApplied.length > 0 ? ` · Règles: ${decision.rulesApplied.join(', ')}` : '';
       events.push({
         id: `decision-created`,
         timestamp: decision.createdAt || ticket.updatedAt,
         source: 'decision',
         type: 'DECISION_IA',
         title: `Décision IA : ${decision.decision}`,
-        detail: `Score: ${decision.score}% · Source: ${decision.source}${decision.rulesApplied.length > 0 ? ` · Règles: ${decision.rulesApplied.join(', ')}` : ''} · ${decision.motif}`,
+        detail: `Score: ${decision.score}% · Source: ${decision.source}${rulesSuffix} · ${decision.motif}`,
         color: '#10B981',
         icon: <Bot size={12} />,
       });
@@ -162,13 +482,15 @@ export default function AuditPage() {
 
     // 3. Notification events
     notifications.forEach((n, i) => {
+      const statusLabel = getStatusLabel(n.statut);
+      const subjectSuffix = n.sujet ? ` · ${n.sujet}` : '';
       events.push({
         id: `notif-${n.id || i}`,
         timestamp: n.createdAt,
         source: 'notification',
         type: n.type,
         title: `Email: ${n.type.replaceAll('_', ' ')}`,
-        detail: `→ ${n.destinataire} · ${n.statut === 'SENT' ? '✓ Envoyé' : n.statut === 'FAILED' ? '✕ Échec' : '◷ En attente'}${n.sujet ? ` · ${n.sujet}` : ''}`,
+        detail: `→ ${n.destinataire} · ${statusLabel}${subjectSuffix}`,
         color: '#3B82F6',
         icon: <Mail size={12} />,
       });
@@ -176,8 +498,8 @@ export default function AuditPage() {
 
     // Sort chronologically
     return events.sort((a, b) => {
-      const ta = new Date(a.timestamp.endsWith('Z') ? a.timestamp : a.timestamp + 'Z').getTime();
-      const tb = new Date(b.timestamp.endsWith('Z') ? b.timestamp : b.timestamp + 'Z').getTime();
+      const ta = parseSafeDate(a.timestamp);
+      const tb = parseSafeDate(b.timestamp);
       return ta - tb;
     });
   }, [ticket, decision, notifications]);
@@ -195,94 +517,87 @@ export default function AuditPage() {
     const dataMinimization = !ticket.description || ticket.description.length < 2000;
     const isClosed = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
 
-    const checks: { label: string; desc: string; ok: boolean | null; icon: React.ReactNode; na?: boolean; recommendation?: string }[] = [];
-
-    // 1. Consentement — always applicable
-    checks.push({
-      label: isCall ? 'Consentement enregistrement (IVR)' : isEmail ? 'Consentement implicite (email initié)' : 'Consentement explicite (formulaire)',
-      desc: 'Art. 6 RGPD — Base légale du traitement',
-      ok: hasConsent,
-      icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
-      recommendation: !hasConsent ? (isCall ? 'Vérifier le message IVR de consentement' : 'Le client doit accepter les conditions de traitement') : undefined,
-    });
-
-    // 2. Audio & Transcription — only for CALL canal
-    if (isCall) {
-      checks.push({
-        label: 'Audio enregistré & stocké',
-        desc: 'Art. 32 — Sécurité du traitement des données vocales',
-        ok: hasAudio,
-        icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
-        recommendation: !hasAudio ? 'Aucun enregistrement audio associé à cet appel' : undefined,
-      });
-      checks.push({
-        label: 'Chiffrement audio (AES-256-GCM)',
-        desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
-        ok: hasAudio,
-        icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
-        recommendation: !hasAudio ? 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements' : undefined,
-      });
-      checks.push({
-        label: 'Transcription générée (Whisper)',
-        desc: 'Art. 22 — Transparence du traitement automatisé',
-        ok: hasTranscription,
-        icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
-        recommendation: !hasTranscription ? 'Lancer la transcription pour documenter l\'échange' : undefined,
-      });
-    }
-
-    // 3. Photos — only for WEB (sinistre photos)
-    if (!isCall && !isEmail) {
-      const hasPhotos = !!ticket.photosPaths && ticket.photosPaths !== '[]';
-      checks.push({
-        label: 'Photos sinistre sécurisées',
-        desc: 'Art. 32 — Protection des données visuelles',
-        ok: hasPhotos ? true : null,
-        icon: hasPhotos ? <Camera size={14} /> : <AlertTriangle size={14} />,
-        na: !hasPhotos,
-        recommendation: undefined,
-      });
-    }
-
-    // 4. Traçabilité décisionnelle — always
-    checks.push({
-      label: 'Traçabilité décisionnelle IA',
-      desc: 'Art. 22 — Décision automatisée explicable',
-      ok: hasDecisionTrace,
-      icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
-      recommendation: !hasDecisionTrace ? 'Lancer l\'analyse IA pour documenter la décision' : undefined,
-    });
-
-    // 5. Notifications — always
-    checks.push({
-      label: 'Notification client envoyée',
-      desc: 'Art. 13/14 — Droit à l\'information',
-      ok: hasNotif,
-      icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
-      recommendation: !hasNotif ? 'Informer le client du traitement de sa demande' : undefined,
-    });
-
-    // 6. Minimisation des données — always
-    checks.push({
-      label: 'Minimisation des données',
-      desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
-      ok: dataMinimization,
-      icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
-      recommendation: !dataMinimization ? 'Réduire le volume de données collectées' : undefined,
-    });
-
-    // 7. Droit à l'effacement — check if closed ticket is old enough
-    if (isClosed) {
-      const closedDays = Math.floor((Date.now() - new Date(ticket.updatedAt.endsWith('Z') ? ticket.updatedAt : ticket.updatedAt + 'Z').getTime()) / 86400000);
-      const needsDeletion = closedDays > 90;
-      checks.push({
-        label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
-        desc: 'Art. 17 — Suppression après délai de rétention',
-        ok: !needsDeletion,
-        icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
-        recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
-      });
-    }
+    const checks = [
+      // 1. Consentement
+      {
+        label: isCall ? 'Consentement enregistrement (IVR)' : isEmail ? 'Consentement implicite (email initié)' : 'Consentement explicite (formulaire)',
+        desc: 'Art. 6 RGPD — Base légale du traitement',
+        ok: hasConsent,
+        icon: hasConsent ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
+        recommendation: hasConsent ? undefined : (isCall ? 'Vérifier le message IVR de consentement' : 'Le client doit accepter les conditions de traitement'),
+      },
+      // 2. Audio & Transcription (only if isCall)
+      ...(isCall ? [
+        {
+          label: 'Audio enregistré & stocké',
+          desc: 'Art. 32 — Sécurité du traitement des données vocales',
+          ok: hasAudio,
+          icon: hasAudio ? <Lock size={14} /> : <AlertTriangle size={14} />,
+          recommendation: hasAudio ? undefined : 'Aucun enregistrement audio associé à cet appel',
+        },
+        {
+          label: 'Chiffrement audio (AES-256-GCM)',
+          desc: 'Art. 32 — Chiffrement et confidentialité des données vocales stockées',
+          ok: hasAudio,
+          icon: hasAudio ? <Lock size={14} className="text-emerald-400" /> : <AlertTriangle size={14} className="text-rose-400" />,
+          recommendation: hasAudio ? undefined : 'Configurer AUDIO_ENCRYPTION_KEY pour sécuriser les enregistrements',
+        },
+        {
+          label: 'Transcription générée (Whisper)',
+          desc: 'Art. 22 — Transparence du traitement automatisé',
+          ok: hasTranscription,
+          icon: hasTranscription ? <FileText size={14} /> : <AlertTriangle size={14} />,
+          recommendation: hasTranscription ? undefined : 'Lancer la transcription pour documenter l\'échange',
+        }
+      ] : []),
+      // 3. Photos (only if not CALL and not EMAIL)
+      ...(!isCall && !isEmail ? [
+        {
+          label: 'Photos sinistre sécurisées',
+          desc: 'Art. 32 — Protection des données visuelles',
+          ok: (ticket.photosPaths && ticket.photosPaths !== '[]') ? true : null,
+          icon: (ticket.photosPaths && ticket.photosPaths !== '[]') ? <Camera size={14} /> : <AlertTriangle size={14} />,
+          na: !(ticket.photosPaths && ticket.photosPaths !== '[]'),
+          recommendation: undefined,
+        }
+      ] : []),
+      // 4. Traçabilité décisionnelle
+      {
+        label: 'Traçabilité décisionnelle IA',
+        desc: 'Art. 22 — Décision automatisée explicable',
+        ok: hasDecisionTrace,
+        icon: hasDecisionTrace ? <Bot size={14} /> : <XCircle size={14} />,
+        recommendation: hasDecisionTrace ? undefined : 'Lancer l\'analyse IA pour documenter la décision',
+      },
+      // 5. Notifications
+      {
+        label: 'Notification client envoyée',
+        desc: 'Art. 13/14 — Droit à l\'information',
+        ok: hasNotif,
+        icon: hasNotif ? <Mail size={14} /> : <XCircle size={14} />,
+        recommendation: hasNotif ? undefined : 'Informer le client du traitement de sa demande',
+      },
+      // 6. Minimisation des données
+      {
+        label: 'Minimisation des données',
+        desc: 'Art. 5(1)(c) — Données adéquates et pertinentes',
+        ok: dataMinimization,
+        icon: dataMinimization ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />,
+        recommendation: dataMinimization ? undefined : 'Réduire le volume de données collectées',
+      },
+      // 7. Droit à l'effacement (if isClosed)
+      ...(isClosed ? (() => {
+        const closedDays = Math.floor((Date.now() - parseSafeDate(ticket.updatedAt)) / 86400000);
+        const needsDeletion = closedDays > 90;
+        return [{
+          label: `Droit à l'effacement (${closedDays}j depuis clôture)`,
+          desc: 'Art. 17 — Suppression après délai de rétention',
+          ok: !needsDeletion,
+          icon: needsDeletion ? <Eye size={14} /> : <Shield size={14} />,
+          recommendation: needsDeletion ? `Ticket clôturé depuis ${closedDays} jours — planifier l'anonymisation` : undefined,
+        }];
+      })() : [])
+    ];
 
     return checks;
   }, [ticket, notifications, decision]);
@@ -296,12 +611,12 @@ export default function AuditPage() {
   /* ── Performance metrics ── */
   const perf = useMemo(() => {
     if (!ticket) return null;
-    const created = new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').getTime();
-    const updated = new Date(ticket.updatedAt.endsWith('Z') ? ticket.updatedAt : ticket.updatedAt + 'Z').getTime();
+    const created = parseSafeDate(ticket.createdAt);
+    const updated = parseSafeDate(ticket.updatedAt);
     const assignAction = (ticket.actions || []).find(a => a.action === 'ASSIGNE');
     const resolveAction = (ticket.actions || []).find(a => a.action === 'STATUT_CHANGE' && a.newValue === 'RESOLU');
-    const assignTime = assignAction ? new Date(assignAction.createdAt.endsWith('Z') ? assignAction.createdAt : assignAction.createdAt + 'Z').getTime() - created : null;
-    const resolveTime = resolveAction ? new Date(resolveAction.createdAt.endsWith('Z') ? resolveAction.createdAt : resolveAction.createdAt + 'Z').getTime() - created : null;
+    const assignTime = assignAction ? parseSafeDate(assignAction.createdAt) - created : null;
+    const resolveTime = resolveAction ? parseSafeDate(resolveAction.createdAt) - created : null;
     const totalDuration = updated - created;
     const slaOk = totalDuration < 4 * 3600000;
     return { totalDuration, assignTime, resolveTime, slaOk, actionCount: (ticket.actions || []).length };
@@ -315,8 +630,6 @@ export default function AuditPage() {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const W = 210; const M = 15; const CW = W - 2 * M;
       let y = 20;
-
-      // Brand Colors (Deep Space Navy, Aurora Indigo, Aurora Teal)
 
       // Page numbers & Header/Footer builder
       const drawHeaderFooter = (pdfDoc: typeof doc, pageNum: number, totalPages: number) => {
@@ -401,299 +714,25 @@ export default function AuditPage() {
       };
 
       // ── Section 1: Ticket Information ──
-      y = drawSectionTitle("1. INFORMATIONS GÉNÉRALES DU DOSSIER", y);
-      
-      // Background rounded card for details
-      doc.setFillColor(247, 248, 250);
-      doc.setDrawColor(230, 233, 238);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(M, y, CW, 38, 2, 2, 'FD');
-
-      doc.setTextColor(17, 19, 24);
-      doc.setFontSize(9);
-      
-      const details = [
-        ['Client référent', ticket.clientNom, 'Canal d\'entrée', ticket.canal],
-        ['Numéro de dossier', ticket.numero, 'Statut du ticket', ticket.statut],
-        ['Adresse Email', ticket.clientEmail || 'Non spécifiée', 'N° Téléphone', ticket.clientTel || 'Non spécifié'],
-        ['Date de création', new Date(ticket.createdAt).toLocaleString('fr-FR'), 'Conseiller en charge', ticket.operateurName || 'Non assigné']
-      ];
-
-      let rowY = y + 7;
-      details.forEach(([k1, v1, k2, v2]) => {
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${k1} :`, M + 5, rowY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(String(v1), M + 38, rowY);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${k2} :`, M + 105, rowY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(String(v2), M + 142, rowY);
-        
-        rowY += 7;
-      });
-      y += 46;
+      y = drawPDFGeneralInfo(doc, ticket, W, M, CW, y, drawSectionTitle);
 
       // ── Section 2: Performance metrics ──
       if (perf) {
-        y = drawSectionTitle("2. ANALYSE ET INDEX DE PERFORMANCE (SLA)", y);
-
-        // Three columns metrics layout
-        const colW = (CW - 6) / 3;
-        
-        // Box 1: Total duration
-        doc.setFillColor(247, 248, 250);
-        doc.roundedRect(M, y, colW, 18, 2, 2, 'F');
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(74, 81, 104);
-        doc.text("DURÉE TOTALE", M + 4, y + 5);
-        doc.setFontSize(10.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(17, 19, 24);
-        doc.text(fmtDuration(perf.totalDuration), M + 4, y + 12);
-
-        // Box 2: Assignment duration
-        doc.setFillColor(247, 248, 250);
-        doc.roundedRect(M + colW + 3, y, colW, 18, 2, 2, 'F');
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(74, 81, 104);
-        doc.text("TEMPS D'ASSIGNATION", M + colW + 7, y + 5);
-        doc.setFontSize(10.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(17, 19, 24);
-        doc.text(perf.assignTime ? fmtDuration(perf.assignTime) : 'Immédiat', M + colW + 7, y + 12);
-
-        // Box 3: Resolution duration
-        doc.setFillColor(247, 248, 250);
-        doc.roundedRect(M + 2 * colW + 6, y, colW, 18, 2, 2, 'F');
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(74, 81, 104);
-        doc.text("TEMPS DE RÉSOLUTION", M + 2 * colW + 10, y + 5);
-        doc.setFontSize(10.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(17, 19, 24);
-        doc.text(perf.resolveTime ? fmtDuration(perf.resolveTime) : 'N/A', M + 2 * colW + 10, y + 12);
-
-        y += 24;
-
-        // SLA Card
-        doc.setLineWidth(0.3);
-        if (perf.slaOk) {
-          doc.setFillColor(240, 253, 250); // Soft emerald green bg
-          doc.setDrawColor(153, 246, 228);  // Soft emerald border
-          doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
-          doc.setTextColor(15, 118, 110);   // Dark green text
-          doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'bold');
-          doc.text("✓ CONFORMITÉ SLA : Dossier traité dans les temps impartis (< 4 heures)", M + 5, y + 6.5);
-        } else {
-          doc.setFillColor(254, 242, 242); // Soft red bg
-          doc.setDrawColor(254, 202, 202);  // Soft red border
-          doc.roundedRect(M, y, CW, 10, 1.5, 1.5, 'FD');
-          doc.setTextColor(185, 28, 28);    // Dark red text
-          doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'bold');
-          doc.text("✕ DÉPASSEMENT SLA : Temps de traitement hors objectif (> 4 heures)", M + 5, y + 6.5);
-        }
-        y += 18;
+        y = drawPDFPerformance(doc, perf, M, CW, y, drawSectionTitle);
       }
 
       // ── Section 3: IA Decision ──
       if (decision) {
-        y = drawSectionTitle("3. PIPELINE DÉCISIONNEL & INTELLIGENCE ARTIFICIELLE", y);
-
-        // General Card with Left Indigo Accent
-        doc.setFillColor(247, 248, 250);
-        doc.roundedRect(M, y, CW, 45, 2, 2, 'F');
-        doc.setFillColor(99, 91, 255);
-        doc.rect(M, y, 2.5, 45, 'F'); // Left accent line
-
-        doc.setTextColor(17, 19, 24);
-        doc.setFontSize(9);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text("Décision automatique calculée :", M + 7, y + 6);
-        doc.setFont('helvetica', 'normal');
-        
-        // Decision status color-coding
-        const isFavorable = decision.decision.toLowerCase().includes('favor') || decision.decision.toLowerCase().includes('accept');
-        const isDefavorable = decision.decision.toLowerCase().includes('défavor') || decision.decision.toLowerCase().includes('refus');
-        
-        if (isFavorable) {
-          doc.setTextColor(0, 196, 140);
-          doc.setFont('helvetica', 'bold');
-        } else if (isDefavorable) {
-          doc.setTextColor(255, 71, 87);
-          doc.setFont('helvetica', 'bold');
-        } else {
-          doc.setTextColor(255, 176, 32);
-          doc.setFont('helvetica', 'bold');
-        }
-        doc.text(decision.decision, M + 60, y + 6);
-
-        // Restore normal text color
-        doc.setTextColor(17, 19, 24);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Score de confiance IA :", M + 7, y + 13);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`${decision.score} %`, M + 60, y + 13);
-
-        // Confidence Score Progress Bar Mockup
-        doc.setFillColor(220, 224, 230);
-        doc.roundedRect(M + 80, y + 10.5, 50, 2.5, 1, 1, 'F');
-        
-        if (isFavorable) doc.setFillColor(0, 196, 140);
-        else if (isDefavorable) doc.setFillColor(255, 71, 87);
-        else doc.setFillColor(255, 176, 32);
-        
-        doc.roundedRect(M + 80, y + 10.5, 50 * (decision.score / 100), 2.5, 1, 1, 'F');
-
-        doc.setTextColor(17, 19, 24);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Source de décision :", M + 7, y + 20);
-        doc.setFont('helvetica', 'normal');
-        doc.text(decision.source, M + 60, y + 20);
-
-        if (decision.rulesApplied.length > 0) {
-          doc.setFont('helvetica', 'bold');
-          doc.text("Règles appliquées :", M + 7, y + 27);
-          doc.setFont('helvetica', 'normal');
-          doc.text(decision.rulesApplied.join(', '), M + 60, y + 27);
-        }
-
-        // Draw a clean box for the explanation Motif
-        doc.setFillColor(238, 241, 246);
-        doc.roundedRect(M + 7, y + 31, CW - 14, 11, 1.5, 1.5, 'F');
-        
-        doc.setFont('helvetica', 'oblique');
-        doc.setFontSize(8);
-        doc.setTextColor(74, 81, 104);
-        const motifLines = doc.splitTextToSize(`Explication (Motif) : ${decision.motif}`, CW - 20);
-        doc.text(motifLines, M + 10, y + 35);
-
-        y += 52;
+        y = drawPDFDecision(doc, decision, M, CW, y, drawSectionTitle);
       }
 
       // ── Section 4: Timeline ──
-      // Dynamic page overflow protection
       if (y > 200) { doc.addPage(); y = 20; }
-      y = drawSectionTitle(`4. HISTORIQUE & TRACABILITÉ D'AUDIT (${timeline.length} événements)`, y);
-      
-      const timelineStartY = y;
-      let timelineEndY = y;
-      
-      doc.setFontSize(8);
-      timeline.forEach((ev) => {
-        if (y > 260) {
-          // Draw connecting line for this page
-          doc.setDrawColor(226, 229, 235);
-          doc.setLineWidth(0.6);
-          doc.line(M + 4, timelineStartY, M + 4, y - 10);
-
-          doc.addPage(); 
-          y = 20;
-        }
-
-        const ts = new Date(ev.timestamp.endsWith('Z') ? ev.timestamp : ev.timestamp + 'Z').toLocaleString('fr-FR');
-        
-        // Node circle
-        doc.setFillColor(99, 91, 255);
-        doc.circle(M + 4, y + 1, 1.5, 'F');
-
-        doc.setTextColor(17, 19, 24);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`[${ts}] ${ev.title}`, M + 9, y + 2);
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(74, 81, 104);
-        const detailLines = doc.splitTextToSize(ev.detail, CW - 15);
-        doc.text(detailLines, M + 9, y + 5.5);
-        
-        y += 5.5 + detailLines.length * 3.5 + 4;
-        timelineEndY = y - 6;
-      });
-
-      // Draw the connecting vertical line passing behind all node dots
-      if (timelineEndY > timelineStartY) {
-        doc.setDrawColor(226, 229, 235);
-        doc.setLineWidth(0.6);
-        doc.line(M + 4, timelineStartY, M + 4, timelineEndY);
-      }
-      y += 8;
+      y = drawPDFTimeline(doc, timeline, M, CW, y, drawSectionTitle);
 
       // ── Section 5: GDPR / RGPD Compliance ──
       if (y > 210) { doc.addPage(); y = 20; }
-      y = drawSectionTitle(`5. CONFORMITÉ RÉGLEMENTAIRE & RGPD`, y);
-
-      // Score Header Box
-      const getScoreColor = (score: number) => {
-        if (score >= 90) return { bg: [240, 253, 250], border: [153, 246, 228], text: [15, 118, 110] }; // emerald
-        if (score >= 70) return { bg: [255, 251, 235], border: [253, 230, 138], text: [180, 83, 9] };   // amber
-        return { bg: [254, 242, 242], border: [254, 202, 202], text: [185, 28, 28] };                // rose
-      };
-      
-      const scColor = getScoreColor(rgpdScore);
-      doc.setFillColor(scColor.bg[0], scColor.bg[1], scColor.bg[2]);
-      doc.setDrawColor(scColor.border[0], scColor.border[1], scColor.border[2]);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(M, y, CW, 14, 2, 2, 'FD');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(scColor.text[0], scColor.text[1], scColor.text[2]);
-      doc.text(`INDICE GLOBAL DE CONFORMITÉ RGPD : ${rgpdScore} %`, M + 6, y + 8.5);
-
-      y += 22;
-
-      // List each compliance item
-      rgpd.forEach((r) => {
-        if (y > 262) { doc.addPage(); y = 20; }
-
-        const isNa = r.na;
-        const isOk = r.ok;
-        
-        // Draw badge box
-        if (isNa) {
-          doc.setFillColor(243, 244, 246); // gray
-          doc.setDrawColor(229, 231, 235);
-          doc.setTextColor(107, 114, 128);
-        } else if (isOk) {
-          doc.setFillColor(240, 253, 250); // emerald green
-          doc.setDrawColor(153, 246, 228);
-          doc.setTextColor(15, 118, 110);
-        } else {
-          doc.setFillColor(254, 242, 242); // rose red
-          doc.setDrawColor(254, 202, 202);
-          doc.setTextColor(185, 28, 28);
-        }
-
-        doc.setLineWidth(0.2);
-        doc.roundedRect(M, y, 32, 6, 1, 1, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.5);
-        
-        const badgeLabel = isNa ? "N/A" : isOk ? "✓ CONFORME" : "✕ REFUSÉ";
-        doc.text(badgeLabel, M + 4, y + 4.2);
-
-        // Description title
-        doc.setTextColor(17, 19, 24);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.text(r.label, M + 36, y + 4.5);
-
-        // Description detail
-        doc.setTextColor(74, 81, 104);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        const descLines = doc.splitTextToSize(r.desc || '', CW - 38);
-        doc.text(descLines, M + 36, y + 9);
-        
-        y += 9 + descLines.length * 3.5 + 4;
-      });
+      y = drawPDFRgpd(doc, rgpd, rgpdScore, M, CW, y, drawSectionTitle);
 
       // Apply dynamic Page Numbers & Header/Footers on all pages
       const totalPages = doc.getNumberOfPages();
@@ -707,7 +746,6 @@ export default function AuditPage() {
       /* PDF export failed — toast is not shown as it would confuse users mid-generation */
       console.debug('[AuditPage] PDF export error (non-critical):', err);
     }
-    finally { setExporting(false); }
   }, [ticket, decision, perf, timeline, rgpd, rgpdScore]);
 
   /* ── Pipeline steps ── */

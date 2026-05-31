@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Mail, MessageSquare, AlertCircle, CheckCircle, RefreshCcw, Send, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -45,15 +45,24 @@ export default function NotificationsPage() {
     }
   };
 
-  const filtered = filter === 'ALL' 
-    ? logs 
-    : logs.filter(l => filter === 'SENT' ? l.statut === 'SENT' : l.statut !== 'SENT');
+  const filtered = useMemo(() => {
+    if (filter === 'ALL') return logs;
+    return logs.filter(l => {
+      if (filter === 'SENT') {
+        return l.statut === 'SENT';
+      }
+      return l.statut !== 'SENT';
+    });
+  }, [logs, filter]);
 
-  const stats = {
-    total: logs.length,
-    sent: logs.filter(l => l.statut === 'SENT').length,
-    failed: logs.filter(l => l.statut !== 'SENT').length,
-  };
+  const stats = useMemo(() => {
+    const sent = logs.filter(l => l.statut === 'SENT').length;
+    return {
+      total: logs.length,
+      sent,
+      failed: logs.length - sent,
+    };
+  }, [logs]);
 
   if (error) return <ErrorState message={error} onRetry={fetchLogs} />;
 
@@ -174,7 +183,7 @@ export default function NotificationsPage() {
               <EmptyState 
                 icon="mail" 
                 title="Aucune notification" 
-                subtitle={filter !== 'ALL' ? 'Aucune notification avec ce filtre' : 'Aucune notification envoyée'} 
+                subtitle={filter === 'ALL' ? 'Aucune notification envoyée' : 'Aucune notification avec ce filtre'} 
               />
             </div>
           ) : (
@@ -237,7 +246,9 @@ export default function NotificationsPage() {
                         })}
                       </td>
                       <td>
-                        {n.statut !== 'SENT' ? (
+                        {n.statut === 'SENT' ? (
+                          <span className="font-mono text-[9px] text-txt-3 select-none">—</span>
+                        ) : (
                           <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -248,8 +259,6 @@ export default function NotificationsPage() {
                             <RefreshCcw size={10} className={retrying === n.id ? 'animate-spin' : ''} />
                             Renvoyer
                           </motion.button>
-                        ) : (
-                          <span className="font-mono text-[9px] text-txt-3 select-none">—</span>
                         )}
                       </td>
                     </motion.tr>

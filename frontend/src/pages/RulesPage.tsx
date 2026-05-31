@@ -46,6 +46,19 @@ const getTestDecisionTextClass = (decision: string) => {
   return 'text-amber-400';
 };
 
+// ─── Condition Border Style Helper ───
+function getConditionBorderStyle(status: boolean | null): string {
+  if (status === true) return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]';
+  if (status === false) return 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.15)]';
+  return 'border-border/60 bg-[var(--elevated)] text-txt-2';
+}
+
+function getActionNodeStyle(ruleStatus: boolean | null): string {
+  if (ruleStatus === true) return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]';
+  if (ruleStatus === false) return 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
+  return 'border-border/60 bg-[var(--elevated)] text-txt-3';
+}
+
 // ─── Sortable Condition Row ───
 
 /* ───── Condition Evaluator (module-level for reduced cognitive complexity) ───── */
@@ -152,7 +165,7 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
   );
 
   // Stable IDs for sortable
-  const ids = conditions.conditions.map((_, i) => `cond-${i}`);
+  const ids = conditions.conditions.map((c, i) => c._id || `cond-${i}`);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -170,11 +183,11 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
 
   const handleRemove = (i: number) => {
     const updated = conditions.conditions.filter((_, j) => j !== i);
-    onChange({ ...conditions, conditions: updated.length ? updated : [{ field: '', operator: '=', value: '' }] });
+    onChange({ ...conditions, conditions: updated.length ? updated : [{ field: '', operator: '=', value: '', _id: 'reset-init' }] });
   };
 
   const handleAdd = () => {
-    onChange({ ...conditions, conditions: [...conditions.conditions, { field: '', operator: '=', value: '' }] });
+    onChange({ ...conditions, conditions: [...conditions.conditions, { field: '', operator: '=', value: '', _id: `cond-new-${Math.random().toString(36).substring(2, 9)}` }] });
   };
 
   return (
@@ -270,13 +283,13 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
   // Determine overall status
   let ruleStatus: boolean | null = null;
   if (operator === 'AND') {
-    const hasFalse = evaluatedConds.some(v => v === false);
+    const hasFalse = evaluatedConds.includes(false);
     const allTrue = evaluatedConds.every(v => v === true);
     if (hasFalse) ruleStatus = false;
     else if (allTrue) ruleStatus = true;
   } else {
     // OR
-    const hasTrue = evaluatedConds.some(v => v === true);
+    const hasTrue = evaluatedConds.includes(true);
     const allFalse = evaluatedConds.every(v => v === false);
     if (hasTrue) ruleStatus = true;
     else if (allFalse) ruleStatus = false;
@@ -296,7 +309,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
 
   // Pre-compute AND chain last-segment stroke props (avoids IIFE in JSX)
   const andAllTrue = evaluatedConds.every(v => v === true);
-  const andHasFalse = evaluatedConds.some(v => v === false);
+  const andHasFalse = evaluatedConds.includes(false);
   let andLastStroke = 'var(--border)';
   let andLastAnimated = false;
   let andLastFilter = '';
@@ -441,12 +454,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
                 const condY = i * 85 + (canvasHeight - numConds * 60 - (numConds - 1) * 25) / 2;
                 const status = evaluatedConds[i];
 
-                let borderStyle = 'border-border/60 bg-[var(--elevated)] text-txt-2';
-                if (status === true) {
-                  borderStyle = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]';
-                } else if (status === false) {
-                  borderStyle = 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.15)]';
-                }
+                const borderStyle = getConditionBorderStyle(status);
 
                 return (
                   <foreignObject
@@ -479,13 +487,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
                 width={75}
                 height={50}
               >
-                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${
-                  ruleStatus === true
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                    : ruleStatus === false
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                    : 'border-border/60 bg-[var(--elevated)] text-txt-3'
-                }`}>
+                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${getActionNodeStyle(ruleStatus)}`}>
                   <div className="text-[8px] uppercase tracking-wider opacity-75 font-semibold font-mono">ACTION</div>
                   <div className="text-[9px] font-black truncate max-w-full mt-0.5">{rule.action}</div>
                 </div>
@@ -581,13 +583,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
               {conditions.map((cond, i) => {
                 const condY = (i + 1) * 85;
                 const status = evaluatedConds[i];
-
-                let borderStyle = 'border-border/60 bg-[var(--elevated)] text-txt-2';
-                if (status === true) {
-                  borderStyle = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]';
-                } else if (status === false) {
-                  borderStyle = 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.15)]';
-                }
+                const borderStyle = getConditionBorderStyle(status);
 
                 return (
                   <foreignObject
@@ -620,13 +616,7 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
                 width={100}
                 height={40}
               >
-                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${
-                  ruleStatus === true
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                    : ruleStatus === false
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                    : 'border-border/60 bg-[var(--elevated)] text-txt-3'
-                }`}>
+                <div className={`w-full h-full rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-300 ${getActionNodeStyle(ruleStatus)}`}>
                   <div className="text-[8px] uppercase tracking-wider opacity-75 font-semibold font-mono">ACTION</div>
                   <div className="text-[9px] font-black truncate max-w-full mt-0.5">{rule.action}</div>
                 </div>
@@ -695,7 +685,17 @@ export default function RulesPage() {
         ruleService.getRules(),
         ruleService.getReferences(),
       ]);
-      setRules(rulesData);
+      const rulesWithKeys = rulesData.map(r => ({
+        ...r,
+        conditions: {
+          ...r.conditions,
+          conditions: r.conditions.conditions.map((c, i) => ({
+            ...c,
+            _id: c._id || `rule-${r.id}-cond-${i}`
+          }))
+        }
+      }));
+      setRules(rulesWithKeys);
       setRefs(refsData);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur chargement');
@@ -746,8 +746,18 @@ export default function RulesPage() {
     setToggling(id);
     try {
       const updated = await ruleService.toggleRule(id);
-      setRules(prev => prev.map(r => r.id === id ? updated : r));
-      if (selectedRule?.id === id) setSelectedRule(updated);
+      const updatedWithKeys = {
+        ...updated,
+        conditions: {
+          ...updated.conditions,
+          conditions: updated.conditions.conditions.map((c, i) => ({
+            ...c,
+            _id: c._id || `rule-${updated.id}-cond-${i}`
+          }))
+        }
+      };
+      setRules(prev => prev.map(r => r.id === id ? updatedWithKeys : r));
+      if (selectedRule?.id === id) setSelectedRule(updatedWithKeys);
       toast.success(updated.actif ? 'Règle activée' : 'Règle désactivée');
     } catch { toast.error('Erreur'); }
     finally { setToggling(null); }
@@ -783,11 +793,21 @@ export default function RulesPage() {
     setCreating(true);
     try {
       const created = await ruleService.createRule(form);
-      setRules(prev => [created, ...prev]);
+      const createdWithKeys = {
+        ...created,
+        conditions: {
+          ...created.conditions,
+          conditions: created.conditions.conditions.map((c, i) => ({
+            ...c,
+            _id: c._id || `rule-${created.id}-cond-${i}`
+          }))
+        }
+      };
+      setRules(prev => [createdWithKeys, ...prev]);
       setShowCreate(false);
       setForm({
         nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
-        conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '' }] },
+        conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '', _id: 'init-reset' }] },
       });
       setFormErrors({});
       toast.success('Règle créée');
@@ -805,7 +825,13 @@ export default function RulesPage() {
       actionMotif: rule.actionMotif,
       priorite: rule.priorite,
       scoreImpact: rule.scoreImpact ?? 0,
-      conditions: rule.conditions,
+      conditions: {
+        ...rule.conditions,
+        conditions: rule.conditions.conditions.map((c, i) => ({
+          ...c,
+          _id: c._id || `rule-${rule.id}-cond-${i}`
+        }))
+      },
     });
     setFormErrors({});
     setShowEdit(true);
@@ -816,8 +842,18 @@ export default function RulesPage() {
     setSaving(true);
     try {
       const updated = await ruleService.updateRule(editingRule.id, editForm);
-      setRules(prev => prev.map(r => r.id === editingRule.id ? updated : r));
-      setSelectedRule(updated);
+      const updatedWithKeys = {
+        ...updated,
+        conditions: {
+          ...updated.conditions,
+          conditions: updated.conditions.conditions.map((c, i) => ({
+            ...c,
+            _id: c._id || `rule-${updated.id}-cond-${i}`
+          }))
+        }
+      };
+      setRules(prev => prev.map(r => r.id === editingRule.id ? updatedWithKeys : r));
+      setSelectedRule(updatedWithKeys);
       // Refresh history after update
       const h = await ruleService.getHistory(editingRule.id);
       setHistory(h);
@@ -1000,7 +1036,7 @@ export default function RulesPage() {
                 <div className="space-y-2">
                   <div className="font-mono text-[10px] text-txt-3 mb-1">Opérateur : {selectedRule.conditions.operator}</div>
                   {selectedRule.conditions.conditions.map((cond, i) => (
-                    <div key={`rule-cond-${i}-${cond.field}-${cond.operator}-${cond.value}`} className="flex items-center gap-2 p-2.5 bg-[var(--elevated)] border border-border rounded-lg">
+                    <div key={cond._id || `rule-cond-${i}`} className="flex items-center gap-2 p-2.5 bg-[var(--elevated)] border border-border rounded-lg">
                       <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${i === 0 ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
                         {i === 0 ? 'SI' : selectedRule.conditions.operator}
                       </span>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import type { FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from '../components/ui/Logo';
@@ -290,6 +291,14 @@ export default function LoginPage() {
     return '#64748b';
   };
 
+  const getBoxShadow = (field: 'email' | 'password', error: string | null) => {
+    if (focused === field) return '0 0 0 3px rgba(37,99,235,0.12)';
+    if (touched[field] || authError) {
+      return (error || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)';
+    }
+    return '0 0 0 0px transparent';
+  };
+
   // Ref and Motion values for 3D Tilt Card & Spotlight Glow
   const cardRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -318,7 +327,7 @@ export default function LoginPage() {
     cardY.set(0);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setAuthError(null);
@@ -476,7 +485,7 @@ export default function LoginPage() {
                       </div>
                       <motion.input id="email-input" type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
                         style={getInputStyle('email', getEmailError())}
-                        animate={{ boxShadow: focused==='email' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.email || authError) ? ((getEmailError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
+                        animate={{ boxShadow: getBoxShadow('email', getEmailError()) }}
                         transition={{ type:'spring',stiffness:300,damping:25 }}
                         placeholder="vous@autoassist.tn" value={email} onChange={e=>handleEmailChange(e.target.value)}
                         onFocus={()=>setFocused('email')} onBlur={()=>handleBlur('email')} autoFocus/>
@@ -518,7 +527,7 @@ export default function LoginPage() {
                       </div>
                       <motion.input id="password-input" type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
                         style={getInputStyle('password', getPasswordError())}
-                        animate={{ boxShadow: focused==='password' ? '0 0 0 3px rgba(37,99,235,0.12)' : (touched.password || authError) ? ((getPasswordError() || authError) ? '0 0 0 3px rgba(239,68,68,0.1)' : '0 0 0 3px rgba(16,185,129,0.1)') : '0 0 0 0px transparent' }}
+                        animate={{ boxShadow: getBoxShadow('password', getPasswordError()) }}
                         transition={{ type:'spring',stiffness:300,damping:25 }}
                         placeholder="••••••••" value={password} onChange={e=>handlePasswordChange(e.target.value)}
                         onFocus={()=>setFocused('password')} onBlur={()=>handleBlur('password')}/>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Car, Zap, Wrench, Phone, Sun, Moon, AlertTriangle, Camera, ArrowLeft, ArrowRight, Check, ShieldAlert, Sparkles, User, Info, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -139,7 +139,6 @@ export default function PublicFormPage() {
   // ── Photos sinistre ──
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoSelect = async (files: FileList | null) => {
     if (!files) return;
@@ -329,6 +328,7 @@ export default function PublicFormPage() {
           border-radius: 16px; border: 2px solid ${t.border}; background: ${t.inputBg};
           padding: 20px 16px; text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+          width: 100%; font-family: inherit; outline: none;
         }
         .cf-type-card:hover { border-color: ${t.accent}; background: ${t.inputBgHover}; transform: translateY(-2px); }
         .cf-type-card.selected { border-color: ${t.accent}; background: ${t.accentGlow}; box-shadow: 0 0 0 3px ${t.accentGlow}; }
@@ -738,19 +738,17 @@ export default function PublicFormPage() {
                             { id: 'panne', title: 'Panne mécanique', icon: <Wrench size={20} />, color: 'rgba(245, 158, 11, 0.15)', textC: 'text-amber-400 border-amber-500/20' },
                             { id: 'autre', title: 'Autre motif', icon: <Phone size={20} />, color: 'rgba(139, 92, 246, 0.15)', textC: 'text-violet-400 border-violet-500/20' }
                           ] as const).map(item => (
-                            <div 
+                            <button 
                               key={item.id}
-                              role="button"
-                              tabIndex={0}
+                              type="button"
                               onClick={() => handleTypeSelect(item.id)}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleTypeSelect(item.id); } }}
                               className={`cf-type-card ${selectedType === item.id ? 'selected' : ''}`}
                             >
                               <div className="cf-type-card-icon" style={{ backgroundColor: item.color }}>
                                 <span className={item.textC}>{item.icon}</span>
                               </div>
                               <span className="cf-type-card-title">{item.title}</span>
-                            </div>
+                            </button>
                           ))}
                         </div>
 
@@ -813,22 +811,18 @@ export default function PublicFormPage() {
                             Photos du véhicule / sinistre <span className="opacity-60">(optionnel · max {MAX_PHOTOS})</span>
                           </div>
                           
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => photoInputRef.current?.click()}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInputRef.current?.click(); } }}
+                          <label
                             onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#8b5cf6'; }}
                             onDragLeave={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; }}
                             onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = t.border; handlePhotoSelect(e.dataTransfer.files); }}
                             className="cf-dropzone"
                           >
-                            <input ref={photoInputRef} type="file" multiple accept="image/*"
+                            <input type="file" multiple accept="image/*"
                               style={{ display: 'none' }} onChange={e => handlePhotoSelect(e.target.files)} />
                             <div className="cf-dropzone-icon"><Camera size={22} /></div>
                             <div className="text-xs font-bold text-txt-2">Glisser-déposer ou cliquer pour ajouter</div>
                             <div className="text-[9px] text-txt-3">JPEG, PNG, WebP · max {MAX_SIZE_MB}Mo par photo</div>
-                          </div>
+                          </label>
 
                           {/* Polaroid Previews */}
                           {photoPreviews.length > 0 && (

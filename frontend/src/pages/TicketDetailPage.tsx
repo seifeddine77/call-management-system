@@ -85,7 +85,7 @@ function getAuthHeaders(): Record<string, string> {
       const { accessToken } = JSON.parse(stored);
       if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
     }
-  } catch (_err: unknown) {
+  } catch {
     /* localStorage may be unavailable (private mode) — auth headers simply omitted */
   }
   return headers;
@@ -206,7 +206,7 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
 
   const highlightText = useCallback((t: string) => {
     if (keywords.length === 0) return <span>{t}</span>;
-    const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\\/]/g, String.raw`\\$&`)).join('|')})`, 'gi');
+    const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\/]/g, String.raw`\\$&`)).join('|')})`, 'gi');
     const frags = t.split(pattern);
     return frags.map((frag, i) =>
       keywords.some(k => k.toLowerCase() === frag.toLowerCase()) ? (
@@ -234,6 +234,55 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
 }
 
 /* ───── Live Transcription Component (Streaming STT) ───── */
+
+function _startMediaRecorder(
+  ws: WebSocket,
+  stream: MediaStream,
+  recorderRef: React.MutableRefObject<MediaRecorder | null>,
+  timerRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>,
+  setIsRecording: (v: boolean) => void,
+  setElapsed: (fn: (p: number) => number) => void,
+  setLiveText: (v: string) => void,
+  setChunks: (v: number) => void,
+) {
+  const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+  recorderRef.current = recorder;
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+      ws.send(event.data);
+    }
+  };
+  recorder.start(3000);
+  setIsRecording(true);
+  setElapsed(() => 0);
+  setLiveText('');
+  setChunks(0);
+  timerRef.current = setInterval(() => { setElapsed(prev => prev + 1); }, 1000);
+  toast.success('🎙 Transcription live démarrée');
+}
+
+function _processWsMessage(
+  event: MessageEvent,
+  setLiveText: React.Dispatch<React.SetStateAction<string>>,
+  setChunks: React.Dispatch<React.SetStateAction<number>>,
+  onTranscriptionUpdate?: (text: string) => void
+) {
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'partial') {
+      setLiveText(prev => (prev ? prev + ' ' : '') + data.text);
+      setChunks(data.chunks || 0);
+    } else if (data.type === 'final') {
+      setLiveText(prev => (prev ? prev + ' ' : '') + (data.text || ''));
+      if (onTranscriptionUpdate && data.text) onTranscriptionUpdate(data.text);
+    } else if (data.type === 'error') {
+      toast.error(`Erreur STT: ${data.detail}`);
+    }
+  } catch {
+    // Ignore malformed WebSocket messages — connection remains active
+  }
+}
+
 function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticketId: string; onTranscriptionUpdate?: (text: string) => void }>) {
   const [isRecording, setIsRecording] = useState(false);
   const [liveText, setLiveText] = useState('');
@@ -246,25 +295,21 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
   const AI_WS_URL = `ws://localhost:8000/ws/transcribe/${ticketId}`;
 
   const stopRecording = useCallback(() => {
-    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // Stop recorder
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop();
       recorderRef.current.stream.getTracks().forEach(t => t.stop());
       recorderRef.current = null;
     }
 
-    // Send STOP and close WebSocket
     if (wsRef.current) {
       if (wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send('STOP');
       }
-      // Don't close immediately, let the server send final response
       setTimeout(() => {
         if (wsRef.current) {
           wsRef.current.close();
@@ -280,71 +325,21 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Connect WebSocket to AI service
       const ws = new WebSocket(AI_WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Start MediaRecorder once WebSocket is connected
-        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-        recorderRef.current = recorder;
-
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(event.data);
-          }
-        };
-
-        // Send chunks every 3 seconds
-        recorder.start(3000);
-        setIsRecording(true);
-        setElapsed(0);
-        setLiveText('');
-        setChunks(0);
-
-        // Start timer
-        timerRef.current = setInterval(() => {
-          setElapsed(prev => prev + 1);
-        }, 1000);
-
-        toast.success('🎙 Transcription live démarrée');
+        _startMediaRecorder(ws, stream, recorderRef, timerRef, setIsRecording, (fn) => setElapsed(fn), setLiveText, setChunks);
       };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'partial') {
-            setLiveText(prev => (prev ? prev + ' ' : '') + data.text);
-            setChunks(data.chunks || 0);
-          } else if (data.type === 'final') {
-            setLiveText(prev => (prev ? prev + ' ' : '') + (data.text || ''));
-            if (onTranscriptionUpdate && data.text) {
-              onTranscriptionUpdate(data.text);
-            }
-          } else if (data.type === 'error') {
-            toast.error(`Erreur STT: ${data.detail}`);
-          }
-        } catch (_err: unknown) {
-          // Ignore malformed WebSocket messages — connection remains active
-        }
-      };
-
-      ws.onerror = () => {
-        toast.error('Erreur de connexion WebSocket');
-        stopRecording();
-      };
-
-      ws.onclose = () => {
-        if (isRecording) stopRecording();
-      };
-
+      ws.onmessage = (e) => _processWsMessage(e, setLiveText, setChunks, onTranscriptionUpdate);
+      ws.onerror = () => { toast.error('Erreur de connexion WebSocket'); stopRecording(); };
+      ws.onclose = () => { if (isRecording) stopRecording(); };
     } catch {
       toast.error('Impossible d\'accéder au microphone');
     }
   }, [onTranscriptionUpdate, AI_WS_URL, isRecording, stopRecording]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -792,7 +787,7 @@ export default function TicketDetailPage() {
       try {
         const d = await decisionService.getByTicket(id);
         setDecision(d);
-      } catch (_err: unknown) {
+      } catch {
         /* No decision yet for this ticket — not an error */
       }
     } catch (err: unknown) {

@@ -23,6 +23,7 @@ export interface RuleCondition {
   field: string;
   operator: string;
   value: string;
+  _id?: string;
 }
 
 export interface CreateRuleRequest {

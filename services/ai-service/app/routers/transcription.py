@@ -37,10 +37,11 @@ ALLOWED_CONTENT_TYPES = {
 }
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".mp4", ".webm", ".flac", ".m4a", ".aac"}
 MAX_SIZE_BYTES = settings.MAX_AUDIO_SIZE_MB * 1024 * 1024
+_DEFAULT_AUDIO_FILENAME = "audio.wav"
 
 
 async def _validate_audio_file(file: UploadFile):
-    ext = os.path.splitext(file.filename or "audio.wav")[1].lower()
+    ext = os.path.splitext(file.filename or _DEFAULT_AUDIO_FILENAME)[1].lower()
     content_type = file.content_type or "application/octet-stream"
 
     # Accept if content-type is known OR file extension is valid
@@ -71,7 +72,7 @@ async def _encrypt_and_save_audio(content: bytes, ticket_id: str, filename: str)
 
     os.makedirs(ticket_dir, exist_ok=True)
 
-    ext = os.path.splitext(filename or "audio.wav")[1] or ".wav"
+    ext = os.path.splitext(filename or _DEFAULT_AUDIO_FILENAME)[1] or ".wav"
     saved_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(ticket_dir, saved_filename)
 
@@ -202,7 +203,7 @@ async def transcribe_audio(
         )
 
     # ── Save file to disk ───────────────────────────────────────
-    file_path = await _encrypt_and_save_audio(content, ticket_id, file.filename or "audio.wav")
+    file_path = await _encrypt_and_save_audio(content, ticket_id, file.filename or _DEFAULT_AUDIO_FILENAME)
     ticket_dir = os.path.dirname(file_path)
 
     # ── Create DB record ────────────────────────────────────────

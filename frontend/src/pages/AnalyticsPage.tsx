@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Users, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck } from 'lucide-react';
 import { analyticsService } from '../services/analyticsService';
 import { KpiSkeleton, ErrorState } from '../components/ui/States';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
@@ -11,6 +11,40 @@ const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transiti
 
 const periodLabels: Record<string, string> = { week: '7 derniers jours', month: '30 derniers jours', year: '90 derniers jours' };
 const periodMap: Record<string, string> = { week: '7d', month: '30d', year: '90d' };
+
+const getTrendDirection = (value: number): boolean | null => {
+  if (value > 0) return true;
+  if (value < 0) return false;
+  return null;
+};
+
+const getScoreTrendDirection = (score: number): boolean | null => {
+  if (score >= 60) return true;
+  if (score < 40) return false;
+  return null;
+};
+
+const getScoreSubtitle = (score: number): string => {
+  if (score >= 80) return 'Excellent';
+  if (score >= 60) return 'Bon';
+  if (score >= 40) return 'Moyen';
+  return 'Faible';
+};
+
+const formatPercent = (val: number, showPlus = true) => {
+  return `${showPlus && val >= 0 ? '+' : ''}${val}%`;
+};
+
+const periodButtonLabels: Record<string, string> = {
+  week: 'Semaine',
+  month: 'Mois',
+  year: 'Année'
+};
+
+import DailyVolumeChart from '../components/analytics/DailyVolumeChart';
+import DecisionsChart from '../components/analytics/DecisionsChart';
+import ChannelsChart from '../components/analytics/ChannelsChart';
+import OperatorLeaderboard from '../components/analytics/OperatorLeaderboard';
 
 export default function AnalyticsPage() {
   const [kpis, setKpis] = useState<KpiResponse | null>(null);
@@ -66,24 +100,7 @@ export default function AnalyticsPage() {
   const prevTotalDec = comparison ? comparison.previous.decisionsAiFavorable + comparison.previous.decisionsAiDefavorable + comparison.previous.decisionsAiEtude : 0;
   const prevScore = prevTotalDec > 0 ? Math.round((comparison!.previous.decisionsAiFavorable / prevTotalDec) * 100) : 0;
 
-  const getTrendDirection = (value: number): boolean | null => {
-    if (value > 0) return true;
-    if (value < 0) return false;
-    return null;
-  };
 
-  const getScoreTrendDirection = (score: number): boolean | null => {
-    if (score >= 60) return true;
-    if (score < 40) return false;
-    return null;
-  };
-
-  const getScoreSubtitle = (score: number): string => {
-    if (score >= 80) return 'Excellent';
-    if (score >= 60) return 'Bon';
-    if (score >= 40) return 'Moyen';
-    return 'Faible';
-  };
 
   const renderKpiTrend = (trendUp: boolean | null | undefined, trend?: string) => {
     if (trendUp === undefined) return null;
@@ -118,7 +135,7 @@ export default function AnalyticsPage() {
           <div className="flex gap-1.5">
             {['week', 'month', 'year'].map(p => (
               <button key={p} onClick={() => setPeriod(p)} className={`chip cursor-pointer ${period === p ? 'active' : ''}`}>
-                {p === 'week' ? 'Semaine' : p === 'month' ? 'Mois' : 'Année'}
+                {periodButtonLabels[p]}
               </button>
             ))}
           </div>
@@ -137,23 +154,23 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: 'Total tickets', value: kpis.totalTickets, icon: <BarChart3 size={14} />,
-              trend: `${comparison.deltaTickets >= 0 ? '+' : ''}${comparison.deltaTickets}%`,
+              trend: formatPercent(comparison.deltaTickets),
               trendUp: getTrendDirection(comparison.deltaTickets) },
             { label: 'Résolution', value: kpis.tauxResolution, suffix: '%', decimals: 1, icon: <CheckCircle2 size={14} />,
-              trend: `${comparison.deltaResolution >= 0 ? '+' : ''}${comparison.deltaResolution}%`,
+              trend: formatPercent(comparison.deltaResolution),
               trendUp: getTrendDirection(comparison.deltaResolution) },
             { label: 'Temps moyen', value: kpis.tempsMoyenMinutes, suffix: 'min', icon: <Clock size={14} />,
-              trend: comparison.deltaTempsMoyen !== 0 ? `${comparison.deltaTempsMoyen >= 0 ? '+' : ''}${comparison.deltaTempsMoyen}%` : undefined,
+              trend: comparison.deltaTempsMoyen === 0 ? undefined : formatPercent(comparison.deltaTempsMoyen),
               trendUp: getTrendDirection(-comparison.deltaTempsMoyen) }, // lower temps moyen is good, so reverse direction
             { label: 'Décisions IA', value: totalDecisions, icon: <Bot size={14} />,
-              trend: `${comparison.deltaDecisions >= 0 ? '+' : ''}${comparison.deltaDecisions}%`,
+              trend: formatPercent(comparison.deltaDecisions),
               trendUp: getTrendDirection(comparison.deltaDecisions) },
             { label: 'Score favorable', value: scoreMoyen, suffix: '%', icon: <Target size={14} />,
               trendUp: getScoreTrendDirection(scoreMoyen),
               subtitle: getScoreSubtitle(scoreMoyen),
               trend: scoreTrendText },
-          ].map((kpi, i) => (
-            <motion.div key={i} variants={item} className="card-aurora rounded-2xl p-4 group hover:-translate-y-0.5 transition-all duration-150 relative overflow-hidden">
+          ].map((kpi) => (
+            <motion.div key={kpi.label} variants={item} className="card-aurora rounded-2xl p-4 group hover:-translate-y-0.5 transition-all duration-150 relative overflow-hidden">
               <div className="absolute -top-8 -right-8 w-20 h-20 rounded-full bg-[var(--primary)] opacity-[0.04] group-hover:opacity-[0.08] transition-opacity blur-xl" />
               <div className="relative">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -207,76 +224,8 @@ export default function AnalyticsPage() {
 
       {/* Charts grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Daily volume chart */}
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] to-transparent pointer-events-none" />
-          <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Volume quotidien</span>
-          {daily.length > 0 ? (
-            <div className="flex items-end gap-1.5 h-[160px] mt-4">
-              {[...daily].sort((a, b) => a.date.localeCompare(b.date)).slice(-14).map((d, i, arr) => {
-                const max = Math.max(...arr.map(x => x.totalTickets), 1);
-                const pct = (d.totalTickets / max) * 100;
-                return (
-                  <div key={i} className="flex flex-col items-center flex-1 gap-1.5 group/bar">
-                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity font-bold">{d.totalTickets}</span>
-                    <div className="w-full flex flex-col items-center" style={{ height: `${pct}%`, minHeight: '6px' }}>
-                      <div className="w-full rounded-t-md flex-1 transition-all duration-300 group-hover/bar:scale-y-105" 
-                        style={{ 
-                          background: 'linear-gradient(180deg, var(--primary) 0%, rgba(99,91,255,0.4) 100%)',
-                          boxShadow: '0 0 12px rgba(99,91,255,0.15)',
-                          opacity: 0.6 + (i / arr.length) * 0.4 
-                        }} />
-                    </div>
-                    <span className="font-mono text-[7px] text-[var(--text-3)] font-semibold">{new Date(d.date).getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : <div className="h-[160px] flex items-center justify-center text-xs text-[var(--text-3)]">Aucune donnée</div>}
-        </motion.div>
-
-        {/* Decision stacked chart */}
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.02] to-transparent pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Décisions par jour</span>
-            <div className="flex gap-2">
-              {[
-                { label: 'Fav', color: 'var(--success)' },
-                { label: 'Déf', color: 'var(--danger)' },
-                { label: 'Étu', color: 'var(--warning)' },
-              ].map(l => (
-                <span key={l.label} className="flex items-center gap-1 text-[7px] font-mono text-[var(--text-3)] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: l.color, boxShadow: `0 0 4px ${l.color}` }} />{l.label}
-                </span>
-              ))}
-            </div>
-          </div>
-          {daily.length > 0 ? (
-            <div className="flex items-end gap-1.5 h-[160px] mt-4">
-              {[...daily].sort((a, b) => a.date.localeCompare(b.date)).slice(-14).map((d, i, arr) => {
-                const total = d.decisionsFavorable + d.decisionsDefavorable + d.decisionsEtude;
-                const max = Math.max(...arr.map(x => x.decisionsFavorable + x.decisionsDefavorable + x.decisionsEtude), 1);
-                return (
-                  <div key={i} className="flex flex-col items-center flex-1 gap-1.5 group/bar">
-                    <span className="font-mono text-[7px] text-[var(--text-3)] opacity-0 group-hover/bar:opacity-100 transition-opacity font-bold">{total}</span>
-                    <div className="w-full flex flex-col rounded-t-md overflow-hidden transition-all duration-300 group-hover/bar:scale-y-105" 
-                      style={{ 
-                        height: `${(total / max) * 100}%`, 
-                        minHeight: '6px',
-                        boxShadow: '0 0 8px rgba(0,0,0,0.1)'
-                      }}>
-                      {d.decisionsFavorable > 0 && <div style={{ flex: d.decisionsFavorable, background: 'var(--success)' }} />}
-                      {d.decisionsDefavorable > 0 && <div style={{ flex: d.decisionsDefavorable, background: 'var(--danger)' }} />}
-                      {d.decisionsEtude > 0 && <div style={{ flex: d.decisionsEtude, background: 'var(--warning)' }} />}
-                    </div>
-                    <span className="font-mono text-[7px] text-[var(--text-3)] font-semibold">{new Date(d.date).getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : <div className="h-[160px] flex items-center justify-center text-xs text-[var(--text-3)]">Aucune donnée</div>}
-        </motion.div>
+        <DailyVolumeChart daily={daily} />
+        <DecisionsChart daily={daily} />
 
         {/* Sentiment Thermometer Widget (NEW!) */}
         <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
@@ -413,36 +362,7 @@ export default function AnalyticsPage() {
 
       {/* Channel per day mini chart */}
       {daily.length > 0 && (
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
-          <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Canaux par jour</span>
-          <div className="flex items-center gap-3 mt-1">
-            {[
-              { label: 'Appels', color: 'var(--canal-call)' },
-              { label: 'Emails', color: 'var(--canal-email)' },
-              { label: 'Web', color: 'var(--canal-web)' },
-            ].map(l => (
-              <span key={l.label} className="flex items-center gap-1 text-[8px] font-mono text-[var(--text-3)]">
-                <span className="w-2 h-2 rounded-full inline-block" style={{ background: l.color }} />{l.label}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-end gap-1 h-[120px] mt-3">
-            {[...daily].sort((a, b) => a.date.localeCompare(b.date)).slice(-14).map((d, i, arr) => {
-              const total = d.ticketsCall + d.ticketsEmail + d.ticketsWeb;
-              const max = Math.max(...arr.map(x => x.ticketsCall + x.ticketsEmail + x.ticketsWeb), 1);
-              return (
-                <div key={i} className="flex flex-col items-center flex-1 gap-1">
-                  <div className="w-full flex flex-col rounded-t-sm overflow-hidden" style={{ height: `${(total / max) * 100}%`, minHeight: '4px' }}>
-                    {d.ticketsCall > 0 && <div style={{ flex: d.ticketsCall, background: 'var(--canal-call)' }} />}
-                    {d.ticketsEmail > 0 && <div style={{ flex: d.ticketsEmail, background: 'var(--canal-email)' }} />}
-                    {d.ticketsWeb > 0 && <div style={{ flex: d.ticketsWeb, background: 'var(--canal-web)' }} />}
-                  </div>
-                  <span className="font-mono text-[7px] text-[var(--text-3)]">{new Date(d.date).getDate()}/{new Date(d.date).getMonth() + 1}</span>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
+        <ChannelsChart daily={daily} />
       )}
       {/* ══════ Supervision Section ══════ */}
 
@@ -486,145 +406,7 @@ export default function AnalyticsPage() {
 
       {/* Operator Leaderboard */}
       {operators.length > 0 && (
-        <motion.div variants={item} className="card-aurora rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Users size={14} style={{ color: 'var(--primary)' }} />
-              <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Performance opérateurs</span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
-                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{operators.length}</span>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
-              <thead>
-                <tr>
-                  {['#', 'Opérateur', 'Score', 'Tickets', 'Résolution', 'Temps moy.', 'SLA', 'En cours', 'Canaux'].map(h => (
-                    <th key={h} className="font-mono text-[8px] text-[var(--text-3)] uppercase tracking-wider text-left px-3 py-1">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {operators.map((op, i) => {
-                  const medal = `${i + 1}`;
-                  const maxTickets = operators[0]?.ticketsTraites || 1;
-                  const barPct = (op.ticketsTraites / maxTickets) * 100;
-                  const resColor = op.tauxResolution >= 80 ? 'var(--success)' : op.tauxResolution >= 50 ? 'var(--warning)' : 'var(--danger)';
-                  const tempsColor = op.tempsMoyenMinutes <= 30 ? 'var(--success)' : op.tempsMoyenMinutes <= 120 ? 'var(--warning)' : 'var(--danger)';
-                  const scoreColor = op.scoreComposite >= 75 ? 'var(--success)' : op.scoreComposite >= 50 ? 'var(--warning)' : 'var(--danger)';
-                  const slaColor = op.slaCompliance >= 80 ? 'var(--success)' : op.slaCompliance >= 60 ? 'var(--warning)' : 'var(--danger)';
-                  const totalCanal = op.ticketsCall + op.ticketsEmail + op.ticketsWeb || 1;
-                  const circumference = 2 * Math.PI * 12;
-                  const scoreDash = (op.scoreComposite / 100) * circumference;
-
-                  return (
-                    <motion.tr key={op.operateurId}
-                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="group"
-                      style={{ background: i < 3 ? 'var(--elevated)' : 'transparent', borderRadius: '10px' }}>
-
-                      {/* Rank */}
-                      <td className="px-3 py-2.5 rounded-l-xl">
-                        <span className="text-sm">{medal}</span>
-                      </td>
-
-                      {/* Name */}
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-                            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                            {(op.operateurName || 'O')[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold truncate max-w-[140px]">{op.operateurName || 'Opérateur'}</div>
-                            <div className="text-[8px] font-mono text-[var(--text-3)]">{op.operateurId.substring(0, 8)}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Score composite ring */}
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          <svg width="28" height="28" viewBox="0 0 28 28">
-                            <circle cx="14" cy="14" r="12" fill="none" stroke="var(--muted)" strokeWidth="2.5" />
-                            <motion.circle cx="14" cy="14" r="12" fill="none" stroke={scoreColor} strokeWidth="2.5"
-                              strokeLinecap="round" transform="rotate(-90 14 14)"
-                              initial={{ strokeDasharray: `0 ${circumference}` }}
-                              animate={{ strokeDasharray: `${scoreDash} ${circumference}` }}
-                              transition={{ duration: 0.8, delay: 0.3 + i * 0.05 }} />
-                            <text x="14" y="15.5" textAnchor="middle" className="text-[7px] font-bold" fill="var(--text)">{op.scoreComposite}</text>
-                          </svg>
-                          <span className="text-[8px] font-mono" style={{ color: scoreColor }}>
-                            {op.scoreComposite >= 75 ? '★' : op.scoreComposite >= 50 ? '◆' : '▼'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Tickets with bar */}
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold font-mono w-6 text-right">{op.ticketsTraites}</span>
-                          <div className="h-1.5 rounded-full bg-[var(--muted)] flex-1 max-w-[80px] overflow-hidden">
-                            <motion.div className="h-full rounded-full" style={{ background: 'var(--primary)' }}
-                              initial={{ width: 0 }} animate={{ width: `${barPct}%` }}
-                              transition={{ duration: 0.6, delay: 0.2 + i * 0.05 }} />
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Resolution rate */}
-                      <td className="px-3 py-2.5">
-                        <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full"
-                          style={{ background: resColor + '18', color: resColor }}>
-                          {op.tauxResolution}%
-                        </span>
-                      </td>
-
-                      {/* Average time */}
-                      <td className="px-3 py-2.5">
-                        <span className="text-xs font-mono" style={{ color: tempsColor }}>
-                          {op.tempsMoyenMinutes < 60
-                            ? `${Math.round(op.tempsMoyenMinutes)}min`
-                            : `${(op.tempsMoyenMinutes / 60).toFixed(1)}h`}
-                        </span>
-                      </td>
-
-                      {/* SLA */}
-                      <td className="px-3 py-2.5">
-                        <span className="text-[10px] font-mono font-bold" style={{ color: slaColor }}>
-                          {op.slaCompliance}%
-                        </span>
-                      </td>
-
-                      {/* In progress */}
-                      <td className="px-3 py-2.5">
-                        <span className="text-xs font-mono font-bold" style={{ color: op.ticketsEnCours > 5 ? 'var(--danger)' : 'var(--text-2)' }}>
-                          {op.ticketsEnCours}
-                        </span>
-                      </td>
-
-                      {/* Canal breakdown mini bar */}
-                      <td className="px-3 py-2.5 rounded-r-xl">
-                        <div className="flex h-2 rounded-full overflow-hidden w-[60px]">
-                          {op.ticketsCall > 0 && <div style={{ flex: op.ticketsCall / totalCanal, background: 'var(--canal-call)' }} />}
-                          {op.ticketsEmail > 0 && <div style={{ flex: op.ticketsEmail / totalCanal, background: 'var(--canal-email)' }} />}
-                          {op.ticketsWeb > 0 && <div style={{ flex: op.ticketsWeb / totalCanal, background: 'var(--canal-web)' }} />}
-                        </div>
-                        <div className="flex gap-1 mt-0.5">
-                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><PhoneCall size={7} />{op.ticketsCall}</span>
-                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><Mail size={7} />{op.ticketsEmail}</span>
-                          <span className="text-[7px] font-mono text-[var(--text-3)] flex items-center gap-0.5"><Globe size={7} />{op.ticketsWeb}</span>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
+        <OperatorLeaderboard operators={operators} />
       )}
     </motion.div>
   );

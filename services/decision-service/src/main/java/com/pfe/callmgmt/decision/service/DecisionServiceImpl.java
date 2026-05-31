@@ -531,21 +531,20 @@ public class DecisionServiceImpl {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '{') {
-                if (depth == 0) {
-                    blockStart = i;
-                }
+                if (depth == 0) blockStart = i;
                 depth++;
             } else if (c == '}' && depth > 0) {
                 depth--;
-                if (depth == 0 && blockStart >= 0) {
-                    String candidate = text.substring(blockStart, i + 1);
-                    if (candidate.contains("decision")) {
-                        bestCandidate = candidate;
-                    }
-                }
+                bestCandidate = extractCandidateIfComplete(text, depth, blockStart, i, bestCandidate);
             }
         }
         return bestCandidate;
+    }
+
+    private String extractCandidateIfComplete(String text, int depth, int blockStart, int endIndex, String current) {
+        if (depth != 0 || blockStart < 0) return current;
+        String candidate = text.substring(blockStart, endIndex + 1);
+        return candidate.contains("decision") ? candidate : current;
     }
 
     // Circuit Breaker fallback is now handled programmatically in analyze() method

@@ -24,12 +24,26 @@ export const ruleService = {
   },
 
   createRule: async (data: CreateRuleRequest): Promise<Rule> => {
-    const res = await api.post<Rule>('/api/rules', data);
+    const cleaned = {
+      ...data,
+      conditions: {
+        ...data.conditions,
+        conditions: data.conditions.conditions.map(({ field, operator, value }) => ({ field, operator, value }))
+      }
+    };
+    const res = await api.post<Rule>('/api/rules', cleaned);
     return res.data;
   },
 
   updateRule: async (id: string, data: CreateRuleRequest): Promise<Rule> => {
-    const res = await api.put<Rule>(`/api/rules/${id}`, data);
+    const cleaned = {
+      ...data,
+      conditions: {
+        ...data.conditions,
+        conditions: data.conditions.conditions.map(({ field, operator, value }) => ({ field, operator, value }))
+      }
+    };
+    const res = await api.put<Rule>(`/api/rules/${id}`, cleaned);
     return res.data;
   },
 
