@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, type FormEvent } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from '../components/ui/Logo';
@@ -13,8 +13,8 @@ function useTyping(texts: string[], speed = 50, pause = 3000) {
     let i = 0, del = false, t: ReturnType<typeof setTimeout>;
     const tick = () => {
       const full = texts[idx];
-      if (del) { setDisplay(full.slice(0, --i)); if (i === 0) { del = false; setIdx(p => (p + 1) % texts.length); return; } }
-      else { setDisplay(full.slice(0, ++i)); if (i === full.length) { t = setTimeout(() => { del = true; tick(); }, pause); return; } }
+      if (!del) { setDisplay(full.slice(0, ++i)); if (i === full.length) { t = setTimeout(() => { del = true; tick(); }, pause); return; } }
+      else { setDisplay(full.slice(0, --i)); if (i === 0) { del = false; setIdx(p => (p + 1) % texts.length); return; } }
       t = setTimeout(tick, del ? 20 : speed);
     };
     t = setTimeout(tick, 500);
@@ -559,7 +559,7 @@ function useLoginState() {
     cardY.set(0);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setAuthError(null);
@@ -575,8 +575,9 @@ function useLoginState() {
       await login(email, password); 
       toast.success('Connexion réussie !'); 
     }
-    catch { 
-      setAuthError('Email ou mot de passe incorrect');
+    catch (err: unknown) { 
+      const msg = err instanceof Error ? err.message : 'Identifiants invalides';
+      setAuthError(msg);
       toast.error('Email ou mot de passe incorrect'); 
     }
     finally { setLoading(false); }
@@ -752,8 +753,10 @@ export default function LoginPage() {
                     <motion.div className="absolute inset-0" style={{ background:'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.12) 50%,transparent 60%)' }}
                       animate={{ x:['-200%','200%'] }} transition={{ duration:3,repeat:Infinity,repeatDelay:3 }}/>
                     <AnimatePresence mode="wait">
-                      {loading?<motion.div key="s" initial={{opacity:0,scale:0.5}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.5}} className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                      :<motion.span key="t" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} className="relative flex items-center gap-2">Se connecter →</motion.span>}
+                      {loading
+                        ? <motion.div key="s" initial={{opacity:0,scale:0.5}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.5}} className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                        : <motion.span key="t" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} className="relative flex items-center gap-2">Se connecter →</motion.span>
+                      }
                     </AnimatePresence>
                   </motion.button>
                   

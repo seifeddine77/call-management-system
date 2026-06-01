@@ -635,8 +635,6 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
                 return (
                   <div
                     key={`waveform-bar-${i}`}
-                    role="button"
-                    tabIndex={-1}
                     className="flex-1 rounded-full transition-all duration-150"
                     style={{
                       height: `${h}%`,
@@ -653,7 +651,6 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
                       transformOrigin: 'bottom'
                     }}
                     onClick={() => handleBarClick(i)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBarClick(i); } }}
                   />
                 );
               })}
@@ -1005,6 +1002,16 @@ export default function TicketDetailPage() {
     handleChangeStatut
   } = useTicketDetailsState();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && lightboxIndex !== null) {
+        setLightboxIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, setLightboxIndex]);
+
   if (loading) {
     return (
       <div className="space-y-4 max-w-[1600px] mx-auto w-full px-2 py-4">
@@ -1161,7 +1168,7 @@ export default function TicketDetailPage() {
               className="aurora-select text-[11px] py-1.5 w-36 disabled:opacity-50 font-mono font-bold cursor-pointer"
             >
               <option value={ticket.statut}>
-                {({NOUVEAU:'Nouveau',EN_COURS:'En cours',RESOLU:'Résolu',FERME:'Fermé'} as Record<string,string>)[ticket.statut]}
+                {getStatutBadge(ticket.statut).l}
               </option>
               {ticket.statut === 'NOUVEAU' && <option value="EN_COURS">→ En cours</option>}
               {ticket.statut === 'NOUVEAU' && <option value="FERME">→ Fermé</option>}
@@ -1314,13 +1321,11 @@ export default function TicketDetailPage() {
                     {existingPhotos.map((path, i) => {
                       const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
                       return (
-                        <div 
-                          key={`sinistre-photo-${i}`} 
-                          role="button"
-                          tabIndex={0}
+                        <button 
+                          key={path} 
+                          type="button"
                           className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
                           onClick={() => setLightboxIndex(i)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(i); } }}
                         >
                           <img 
                             src={imgUrl} 
@@ -1337,7 +1342,7 @@ export default function TicketDetailPage() {
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                             <span className="text-white text-[10px] bg-black/50 p-1.5 rounded-full">🔍</span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1346,17 +1351,15 @@ export default function TicketDetailPage() {
 
               {/* Custom Animated Drag & Drop Zone */}
               {ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group"
-                  onClick={() => photoInputRef.current?.click()}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInputRef.current?.click(); } }}
+                <label
+                  htmlFor="ticket-photo-upload"
+                  className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group block"
                   onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-pink-500/50', 'bg-pink-500/5'); }}
                   onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); }}
                   onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
                 >
                   <input
+                    id="ticket-photo-upload"
                     ref={photoInputRef}
                     type="file"
                     multiple
@@ -1367,7 +1370,7 @@ export default function TicketDetailPage() {
                   <div className="text-2xl mb-1.5 transition-transform duration-300 group-hover:scale-110">📸</div>
                   <div className="text-[11px] text-txt-2 font-medium">Déposer des fichiers ou cliquer pour explorer</div>
                   <div className="font-mono text-[8px] text-txt-3 mt-1 uppercase tracking-wide">JPEG, PNG, WebP · max 10MB</div>
-                </div>
+                </label>
               )}
 
               {/* Local uploading file previews */}
@@ -1375,17 +1378,22 @@ export default function TicketDetailPage() {
                 <div className="mt-4 p-3 bg-[var(--elevated)] rounded-xl border border-border space-y-3">
                   <span className="font-mono text-[8px] text-txt-3 uppercase block tracking-wide">Fichiers en attente d'envoi :</span>
                   <div className="flex flex-wrap gap-2">
-                    {photoPreviews.map((src, i) => (
-                      <div key={`upload-preview-${i}`} className="relative group rounded-lg overflow-hidden border border-border shadow">
-                        <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[10px]"
-                        >
-                          <Trash2 size={10} className="text-rose-400" />
-                        </button>
-                      </div>
-                    ))}
+                    {photoPreviews.map((src, i) => {
+                      const file = photoFiles[i];
+                      const key = file ? `${file.name}-${file.size}` : `upload-preview-${i}`;
+                      return (
+                        <div key={key} className="relative group rounded-lg overflow-hidden border border-border shadow">
+                          <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[10px]"
+                          >
+                            <Trash2 size={10} className="text-rose-400" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                   <button
                     onClick={handleUploadPhotos}
@@ -1934,15 +1942,12 @@ export default function TicketDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            role="button"
-            tabIndex={0}
             className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setLightboxIndex(null);
               }
             }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(null); } }}
           >
             <button 
               className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full border border-white/15 transition-all text-sm font-mono cursor-pointer"

@@ -662,7 +662,7 @@ export default function QueuePage() {
       {/* Bento Grid Filters */}
       {loading && !stats ? (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }, (_, idx) => idx).map((idx) => <KpiSkeleton key={idx} />)}
+          {Array.from({ length: 5 }, (_, idx) => `skel-queue-kpi-${idx}`).map((key) => <KpiSkeleton key={key} />)}
         </div>
       ) : stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -727,8 +727,8 @@ export default function QueuePage() {
           <AnimatePresence mode="popLayout">
             {loading && filteredItems.length === 0 ? (
               <div className="p-5 space-y-3">
-                {Array.from({ length: 5 }, (_, idx) => idx).map((idx) => (
-                  <div key={idx} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+                {Array.from({ length: 5 }, (_, idx) => `skel-queue-row-${idx}`).map((key) => (
+                  <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : filteredItems.length === 0 ? (

@@ -67,7 +67,7 @@ function DonutSegments({ favorable, defavorable, etude }: Readonly<{ favorable: 
       <circle cx="36" cy="36" r="28" fill="none" stroke="var(--success)" strokeWidth="6"
         strokeDasharray={`${f * 1.76} 176`} strokeLinecap="round" transform="rotate(-90 36 36)" />
       <circle cx="36" cy="36" r="28" fill="none" stroke="var(--danger)" strokeWidth="6"
-        strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={`${-f * 1.76}`}
+        strokeDasharray={`${d * 1.76} 176`} strokeDashoffset={-(f * 1.76)}
         strokeLinecap="round" transform="rotate(-90 36 36)" />
     </>
   );
@@ -454,9 +454,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3">
-              {(operators.length > 0 ? operators.slice(0, 4) : [
-                { operateurId: '-', operateurName: 'Aucun opérateur', ticketsTraites: 0, ticketsResolu: 0, scoreComposite: 0 } as OperatorPerformance
-              ]).map((op, i) => {
+              {(() => {
+                const displayOps = operators.length > 0 ? operators.slice(0, 4) : [
+                  { operateurId: '-', operateurName: 'Aucun opérateur', ticketsTraites: 0, ticketsResolu: 0, scoreComposite: 0 } as OperatorPerformance
+                ];
+                return displayOps.map((op, i) => {
                 const maxTickets = operators[0]?.ticketsResolu || 1;
                 const barPct = Math.min(100, (op.ticketsResolu / maxTickets) * 100);
                 const colors = ['#635BFF', '#00D4AA', '#A78BFA', '#F59E0B'];
@@ -497,7 +499,9 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 );
-              })}
+              });
+              })()
+            }
             </div>
           </motion.div>
 
@@ -533,7 +537,7 @@ export default function DashboardPage() {
                   }[a.severity];
 
                   return (
-                    <motion.div key={`dashboard-alert-${i}-${a.type}-${a.severity}`}
+                    <motion.div key={`alert-${a.type}-${a.severity}`}
                       initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.08 }}
                       className={`grid grid-cols-12 gap-2 items-center px-2 py-2 rounded-lg relative overflow-hidden ${isCritical ? 'glow-danger border-rose-500/20' : ''}`}
@@ -592,12 +596,14 @@ export default function DashboardPage() {
                 <span className="text-[9px] text-[var(--text-3)] font-mono ml-auto bg-primary-soft px-2 py-0.5 rounded border border-border">{myPerf.operateurName}</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: 'Tickets traités', value: myPerf.ticketsTraites, color: 'var(--primary)', icon: <ClipboardList size={16} style={{ color: 'var(--primary)' }} /> },
-                  { label: 'Résolus', value: myPerf.ticketsResolu, color: 'var(--success)', icon: <CheckCircle2 size={16} style={{ color: 'var(--success)' }} /> },
-                  { label: 'En cours', value: myPerf.ticketsEnCours, color: 'var(--warning)', icon: <Clock size={16} style={{ color: 'var(--warning)' }} /> },
-                  { label: 'Taux résolution', value: `${myPerf.tauxResolution}%`, color: getTauxColor(myPerf.tauxResolution), icon: <BarChart3 size={16} style={{ color: getTauxColor(myPerf.tauxResolution) }} /> },
-                ].map(stat => (
+                {(() => {
+                  const tauxColor = getTauxColor(myPerf.tauxResolution);
+                  return [
+                    { label: 'Tickets traités', value: myPerf.ticketsTraites, color: 'var(--primary)', icon: <ClipboardList size={16} style={{ color: 'var(--primary)' }} /> },
+                    { label: 'Résolus', value: myPerf.ticketsResolu, color: 'var(--success)', icon: <CheckCircle2 size={16} style={{ color: 'var(--success)' }} /> },
+                    { label: 'En cours', value: myPerf.ticketsEnCours, color: 'var(--warning)', icon: <Clock size={16} style={{ color: 'var(--warning)' }} /> },
+                    { label: 'Taux résolution', value: `${myPerf.tauxResolution}%`, color: tauxColor, icon: <BarChart3 size={16} style={{ color: tauxColor }} /> },
+                  ].map(stat => (
                   <div key={stat.label} className="rounded-xl p-3 flex flex-col justify-between hover:scale-[1.02] transition-transform duration-200" style={{ background: 'var(--elevated)', border: '1px solid var(--border)' }}>
                     <span className="flex items-center">{stat.icon}</span>
                     <div className="mt-2">
@@ -605,12 +611,17 @@ export default function DashboardPage() {
                       <div className="text-[9px] text-[var(--text-3)] font-mono mt-0.5">{stat.label}</div>
                     </div>
                   </div>
-                ))}
+                  ));
+                })()}
               </div>
               {/* Temps moyen + canaux */}
               <div className="mt-3 flex items-center gap-4 px-1">
                 <span className="text-[10px] text-[var(--text-3)] flex items-center gap-1">
-                  <Timer size={10} /> Temps moyen : <strong className="text-[var(--text)]">{myPerf.tempsMoyenMinutes < 60 ? `${Math.round(myPerf.tempsMoyenMinutes)}min` : `${(myPerf.tempsMoyenMinutes / 60).toFixed(1)}h`}</strong>
+                  {(() => {
+                    const t = myPerf.tempsMoyenMinutes;
+                    const display = t < 60 ? `${Math.round(t)}min` : `${(t / 60).toFixed(1)}h`;
+                    return <><Timer size={10} /> Temps moyen : <strong className="text-[var(--text)]">{display}</strong></>;
+                  })()}
                 </span>
                 <span className="text-[10px] text-[var(--text-3)] flex items-center gap-1">
                   <PhoneCall size={10} /> {myPerf.ticketsCall} · <Mail size={10} /> {myPerf.ticketsEmail} · <Globe size={10} /> {myPerf.ticketsWeb}

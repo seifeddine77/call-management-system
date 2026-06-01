@@ -507,8 +507,8 @@ export default function UsersPage() {
             <AnimatePresence mode="popLayout">
               {loading ? (
                 <div className="p-5 space-y-3">
-                  {Array.from({ length: 4 }, (_, idx) => idx).map((idx) => (
-                    <div key={idx} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+                  {Array.from({ length: 4 }, (_, idx) => `skel-user-${idx}`).map((key) => (
+                    <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
               ) : users.length === 0 ? (
@@ -543,7 +543,7 @@ export default function UsersPage() {
                     prenom: selectedUser.prenom,
                     email: selectedUser.email,
                     password: '',
-                    role: selectedUser.role as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN',
+                    role: selectedUser.role,
                     agenceId: selectedUser.agenceId || '',
                     telephone: selectedUser.telephone || '',
                     planning: selectedUser.planning || ''
@@ -653,7 +653,10 @@ export default function UsersPage() {
               disabled={saving} 
               className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {saving ? 'Sauvegarde...' : showCreate ? 'Créer le compte' : 'Enregistrer'}
+              {(() => {
+                if (saving) return 'Sauvegarde...';
+                return showCreate ? 'Créer le compte' : 'Enregistrer';
+              })()}
             </motion.button>
           </div>
         </div>

@@ -289,24 +289,27 @@ function DecisionDonut({ kpis, totalDecisions }: Readonly<DecisionDonutProps>) {
           <circle cx="48" cy="48" r="38" fill="none" stroke="var(--success)" strokeWidth="8"
             strokeDasharray={`${f * 2.39} 239`} strokeLinecap="round" transform="rotate(-90 48 48)" />
           <circle cx="48" cy="48" r="38" fill="none" stroke="var(--danger)" strokeWidth="8"
-            strokeDasharray={`${d * 2.39} 239`} strokeDashoffset={`${-f * 2.39}`}
+            strokeDasharray={`${d * 2.39} 239`} strokeDashoffset={-(f * 2.39)}
             strokeLinecap="round" transform="rotate(-90 48 48)" />
           <text x="48" y="46" textAnchor="middle" className="text-sm font-extrabold" fill="var(--text)">{totalDecisions}</text>
           <text x="48" y="58" textAnchor="middle" className="text-[8px] font-mono" fill="var(--text-3)">TOTAL</text>
         </svg>
         <div className="flex-1 space-y-2">
-          {[
-            { label: 'Favorable', value: kpis.decisionsAiFavorable, color: 'var(--success)', pct: totalDecisions > 0 ? ((kpis.decisionsAiFavorable / totalDecisions) * 100).toFixed(1) : '0' },
-            { label: 'Défavorable', value: kpis.decisionsAiDefavorable, color: 'var(--danger)', pct: totalDecisions > 0 ? ((kpis.decisionsAiDefavorable / totalDecisions) * 100).toFixed(1) : '0' },
-            { label: 'Étude', value: kpis.decisionsAiEtude, color: 'var(--warning)', pct: totalDecisions > 0 ? ((kpis.decisionsAiEtude / totalDecisions) * 100).toFixed(1) : '0' },
-          ].map(d => (
-            <div key={d.label} className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
-              <span className="text-xs flex-1">{d.label}</span>
-              <span className="font-mono text-xs font-bold"><AnimatedCounter value={d.value} /></span>
-              <span className="font-mono text-[9px] text-[var(--text-3)]">({d.pct}%)</span>
-            </div>
-          ))}
+          {(() => {
+            const safePct = (v: number) => totalDecisions > 0 ? ((v / totalDecisions) * 100).toFixed(1) : '0';
+            return [
+              { label: 'Favorable', value: kpis.decisionsAiFavorable, color: 'var(--success)', pct: safePct(kpis.decisionsAiFavorable) },
+              { label: 'Défavorable', value: kpis.decisionsAiDefavorable, color: 'var(--danger)', pct: safePct(kpis.decisionsAiDefavorable) },
+              { label: 'Étude', value: kpis.decisionsAiEtude, color: 'var(--warning)', pct: safePct(kpis.decisionsAiEtude) },
+            ].map(d => (
+              <div key={d.label} className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                <span className="text-xs flex-1">{d.label}</span>
+                <span className="font-mono text-xs font-bold"><AnimatedCounter value={d.value} /></span>
+                <span className="font-mono text-[9px] text-[var(--text-3)]">({d.pct}%)</span>
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </motion.div>
@@ -448,18 +451,20 @@ export default function AnalyticsPage() {
       </motion.div>
  
       {/* KPI Row — 5 cards */}
-      {loading ? <KpiSkeleton /> : kpis && comparison && (
-        <KpiCardsGrid
-          kpis={kpis}
-          comparison={comparison}
-          totalDecisions={totalDecisions}
-          scoreMoyen={scoreMoyen}
-          scoreTrendText={scoreTrendText}
-        />
+      {loading ? <KpiSkeleton /> : (
+        kpis && comparison && (
+          <KpiCardsGrid
+            kpis={kpis}
+            comparison={comparison}
+            totalDecisions={totalDecisions}
+            scoreMoyen={scoreMoyen}
+            scoreTrendText={scoreTrendText}
+          />
+        )
       )}
 
       {/* Ticket Status Split */}
-      {!loading && kpis && (
+      {kpis && !loading && (
         <TicketStatusSplit kpis={kpis} />
       )}
 
