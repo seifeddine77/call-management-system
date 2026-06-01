@@ -668,8 +668,269 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
   );
 }
 
+/* ─── Rules State Handlers (Extracted to module level for reduced cognitive complexity) ─── */
+
+async function fetchRulesData(
+  setLoading: (l: boolean) => void,
+  setError: (e: string | null) => void,
+  setRules: (rules: Rule[]) => void,
+  setRefs: (refs: ReferenceData | null) => void
+) {
+  setLoading(true);
+  setError(null);
+  try {
+    const [rulesData, refsData] = await Promise.all([
+      ruleService.getRules(),
+      ruleService.getReferences(),
+    ]);
+    const rulesWithKeys = rulesData.map(r => ({
+      ...r,
+      conditions: {
+        ...r.conditions,
+        conditions: r.conditions.conditions.map((c, i) => ({
+          ...c,
+          _id: c._id || `rule-${r.id}-cond-${i}`
+        }))
+      }
+    }));
+    setRules(rulesWithKeys);
+    setRefs(refsData);
+  } catch (err: unknown) {
+    setError(err instanceof Error ? err.message : 'Erreur chargement');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function fetchRefItemsData(
+  setRefLoading: (l: boolean) => void,
+  setRefItems: (items: RefItem[]) => void
+) {
+  setRefLoading(true);
+  try {
+    const items = await ruleService.getRefItems();
+    setRefItems(items);
+  } catch {
+    toast.error('Erreur chargement références');
+  } finally {
+    setRefLoading(false);
+  }
+}
+
+async function addRefItem(
+  category: string,
+  newRefCode: string,
+  newRefLabel: string,
+  newRefDesc: string,
+  setAddingRef: (cat: string | null) => void,
+  setNewRefCode: (v: string) => void,
+  setNewRefLabel: (v: string) => void,
+  setNewRefDesc: (v: string) => void,
+  fetchRefItems: () => void,
+  fetchRules: () => void
+) {
+  if (!newRefCode.trim() || !newRefLabel.trim()) {
+    toast.error('Code et libellé obligatoires');
+    return;
+  }
+  try {
+    await ruleService.createRefItem({
+      category,
+      code: newRefCode.trim().toUpperCase(),
+      label: newRefLabel.trim(),
+      description: newRefDesc.trim() || undefined
+    });
+    toast.success('Référence ajoutée');
+    setAddingRef(null);
+    setNewRefCode('');
+    setNewRefLabel('');
+    setNewRefDesc('');
+    fetchRefItems();
+    fetchRules();
+  } catch {
+    toast.error('Erreur — code déjà existant ?');
+  }
+}
+
+async function toggleRefItemStatus(
+  id: string,
+  fetchRefItems: () => void,
+  fetchRules: () => void
+) {
+  try {
+    await ruleService.toggleRefItem(id);
+    fetchRefItems();
+    fetchRules();
+  } catch {
+    toast.error('Erreur');
+  }
+}
+
+async function deleteRefItemStatus(
+  id: string,
+  fetchRefItems: () => void,
+  fetchRules: () => void
+) {
+  try {
+    await ruleService.deleteRefItem(id);
+    toast.success('Référence supprimée');
+    fetchRefItems();
+    fetchRules();
+  } catch {
+    toast.error('Erreur suppression');
+  }
+}
+
+async function toggleRuleStatus(
+  id: string,
+  selectedRuleId: string | undefined,
+  setToggling: (id: string | null) => void,
+  setRules: React.Dispatch<React.SetStateAction<Rule[]>>,
+  setSelectedRule: (rule: Rule) => void
+) {
+  setToggling(id);
+  try {
+    const updated = await ruleService.toggleRule(id);
+    const updatedWithKeys = {
+      ...updated,
+      conditions: {
+        ...updated.conditions,
+        conditions: updated.conditions.conditions.map((c, i) => ({
+          ...c,
+          _id: c._id || `rule-${updated.id}-cond-${i}`
+        }))
+      }
+    };
+    setRules(prev => prev.map(r => r.id === id ? updatedWithKeys : r));
+    if (selectedRuleId === id) setSelectedRule(updatedWithKeys);
+    toast.success(updated.actif ? 'Règle activée' : 'Règle désactivée');
+  } catch {
+    toast.error('Erreur');
+  } finally {
+    setToggling(null);
+  }
+}
+
+async function deleteRuleConfirm(
+  deleteTarget: Rule,
+  selectedRuleId: string | undefined,
+  setDeleting: (v: boolean) => void,
+  setRules: React.Dispatch<React.SetStateAction<Rule[]>>,
+  setSelectedRule: (r: Rule | null) => void,
+  setDeleteTarget: (r: Rule | null) => void
+) {
+  setDeleting(true);
+  try {
+    await ruleService.deleteRule(deleteTarget.id);
+    setRules(prev => prev.filter(r => r.id !== deleteTarget.id));
+    if (selectedRuleId === deleteTarget.id) setSelectedRule(null);
+    toast.success('Règle supprimée');
+  } catch {
+    toast.error('Erreur suppression');
+  } finally {
+    setDeleting(false);
+    setDeleteTarget(null);
+  }
+}
+
+async function createRuleSubmit(
+  form: CreateRuleRequest,
+  setCreating: (v: boolean) => void,
+  setRules: React.Dispatch<React.SetStateAction<Rule[]>>,
+  setShowCreate: (v: boolean) => void,
+  setForm: (f: CreateRuleRequest) => void,
+  setFormErrors: (e: FormErrors) => void,
+  validateForm: (f: CreateRuleRequest) => boolean
+) {
+  if (!validateForm(form)) return;
+  setCreating(true);
+  try {
+    const created = await ruleService.createRule(form);
+    const createdWithKeys = {
+      ...created,
+      conditions: {
+        ...created.conditions,
+        conditions: created.conditions.conditions.map((c, i) => ({
+          ...c,
+          _id: c._id || `rule-${created.id}-cond-${i}`
+        }))
+      }
+    };
+    setRules(prev => [createdWithKeys, ...prev]);
+    setShowCreate(false);
+    setForm({
+      nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
+      conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '', _id: 'init-reset' }] },
+    });
+    setFormErrors({});
+    toast.success('Règle créée');
+  } catch {
+    toast.error('Erreur création');
+  } finally {
+    setCreating(false);
+  }
+}
+
+async function updateRuleSubmit(
+  editingRule: Rule,
+  editForm: CreateRuleRequest,
+  setSaving: (v: boolean) => void,
+  setRules: React.Dispatch<React.SetStateAction<Rule[]>>,
+  setSelectedRule: (r: Rule) => void,
+  setHistory: (h: RuleVersion[]) => void,
+  setShowEdit: (v: boolean) => void,
+  setEditingRule: (r: Rule | null) => void,
+  validateForm: (f: CreateRuleRequest) => boolean
+) {
+  if (!validateForm(editForm)) return;
+  setSaving(true);
+  try {
+    const updated = await ruleService.updateRule(editingRule.id, editForm);
+    const updatedWithKeys = {
+      ...updated,
+      conditions: {
+        ...updated.conditions,
+        conditions: updated.conditions.conditions.map((c, i) => ({
+          ...c,
+          _id: c._id || `rule-${updated.id}-cond-${i}`
+        }))
+      }
+    };
+    setRules(prev => prev.map(r => r.id === editingRule.id ? updatedWithKeys : r));
+    setSelectedRule(updatedWithKeys);
+    const h = await ruleService.getHistory(editingRule.id);
+    setHistory(h);
+    setShowEdit(false);
+    setEditingRule(null);
+    toast.success(`Règle modifiée → v${updated.version}`);
+  } catch {
+    toast.error('Erreur modification');
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function evaluateRuleTest(
+  refs: ReferenceData | null,
+  testForm: Record<string, string>,
+  setTesting: (v: boolean) => void,
+  setTestResult: (r: EvaluateResponse | null) => void
+) {
+  setTesting(true);
+  setTestResult(null);
+  try {
+    const payload = buildRuleTestPayload(refs, testForm);
+    const result = await ruleService.evaluate(payload);
+    setTestResult(result);
+  } catch {
+    toast.error('Erreur test');
+  } finally {
+    setTesting(false);
+  }
+}
+
 // ─── Main Page ───
-export default function RulesPage() {
+function useRulesState() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [refs, setRefs] = useState<ReferenceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -717,39 +978,11 @@ export default function RulesPage() {
   });
 
   const fetchRules = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [rulesData, refsData] = await Promise.all([
-        ruleService.getRules(),
-        ruleService.getReferences(),
-      ]);
-      const rulesWithKeys = rulesData.map(r => ({
-        ...r,
-        conditions: {
-          ...r.conditions,
-          conditions: r.conditions.conditions.map((c, i) => ({
-            ...c,
-            _id: c._id || `rule-${r.id}-cond-${i}`
-          }))
-        }
-      }));
-      setRules(rulesWithKeys);
-      setRefs(refsData);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur chargement');
-    } finally {
-      setLoading(false);
-    }
+    await fetchRulesData(setLoading, setError, setRules, setRefs);
   }, []);
 
   const fetchRefItems = useCallback(async () => {
-    setRefLoading(true);
-    try {
-      const items = await ruleService.getRefItems();
-      setRefItems(items);
-    } catch { toast.error('Erreur chargement références'); }
-    finally { setRefLoading(false); }
+    await fetchRefItemsData(setRefLoading, setRefItems);
   }, []);
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
@@ -757,64 +990,24 @@ export default function RulesPage() {
 
   // ── Ref item handlers ──
   const handleAddRef = async (category: string) => {
-    if (!newRefCode.trim() || !newRefLabel.trim()) { toast.error('Code et libellé obligatoires'); return; }
-    try {
-      await ruleService.createRefItem({ category, code: newRefCode.trim().toUpperCase(), label: newRefLabel.trim(), description: newRefDesc.trim() || undefined });
-      toast.success('Référence ajoutée');
-      setAddingRef(null); setNewRefCode(''); setNewRefLabel(''); setNewRefDesc('');
-      fetchRefItems(); fetchRules(); // refresh refs in dropdowns
-    } catch { toast.error('Erreur — code déjà existant ?'); }
+    await addRefItem(category, newRefCode, newRefLabel, newRefDesc, setAddingRef, setNewRefCode, setNewRefLabel, setNewRefDesc, fetchRefItems, fetchRules);
   };
 
   const handleToggleRef = async (id: string) => {
-    try {
-      await ruleService.toggleRefItem(id);
-      fetchRefItems(); fetchRules();
-    } catch { toast.error('Erreur'); }
+    await toggleRefItemStatus(id, fetchRefItems, fetchRules);
   };
 
   const handleDeleteRef = async (id: string) => {
-    try {
-      await ruleService.deleteRefItem(id);
-      toast.success('Référence supprimée');
-      fetchRefItems(); fetchRules();
-    } catch { toast.error('Erreur suppression'); }
+    await deleteRefItemStatus(id, fetchRefItems, fetchRules);
   };
 
   const handleToggle = async (id: string) => {
-    setToggling(id);
-    try {
-      const updated = await ruleService.toggleRule(id);
-      const updatedWithKeys = {
-        ...updated,
-        conditions: {
-          ...updated.conditions,
-          conditions: updated.conditions.conditions.map((c, i) => ({
-            ...c,
-            _id: c._id || `rule-${updated.id}-cond-${i}`
-          }))
-        }
-      };
-      setRules(prev => prev.map(r => r.id === id ? updatedWithKeys : r));
-      if (selectedRule?.id === id) setSelectedRule(updatedWithKeys);
-      toast.success(updated.actif ? 'Règle activée' : 'Règle désactivée');
-    } catch { toast.error('Erreur'); }
-    finally { setToggling(null); }
+    await toggleRuleStatus(id, selectedRule?.id, setToggling, setRules, setSelectedRule);
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await ruleService.deleteRule(deleteTarget.id);
-      setRules(prev => prev.filter(r => r.id !== deleteTarget.id));
-      if (selectedRule?.id === deleteTarget.id) setSelectedRule(null);
-      toast.success('Règle supprimée');
-    } catch { toast.error('Erreur suppression'); }
-    finally {
-      setDeleting(false);
-      setDeleteTarget(null);
-    }
+    await deleteRuleConfirm(deleteTarget, selectedRule?.id, setDeleting, setRules, setSelectedRule, setDeleteTarget);
   };
 
   const validateForm = (f: CreateRuleRequest): boolean => {
@@ -828,30 +1021,7 @@ export default function RulesPage() {
   };
 
   const handleCreate = async () => {
-    if (!validateForm(form)) return;
-    setCreating(true);
-    try {
-      const created = await ruleService.createRule(form);
-      const createdWithKeys = {
-        ...created,
-        conditions: {
-          ...created.conditions,
-          conditions: created.conditions.conditions.map((c, i) => ({
-            ...c,
-            _id: c._id || `rule-${created.id}-cond-${i}`
-          }))
-        }
-      };
-      setRules(prev => [createdWithKeys, ...prev]);
-      setShowCreate(false);
-      setForm({
-        nom: '', description: '', action: 'FAVORABLE', actionMotif: '', priorite: 10, scoreImpact: 0,
-        conditions: { operator: 'AND', conditions: [{ field: '', operator: '=', value: '', _id: 'init-reset' }] },
-      });
-      setFormErrors({});
-      toast.success('Règle créée');
-    } catch { toast.error('Erreur création'); }
-    finally { setCreating(false); }
+    await createRuleSubmit(form, setCreating, setRules, setShowCreate, setForm, setFormErrors, validateForm);
   };
 
   // ── Edit handlers ──
@@ -877,30 +1047,8 @@ export default function RulesPage() {
   };
 
   const handleUpdate = async () => {
-    if (!editingRule || !validateForm(editForm)) return;
-    setSaving(true);
-    try {
-      const updated = await ruleService.updateRule(editingRule.id, editForm);
-      const updatedWithKeys = {
-        ...updated,
-        conditions: {
-          ...updated.conditions,
-          conditions: updated.conditions.conditions.map((c, i) => ({
-            ...c,
-            _id: c._id || `rule-${updated.id}-cond-${i}`
-          }))
-        }
-      };
-      setRules(prev => prev.map(r => r.id === editingRule.id ? updatedWithKeys : r));
-      setSelectedRule(updatedWithKeys);
-      // Refresh history after update
-      const h = await ruleService.getHistory(editingRule.id);
-      setHistory(h);
-      setShowEdit(false);
-      setEditingRule(null);
-      toast.success(`Règle modifiée → v${updated.version}`);
-    } catch { toast.error('Erreur modification'); }
-    finally { setSaving(false); }
+    if (!editingRule) return;
+    await updateRuleSubmit(editingRule, editForm, setSaving, setRules, setSelectedRule, setHistory, setShowEdit, setEditingRule, validateForm);
   };
 
   const handleSelectRule = async (rule: Rule) => {
@@ -912,18 +1060,118 @@ export default function RulesPage() {
   };
 
   const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const payload = buildRuleTestPayload(refs, testForm);
-      const result = await ruleService.evaluate(payload);
-      setTestResult(result);
-    } catch {
-      toast.error('Erreur test');
-    } finally {
-      setTesting(false);
-    }
+    await evaluateRuleTest(refs, testForm, setTesting, setTestResult);
   };
+
+  return {
+    rules,
+    refs,
+    loading,
+    error,
+    selectedRule,
+    history,
+    creating,
+    showCreate,
+    toggling,
+    deleteTarget,
+    deleting,
+    formErrors,
+    editingRule,
+    showEdit,
+    saving,
+    activeTab,
+    refItems,
+    refLoading,
+    addingRef,
+    newRefCode,
+    newRefLabel,
+    newRefDesc,
+    testForm,
+    testResult,
+    testing,
+    form,
+    editForm,
+    setForm,
+    setFormErrors,
+    setEditForm,
+    setShowCreate,
+    setShowEdit,
+    setEditingRule,
+    setDeleteTarget,
+    setActiveTab,
+    setAddingRef,
+    setNewRefCode,
+    setNewRefLabel,
+    setNewRefDesc,
+    setTestForm,
+    fetchRules,
+    handleAddRef,
+    handleToggleRef,
+    handleDeleteRef,
+    handleToggle,
+    handleDeleteConfirm,
+    handleCreate,
+    openEdit,
+    handleUpdate,
+    handleSelectRule,
+    handleTest
+  };
+}
+
+export default function RulesPage() {
+  const {
+    rules,
+    refs,
+    loading,
+    error,
+    selectedRule,
+    history,
+    creating,
+    showCreate,
+    toggling,
+    deleteTarget,
+    deleting,
+    formErrors,
+    editingRule,
+    showEdit,
+    saving,
+    activeTab,
+    refItems,
+    refLoading,
+    addingRef,
+    newRefCode,
+    newRefLabel,
+    newRefDesc,
+    testForm,
+    testResult,
+    testing,
+    form,
+    editForm,
+    setForm,
+    setFormErrors,
+    setEditForm,
+    setShowCreate,
+    setShowEdit,
+    setEditingRule,
+    setDeleteTarget,
+    setActiveTab,
+    setAddingRef,
+    setNewRefCode,
+    setNewRefLabel,
+    setNewRefDesc,
+    setTestForm,
+    fetchRules,
+    handleAddRef,
+    handleToggleRef,
+    handleDeleteRef,
+    handleToggle,
+    handleDeleteConfirm,
+    handleCreate,
+    openEdit,
+    handleUpdate,
+    handleSelectRule,
+    handleTest
+  } = useRulesState();
 
   if (error) return <ErrorState message={error} onRetry={fetchRules} />;
 

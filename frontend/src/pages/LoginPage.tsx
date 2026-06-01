@@ -282,6 +282,127 @@ interface LeftPanelProps {
   sy: MotionValue<number>;
 }
 
+/* ── Email field sub-component ── */
+interface EmailFieldProps {
+  email: string;
+  focused: string | null;
+  touched: Record<string, boolean>;
+  authError: string | null;
+  getEmailError: () => string | null;
+  getInputStyle: (f: 'email'|'password', e: string|null) => object;
+  getIconColor: (f: 'email'|'password', e: string|null) => string;
+  getBoxShadow: (f: 'email'|'password', e: string|null) => string;
+  onEmailChange: (v: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+}
+function EmailField({ email, focused, touched, authError, getEmailError, getInputStyle, getIconColor, getBoxShadow, onEmailChange, onFocus, onBlur }: Readonly<EmailFieldProps>) {
+  const emailErr = getEmailError();
+  const showBadge = (touched.email && focused !== 'email') || !!authError;
+  return (
+    <div>
+      <label htmlFor="email-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Identifiant</label>
+      <div className="relative group">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200" style={{ color: getIconColor('email', emailErr) }}>
+          <Mail size={16} />
+        </div>
+        <motion.input id="email-input" type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
+          style={getInputStyle('email', emailErr)}
+          animate={{ boxShadow: getBoxShadow('email', emailErr) }}
+          transition={{ type:'spring',stiffness:300,damping:25 }}
+          placeholder="vous@autoassist.tn" value={email} onChange={e=>onEmailChange(e.target.value)}
+          onFocus={onFocus} onBlur={onBlur} autoFocus/>
+        {showBadge && (
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+            {(emailErr || authError) ? (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
+                <AlertCircle size={16} color="#ef4444" />
+              </motion.div>
+            ) : (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <Check size={12} color="#10b981" strokeWidth={3} />
+              </motion.div>
+            )}
+          </div>
+        )}
+      </div>
+      <AnimatePresence>
+        {touched.email && focused !== 'email' && emailErr && (
+          <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
+            <AlertCircle size={11} /> {emailErr}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Password field sub-component ── */
+interface PasswordFieldProps {
+  password: string;
+  showPwd: boolean;
+  focused: string | null;
+  touched: Record<string, boolean>;
+  authError: string | null;
+  getPasswordError: () => string | null;
+  getInputStyle: (f: 'email'|'password', e: string|null) => object;
+  getIconColor: (f: 'email'|'password', e: string|null) => string;
+  getBoxShadow: (f: 'email'|'password', e: string|null) => string;
+  onPasswordChange: (v: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  onTogglePwd: () => void;
+}
+function PasswordField({ password, showPwd, focused, touched, authError, getPasswordError, getInputStyle, getIconColor, getBoxShadow, onPasswordChange, onFocus, onBlur, onTogglePwd }: Readonly<PasswordFieldProps>) {
+  const pwdErr = getPasswordError();
+  const showBadge = (touched.password && focused !== 'password') || !!authError;
+  return (
+    <div>
+      <label htmlFor="password-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Mot de passe</label>
+      <div className="relative group">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200" style={{ color: getIconColor('password', pwdErr) }}>
+          <Lock size={16} />
+        </div>
+        <motion.input id="password-input" type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
+          style={getInputStyle('password', pwdErr)}
+          animate={{ boxShadow: getBoxShadow('password', pwdErr) }}
+          transition={{ type:'spring',stiffness:300,damping:25 }}
+          placeholder="••••••••" value={password} onChange={e=>onPasswordChange(e.target.value)}
+          onFocus={onFocus} onBlur={onBlur}/>
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          {showBadge && (
+            (pwdErr || authError) ? (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
+                <AlertCircle size={16} color="#ef4444" />
+              </motion.div>
+            ) : (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <Check size={12} color="#10b981" strokeWidth={3} />
+              </motion.div>
+            )
+          )}
+          <button type="button" onClick={onTogglePwd} className="cursor-pointer transition-colors" style={{color:'#64748b'}}>
+            {showPwd?<EyeOff size={16}/>:<Eye size={16}/>}
+          </button>
+        </div>
+      </div>
+      <AnimatePresence>
+        {((touched.password && focused !== 'password' && pwdErr) || authError) && (
+          <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
+            <AlertCircle size={11} /> {pwdErr || authError}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function LeftPanel({ isDark, sx, sy }: Readonly<LeftPanelProps>) {
   return (
     <div className="hidden lg:flex flex-1 items-center justify-center relative z-10">
@@ -594,92 +715,34 @@ export default function LoginPage() {
                 <div className="h-[2px]" style={{ background:'linear-gradient(90deg,#2563eb,#06b6d4,#10b981)' }}/>
                 <div className="px-6 py-6 space-y-4" style={{ transform: 'translateZ(20px)' }}>
                   
-                  {/* Email Input with Validation */}
-                  <div>
-                    <label htmlFor="email-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Identifiant</label>
-                    <div className="relative group">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
-                        style={{ color: getIconColor('email', getEmailError()) }}>
-                        <Mail size={16} />
-                      </div>
-                      <motion.input id="email-input" type="email" className="w-full h-11 pl-11 pr-10 rounded-xl text-sm outline-none transition-all duration-200"
-                        style={getInputStyle('email', getEmailError())}
-                        animate={{ boxShadow: getBoxShadow('email', getEmailError()) }}
-                        transition={{ type:'spring',stiffness:300,damping:25 }}
-                        placeholder="vous@autoassist.tn" value={email} onChange={e=>handleEmailChange(e.target.value)}
-                        onFocus={()=>setFocused('email')} onBlur={()=>handleBlur('email')} autoFocus/>
-                      {/* Validation badge */}
-                      {(touched.email && focused !== 'email' || authError) && (
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                          {(getEmailError() || authError) ? (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
-                              <AlertCircle size={16} color="#ef4444" />
-                            </motion.div>
-                          ) : (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                              className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
-                              <Check size={12} color="#10b981" strokeWidth={3} />
-                            </motion.div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {/* Error message */}
-                    <AnimatePresence>
-                      {touched.email && focused !== 'email' && getEmailError() && (
-                        <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
-                          <AlertCircle size={11} /> {getEmailError()}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Password Input with Validation */}
-                  <div>
-                    <label htmlFor="password-input" className="block mb-1.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color:'#64748b' }}>Mot de passe</label>
-                    <div className="relative group">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200"
-                        style={{ color: getIconColor('password', getPasswordError()) }}>
-                        <Lock size={16} />
-                      </div>
-                      <motion.input id="password-input" type={showPwd?'text':'password'} className="w-full h-11 pl-11 pr-20 rounded-xl text-sm outline-none transition-all duration-200"
-                        style={getInputStyle('password', getPasswordError())}
-                        animate={{ boxShadow: getBoxShadow('password', getPasswordError()) }}
-                        transition={{ type:'spring',stiffness:300,damping:25 }}
-                        placeholder="••••••••" value={password} onChange={e=>handlePasswordChange(e.target.value)}
-                        onFocus={()=>setFocused('password')} onBlur={()=>handleBlur('password')}/>
-                      {/* Show/hide toggle + validation badge */}
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        {(touched.password && focused !== 'password' || authError) && (
-                          (getPasswordError() || authError) ? (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}>
-                              <AlertCircle size={16} color="#ef4444" />
-                            </motion.div>
-                          ) : (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                              className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
-                              <Check size={12} color="#10b981" strokeWidth={3} />
-                            </motion.div>
-                          )
-                        )}
-                        <button type="button" onClick={()=>setShowPwd(!showPwd)} className="cursor-pointer transition-colors" style={{color:'#64748b'}}>
-                          {showPwd?<EyeOff size={16}/>:<Eye size={16}/>}
-                        </button>
-                      </div>
-                    </div>
-                    {/* Error message */}
-                    <AnimatePresence>
-                      {((touched.password && focused !== 'password' && getPasswordError()) || authError) && (
-                        <motion.p initial={{ opacity: 0, y: -5, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -5, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-1.5 text-[11px] flex items-center gap-1" style={{ color: '#ef4444' }}>
-                          <AlertCircle size={11} /> {getPasswordError() || authError}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  <EmailField
+                    email={email}
+                    focused={focused}
+                    touched={touched}
+                    authError={authError}
+                    getEmailError={getEmailError}
+                    getInputStyle={getInputStyle}
+                    getIconColor={getIconColor}
+                    getBoxShadow={getBoxShadow}
+                    onEmailChange={handleEmailChange}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => handleBlur('email')}
+                  />
+                  <PasswordField
+                    password={password}
+                    showPwd={showPwd}
+                    focused={focused}
+                    touched={touched}
+                    authError={authError}
+                    getPasswordError={getPasswordError}
+                    getInputStyle={getInputStyle}
+                    getIconColor={getIconColor}
+                    getBoxShadow={getBoxShadow}
+                    onPasswordChange={handlePasswordChange}
+                    onFocus={() => setFocused('password')}
+                    onBlur={() => handleBlur('password')}
+                    onTogglePwd={() => setShowPwd(!showPwd)}
+                  />
 
                   {/* Submit Button with Internal Gleam Animation */}
                   <motion.button type="submit" disabled={loading}

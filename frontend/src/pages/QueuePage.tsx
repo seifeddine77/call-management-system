@@ -394,7 +394,126 @@ function TicketRow({
 }
 
 
-export default function QueuePage() {
+/* ─── Queue State Handlers (Extracted to module level for reduced cognitive complexity) ─── */
+
+async function fetchQueueData(
+  activeFilter: FilterKey,
+  setLoading: (l: boolean) => void,
+  setError: (e: string | null) => void,
+  setStats: (s: TicketStats | null) => void,
+  setQueueCount: (c: number) => void,
+  setItems: (i: DisplayItem[]) => void
+) {
+  setLoading(true);
+  setError(null);
+  try {
+    const [queueData, statsData] = await Promise.all([
+      ticketService.getQueue(),
+      ticketService.getStats(),
+    ]);
+    setStats(statsData);
+    setQueueCount((queueData.tickets || []).length);
+
+    if (activeFilter === 'QUEUE') {
+      setItems((queueData.tickets || []).map((q) => queueToItem(q)));
+    } else {
+      const ticketData = await ticketService.getTickets({ statut: activeFilter, size: 50 });
+      setItems((ticketData.content || []).map((t, i) => ticketToItem(t, i)));
+    }
+  } catch (err: unknown) {
+    setError(err instanceof Error ? err.message : 'Erreur de chargement');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function assignQueueTicket(
+  ticketId: string,
+  userId: string,
+  setAssigning: (id: string | null) => void,
+  setItems: React.Dispatch<React.SetStateAction<DisplayItem[]>>,
+  navigate: (path: string) => void
+) {
+  setAssigning(ticketId);
+  try {
+    await ticketService.assignTicket(ticketId, userId);
+    toast.success('🎙 Ticket pris en charge avec succès !');
+    setItems(prev => prev.filter(t => t.ticketId !== ticketId));
+    navigate(`/tickets/${ticketId}`);
+  } catch {
+    toast.error('Impossible d\'assigner ce ticket');
+  } finally {
+    setAssigning(null);
+  }
+}
+
+async function autoDispatchQueueTicket(
+  userId: string,
+  items: DisplayItem[],
+  setAssigning: (id: string | null) => void,
+  navigate: (path: string) => void
+) {
+  const queueCandidates = items.filter(t => !t.statut || t.statut === 'NOUVEAU');
+  
+  if (queueCandidates.length === 0) {
+    toast.error("Aucun ticket disponible dans la file d'attente");
+    return;
+  }
+  
+  const sortedCandidates = [...queueCandidates].sort((a, b) => {
+    if (a.priorite !== b.priorite) return a.priorite - b.priorite;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  const targetTicket = sortedCandidates[0];
+  setAssigning(targetTicket.ticketId);
+  
+  try {
+    await ticketService.assignTicket(targetTicket.ticketId, userId);
+    toast.success(`🎙️ Auto-dispatch : Ticket #${targetTicket.ticketNumero} pris en charge !`);
+    navigate(`/tickets/${targetTicket.ticketId}`);
+  } catch {
+    toast.error("Impossible d'assigner automatiquement ce ticket");
+  } finally {
+    setAssigning(null);
+  }
+}
+
+function filterAndSortQueueItems(
+  items: DisplayItem[],
+  search: string,
+  channelFilter: string,
+  priorityFilter: number | 'ALL',
+  sortBy: SortOption
+): DisplayItem[] {
+  let result = [...items];
+
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    result = result.filter(
+      t =>
+        t.clientNom.toLowerCase().includes(q) ||
+        t.ticketNumero.toLowerCase().includes(q)
+    );
+  }
+
+  if (channelFilter !== 'ALL') {
+    result = result.filter(t => t.canal === channelFilter);
+  }
+
+  if (priorityFilter !== 'ALL') {
+    result = result.filter(t => t.priorite === priorityFilter);
+  }
+
+  result.sort((a, b) => compareDisplayItems(a, b, sortBy));
+
+  return result.map((item, idx) => ({
+    ...item,
+    position: idx + 1
+  }));
+}
+
+function useQueueState() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [items, setItems] = useState<DisplayItem[]>([]);
@@ -412,30 +531,8 @@ export default function QueuePage() {
   const [sortBy, setSortBy] = useState<SortOption>('PRIO_SLA');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-
-
   const fetchData = useCallback(async (activeFilter: FilterKey) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [queueData, statsData] = await Promise.all([
-        ticketService.getQueue(),
-        ticketService.getStats(),
-      ]);
-      setStats(statsData);
-      setQueueCount((queueData.tickets || []).length);
-
-      if (activeFilter === 'QUEUE') {
-        setItems((queueData.tickets || []).map((q) => queueToItem(q)));
-      } else {
-        const ticketData = await ticketService.getTickets({ statut: activeFilter, size: 50 });
-        setItems((ticketData.content || []).map((t, i) => ticketToItem(t, i)));
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
+    await fetchQueueData(activeFilter, setLoading, setError, setStats, setQueueCount, setItems);
   }, []);
 
   useEffect(() => { fetchData(filter); }, [filter, fetchData]);
@@ -449,84 +546,72 @@ export default function QueuePage() {
 
   const handleAssign = async (ticketId: string) => {
     if (!user?.userId) return;
-    setAssigning(ticketId);
-    try {
-      await ticketService.assignTicket(ticketId, user.userId);
-      toast.success('🎙 Ticket pris en charge avec succès !');
-      setItems(prev => prev.filter(t => t.ticketId !== ticketId));
-      navigate(`/tickets/${ticketId}`);
-    } catch {
-      toast.error('Impossible d\'assigner ce ticket');
-    } finally {
-      setAssigning(null);
-    }
+    await assignQueueTicket(ticketId, user.userId, setAssigning, setItems, navigate);
   };
 
-  /* ── Auto-Dispatch Handler ── */
   const handleAutoDispatch = async () => {
     if (!user?.userId) return;
-    
-    // Find candidate tickets in the queue (or new status)
-    const queueCandidates = items.filter(t => !t.statut || t.statut === 'NOUVEAU');
-    
-    if (queueCandidates.length === 0) {
-      toast.error("Aucun ticket disponible dans la file d'attente");
-      return;
-    }
-    
-    // Sort them strictly by priority (highest priority = 1) and age (older first)
-    const sortedCandidates = [...queueCandidates].sort((a, b) => {
-      if (a.priorite !== b.priorite) return a.priorite - b.priorite;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
-
-    const targetTicket = sortedCandidates[0];
-    setAssigning(targetTicket.ticketId);
-    
-    try {
-      await ticketService.assignTicket(targetTicket.ticketId, user.userId);
-      toast.success(`🎙️ Auto-dispatch : Ticket #${targetTicket.ticketNumero} pris en charge !`);
-      navigate(`/tickets/${targetTicket.ticketId}`);
-    } catch {
-      toast.error("Impossible d'assigner automatiquement ce ticket");
-    } finally {
-      setAssigning(null);
-    }
+    await autoDispatchQueueTicket(user.userId, items, setAssigning, navigate);
   };
 
-  /* ── Filtered & Sorted Display Items ── */
-  const filteredItems = useMemo(() => {
-    let result = [...items];
+  const filteredItems = useMemo(() => 
+    filterAndSortQueueItems(items, search, channelFilter, priorityFilter, sortBy),
+    [items, search, channelFilter, priorityFilter, sortBy]
+  );
 
-    // 1. Text Search Filter (Client Name or Ticket Number)
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        t =>
-          t.clientNom.toLowerCase().includes(q) ||
-          t.ticketNumero.toLowerCase().includes(q)
-      );
-    }
+  return {
+    items,
+    stats,
+    queueCount,
+    loading,
+    error,
+    assigning,
+    filter,
+    search,
+    channelFilter,
+    priorityFilter,
+    sortBy,
+    showAdvancedFilters,
+    setSearch,
+    setChannelFilter,
+    setPriorityFilter,
+    setSortBy,
+    setShowAdvancedFilters,
+    handleRefresh,
+    handleFilterClick,
+    handleAssign,
+    handleAutoDispatch,
+    filteredItems,
+    navigate
+  };
+}
 
-    // 2. Channel Filter
-    if (channelFilter !== 'ALL') {
-      result = result.filter(t => t.canal === channelFilter);
-    }
-
-    // 3. Priority Filter
-    if (priorityFilter !== 'ALL') {
-      result = result.filter(t => t.priorite === priorityFilter);
-    }
-
-    // 4. Sort order using external comparator
-    result.sort((a, b) => compareDisplayItems(a, b, sortBy));
-
-    // Re-index position cleanly based on the final filtered & sorted list
-    return result.map((item, idx) => ({
-      ...item,
-      position: idx + 1
-    }));
-  }, [items, search, channelFilter, priorityFilter, sortBy]);
+export default function QueuePage() {
+  const {
+    items,
+    stats,
+    queueCount,
+    loading,
+    error,
+    assigning,
+    filter,
+    search,
+    channelFilter,
+    priorityFilter,
+    sortBy,
+    showAdvancedFilters,
+    setSearch,
+    setChannelFilter,
+    setPriorityFilter,
+    setSortBy,
+    setShowAdvancedFilters,
+    handleRefresh,
+    handleFilterClick,
+    handleAssign,
+    handleAutoDispatch,
+    filteredItems,
+    navigate
+  } = useQueueState();
 
   const filters: { key: FilterKey; label: string; icon: React.ReactNode; color: string; activeColor: string; value: number | null }[] = [
     { key: 'QUEUE',    label: 'File d\'attente', icon: <ClipboardList size={14} />, color: 'text-indigo-400',  activeColor: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400', value: queueCount },

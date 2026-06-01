@@ -213,7 +213,100 @@ function UserDetailPanel({ selectedUser, rb, agenceNames, onEdit, onDelete }: Re
   );
 }
 
-export default function UsersPage() {
+/* ─── Users State Handlers (Extracted to module level for reduced cognitive complexity) ─── */
+
+async function fetchUsersData(
+  roleFilter: string,
+  setLoading: (l: boolean) => void,
+  setError: (e: string | null) => void,
+  setUsers: (users: User[]) => void
+) {
+  setLoading(true);
+  setError(null);
+  try {
+    const data = await userService.getUsers({ role: roleFilter !== 'ALL' ? roleFilter : undefined });
+    setUsers(data);
+  } catch (err: unknown) {
+    setError(err instanceof Error ? err.message : 'Erreur de chargement');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function createUserProfile(
+  form: UserRequest,
+  setSaving: (v: boolean) => void,
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>,
+  setShowCreate: (v: boolean) => void,
+  setForm: (f: UserRequest) => void,
+  setFormErrors: (e: FormErrors) => void,
+  validateForm: (isCreate: boolean) => boolean
+) {
+  if (!validateForm(true)) return;
+  setSaving(true);
+  try {
+    const created = await userService.createUser(form);
+    setUsers(prev => [created, ...prev]);
+    setShowCreate(false);
+    setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' });
+    setFormErrors({});
+    toast.success('🎉 Utilisateur créé et invité avec succès !');
+  } catch {
+    toast.error('Erreur lors de la création');
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function updateUserProfile(
+  selectedUserId: string,
+  form: UserRequest,
+  setSaving: (v: boolean) => void,
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>,
+  setSelectedUser: (u: User) => void,
+  setShowEdit: (v: boolean) => void,
+  setFormErrors: (e: FormErrors) => void,
+  validateForm: (isCreate: boolean) => boolean
+) {
+  if (!validateForm(false)) return;
+  setSaving(true);
+  try {
+    const updated = await userService.updateUser(selectedUserId, form);
+    setUsers(prev => prev.map(u => u.id === selectedUserId ? updated : u));
+    setSelectedUser(updated);
+    setShowEdit(false);
+    setFormErrors({});
+    toast.success('👤 Utilisateur mis à jour !');
+  } catch {
+    toast.error('Erreur lors de la modification');
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function deleteUserProfile(
+  deleteTarget: User,
+  selectedUserId: string | undefined,
+  setDeleting: (v: boolean) => void,
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>,
+  setSelectedUser: (u: User | null) => void,
+  setDeleteTarget: (u: User | null) => void
+) {
+  setDeleting(true);
+  try {
+    await userService.deleteUser(deleteTarget.id);
+    setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+    if (selectedUserId === deleteTarget.id) setSelectedUser(null);
+    toast.success('🔒 Utilisateur désactivé avec succès');
+  } catch {
+    toast.error('Erreur lors de la suppression');
+  } finally {
+    setDeleting(false);
+    setDeleteTarget(null);
+  }
+}
+
+function useUsersState() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,16 +323,7 @@ export default function UsersPage() {
   const [agenceOptions, setAgenceOptions] = useState<AgenceOption[]>([]);
 
   const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await userService.getUsers({ role: roleFilter !== 'ALL' ? roleFilter : undefined });
-      setUsers(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
+    await fetchUsersData(roleFilter, setLoading, setError, setUsers);
   }, [roleFilter]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
@@ -264,48 +348,76 @@ export default function UsersPage() {
   };
 
   const handleCreate = async () => {
-    if (!validateForm(true)) return;
-    setSaving(true);
-    try {
-      const created = await userService.createUser(form);
-      setUsers(prev => [created, ...prev]);
-      setShowCreate(false);
-      setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' });
-      setFormErrors({});
-      toast.success('🎉 Utilisateur créé et invité avec succès !');
-    } catch { toast.error('Erreur lors de la création'); }
-    finally { setSaving(false); }
+    await createUserProfile(form, setSaving, setUsers, setShowCreate, setForm, setFormErrors, validateForm);
   };
 
   const handleUpdate = async () => {
     if (!selectedUser) return;
-    if (!validateForm(false)) return;
-    setSaving(true);
-    try {
-      const updated = await userService.updateUser(selectedUser.id, form);
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
-      setSelectedUser(updated);
-      setShowEdit(false);
-      setFormErrors({});
-      toast.success('👤 Utilisateur mis à jour !');
-    } catch { toast.error('Erreur lors de la modification'); }
-    finally { setSaving(false); }
+    await updateUserProfile(selectedUser.id, form, setSaving, setUsers, setSelectedUser, setShowEdit, setFormErrors, validateForm);
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await userService.deleteUser(deleteTarget.id);
-      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
-      if (selectedUser?.id === deleteTarget.id) setSelectedUser(null);
-      toast.success('🔒 Utilisateur désactivé avec succès');
-    } catch { toast.error('Erreur lors de la suppression'); }
-    finally {
-      setDeleting(false);
-      setDeleteTarget(null);
-    }
+    await deleteUserProfile(deleteTarget, selectedUser?.id, setDeleting, setUsers, setSelectedUser, setDeleteTarget);
   };
+
+  return {
+    users,
+    loading,
+    error,
+    selectedUser,
+    showCreate,
+    showEdit,
+    saving,
+    roleFilter,
+    form,
+    formErrors,
+    deleteTarget,
+    deleting,
+    agenceNames,
+    agenceOptions,
+    setRoleFilter,
+    setForm,
+    setFormErrors,
+    setShowCreate,
+    setShowEdit,
+    setSelectedUser,
+    setDeleteTarget,
+    fetchUsers,
+    handleCreate,
+    handleUpdate,
+    handleDeleteConfirm
+  };
+}
+
+export default function UsersPage() {
+  const {
+    users,
+    loading,
+    error,
+    selectedUser,
+    showCreate,
+    showEdit,
+    saving,
+    roleFilter,
+    form,
+    formErrors,
+    setFormErrors,
+    deleteTarget,
+    deleting,
+    agenceNames,
+    agenceOptions,
+    setRoleFilter,
+    setForm,
+    setShowCreate,
+    setShowEdit,
+    setSelectedUser,
+    setDeleteTarget,
+    fetchUsers,
+    handleCreate,
+    handleUpdate,
+    handleDeleteConfirm
+  } = useUsersState();
 
   const roleBadge = (role: string) => ({
     ADMIN: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', avatar: 'from-amber-500/20 to-amber-600/30 text-amber-400' },
