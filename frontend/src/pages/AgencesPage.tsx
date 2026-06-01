@@ -145,10 +145,10 @@ export default function AgencesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
           {agences.map((a, idx) => {
-            const initials = a.responsableName 
+            const initials = a.responsableName
               ? a.responsableName.split(' ').map(n => n[0]).join('').toUpperCase()
               : '—';
-              
+
             return (
               <motion.div
                 key={a.id}
@@ -159,6 +159,7 @@ export default function AgencesPage() {
                 whileHover={{ y: -4, scale: 1.01 }}
                 className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-lg p-5 flex flex-col justify-between h-[280px] relative transition-shadow duration-300 hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.2)]"
               >
+                {/* agenceSuffix used inside header paragraph */}
                 <div className="space-y-4">
                   {/* Card Top Title & Actions */}
                   <div className="flex items-start justify-between">
@@ -260,7 +261,7 @@ export default function AgencesPage() {
           </h1>
           <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse animate-duration-1000" />
-            {agences.length} agence{agences.length > 1 ? 's' : ''} active{agences.length > 1 ? 's' : ''} sur le territoire
+            {`${agences.length} agence${agences.length > 1 ? 's' : ''} active${agences.length > 1 ? 's' : ''} sur le territoire`}
           </p>
         </div>
         

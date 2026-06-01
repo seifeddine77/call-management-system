@@ -21,7 +21,8 @@ export const notificationService = {
   getLogs: async (params?: { status?: string; page?: number; size?: number }): Promise<NotificationLog[]> => {
     const res = await api.get<NotificationLog[] | { content: NotificationLog[] }>('/api/notifications/logs', { params });
     // Handle both paginated and array responses
-    const raw = Array.isArray(res.data) ? res.data : (res.data as { content: NotificationLog[] }).content;
+    const data = res.data;
+    const raw = Array.isArray(data) ? data : (data as { content: NotificationLog[] }).content;
     // Map API field names (English) → frontend type (French)
     return ((raw as RawNotification[]) || []).map((n) => ({
       id: n.id || '',

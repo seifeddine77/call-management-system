@@ -1,10 +1,14 @@
 /* ── Rule Types ── */
+
+/** Possible outcomes of a rule evaluation */
+export type RuleAction = 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
+
 export interface Rule {
   id: string;
   nom: string;
   description: string;
   conditions: RuleConditions;
-  action: 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
+  action: RuleAction;
   actionMotif: string;
   priorite: number;
   scoreImpact: number;
@@ -30,7 +34,7 @@ export interface CreateRuleRequest {
   nom: string;
   description: string;
   conditions: RuleConditions;
-  action: 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
+  action: RuleAction;
   actionMotif: string;
   priorite: number;
   scoreImpact?: number;
@@ -73,7 +77,7 @@ export interface EvaluateRequest {
 }
 
 export interface EvaluateResponse {
-  decision: 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE';
+  decision: RuleAction;
   score: number;
   motif: string;
   rulesApplied: string[];

@@ -1,4 +1,8 @@
 /* ── Auth Types ── */
+
+/** Backend role values (English) – distinct from the French UserRole used on the frontend */
+export type BackendRole = 'ADMIN' | 'SUPERVISOR' | 'OPERATOR';
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -10,7 +14,7 @@ export interface RegisterRequest {
   nom: string;
   prenom: string;
   telephone: string;
-  role: 'ADMIN' | 'SUPERVISOR' | 'OPERATOR';
+  role: BackendRole;
 }
 
 /** Raw response from Spring Boot /api/auth/login */
@@ -24,7 +28,7 @@ export interface AuthApiResponse {
     email: string;
     nom: string;
     prenom: string;
-    role: 'ADMIN' | 'SUPERVISOR' | 'OPERATOR';
+    role: BackendRole;
     agenceId: string | null;
   };
 }
@@ -37,7 +41,7 @@ export interface AuthUser {
   email: string;
   nom: string;
   prenom: string;
-  role: 'ADMIN' | 'SUPERVISOR' | 'OPERATOR';
+  role: BackendRole;
   agenceId: string | null;
 }
 

@@ -47,12 +47,8 @@ export default function NotificationsPage() {
 
   const filtered = useMemo(() => {
     if (filter === 'ALL') return logs;
-    return logs.filter(l => {
-      if (filter === 'SENT') {
-        return l.statut === 'SENT';
-      }
-      return l.statut !== 'SENT';
-    });
+    if (filter === 'SENT') return logs.filter(l => l.statut === 'SENT');
+    return logs.filter(l => l.statut === 'FAILED' || l.statut !== 'SENT');
   }, [logs, filter]);
 
   const stats = useMemo(() => {
@@ -75,7 +71,7 @@ export default function NotificationsPage() {
             Console des Transmissions
           </h1>
           <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />{' '}
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse mr-1" />
             Suivi des notifications sortantes (Emails et SMS) et alertes client
           </p>
         </div>
@@ -167,15 +163,15 @@ export default function NotificationsPage() {
             Historique des envois
           </div>
           <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2 py-0.5 border border-border rounded-md">
-            {filtered.length} entrée{filtered.length > 1 ? 's' : ''}
+            {`${filtered.length} entrée${filtered.length > 1 ? 's' : ''}`}
           </span>
         </div>
 
         <div className="overflow-x-auto">
           {loading && filtered.length === 0 ? (
             <div className="p-5 space-y-3">
-              {Array.from({ length: 5 }, (_, idx) => idx).map((idx) => (
-                <div key={idx} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
+              {Array.from({ length: 5 }, (_, idx) => `skel-notif-${idx}`).map((key) => (
+                <div key={key} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : filtered.length === 0 ? (

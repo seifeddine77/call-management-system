@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Search, Download, X, PhoneCall, Mail, Globe, Radio, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -43,8 +43,8 @@ export default function TicketListPage() {
       const filters: TicketFilter = {
         page,
         size: 15,
-        ...(statut && { statut: statut as Statut }),
-        ...(canal && { canal: canal as Canal }),
+        ...(statut && { statut }),
+        ...(canal && { canal }),
         ...(priorite && { priorite: Number.parseInt(priorite, 10) as 1 | 2 | 3 }),
         ...(search && { search }),
       };
@@ -291,11 +291,14 @@ export default function TicketListPage() {
 
       {/* Table */}
       <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden">
-        {loading ? <div className="p-4"><TableSkeleton rows={8} cols={7} /></div> : tickets.length === 0 ? (
-          <EmptyState icon="search" title="Aucun résultat" subtitle="Aucun ticket ne correspond à ces filtres" action={
-            hasFilters ? <button onClick={resetFilters} className="btn-ghost h-8 px-4 rounded-lg text-xs cursor-pointer">Réinitialiser les filtres</button> : undefined
-          } />
-        ) : (
+        {(() => {
+          if (loading) return <div className="p-4"><TableSkeleton rows={8} cols={7} /></div>;
+          if (tickets.length === 0) return (
+            <EmptyState icon="search" title="Aucun résultat" subtitle="Aucun ticket ne correspond à ces filtres" action={
+              hasFilters ? <button onClick={resetFilters} className="btn-ghost h-8 px-4 rounded-lg text-xs cursor-pointer">Réinitialiser les filtres</button> : undefined
+            } />
+          );
+          return (
           <>
             <div className="table-scroll-wrapper">
             <table className="aurora-table">
@@ -327,9 +330,17 @@ export default function TicketListPage() {
                       {t.clientTel && <div className="font-mono text-[9px] text-txt-3">{t.clientTel}</div>}
                     </td>
                     <td>
-                      <span className="badge" style={{ background: `${canalColors[t.canal]}15`, color: canalColors[t.canal] }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{t.canal === 'CALL' ? <PhoneCall size={12} /> : t.canal === 'EMAIL' ? <Mail size={12} /> : <Globe size={12} />} {t.canal}</span>
-                      </span>
+                      {(() => {
+                        let canalIcon: React.ReactNode;
+                        if (t.canal === 'CALL') canalIcon = <PhoneCall size={12} />;
+                        else if (t.canal === 'EMAIL') canalIcon = <Mail size={12} />;
+                        else canalIcon = <Globe size={12} />;
+                        return (
+                          <span className="badge" style={{ background: `${canalColors[t.canal]}15`, color: canalColors[t.canal] }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{canalIcon} {t.canal}</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className="badge" style={{ background: `${statutColors[t.statut]}15`, color: statutColors[t.statut] }}>
@@ -337,12 +348,19 @@ export default function TicketListPage() {
                       </span>
                     </td>
                     <td>
-                      <span className={`font-mono text-xs font-bold ${t.priorite === 1 ? 'text-[var(--danger)]' : t.priorite === 2 ? 'text-[var(--warning)]' : 'text-txt-3'}`}>
-                        P{t.priorite}
-                      </span>
+                      {(() => {
+                        let prioClass = 'text-txt-3';
+                        if (t.priorite === 1) prioClass = 'text-[var(--danger)]';
+                        else if (t.priorite === 2) prioClass = 'text-[var(--warning)]';
+                        return <span className={`font-mono text-xs font-bold ${prioClass}`}>P{t.priorite}</span>;
+                      })()}
                     </td>
                     <td className="font-mono text-[10px] text-txt-3">
-                      {t.operateurName ? t.operateurName : t.operateurId ? t.operateurId.slice(0, 8) + '…' : <span className="text-amber-400">Non assigné</span>}
+                      {(() => {
+                        if (t.operateurName) return t.operateurName;
+                        if (t.operateurId) return `${t.operateurId.slice(0, 8)}…`;
+                        return <span className="text-amber-400">Non assigné</span>;
+                      })()}
                     </td>
                     <td className="font-mono text-[11px] text-txt-3">
                       {new Date(t.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
@@ -383,7 +401,8 @@ export default function TicketListPage() {
               </div>
             )}
           </>
-        )}
+          );
+        })()}
       </motion.div>
     </motion.div>
   );

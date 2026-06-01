@@ -146,7 +146,7 @@ export default function SettingsPage() {
           Préférences Générales
         </h1>
         <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />{' '}
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse mr-1" />
           Ajustement des paramètres système, profils d'accès et sécurité
         </p>
       </div>

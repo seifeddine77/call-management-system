@@ -25,7 +25,8 @@ export const userService = {
       ? { ...params, role: toBackendRole(params.role) }
       : params;
     const res = await api.get<User[] | { content: User[] }>('/api/users', { params: backendParams });
-    const users = Array.isArray(res.data) ? res.data : (res.data as { content: User[] }).content;
+    const data = res.data;
+    const users = Array.isArray(data) ? data : (data as { content: User[] }).content;
     return users.map(mapUserResponse);
   },
 
