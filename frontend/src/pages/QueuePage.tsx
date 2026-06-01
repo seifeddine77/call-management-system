@@ -586,6 +586,212 @@ function useQueueState() {
   };
 }
 
+interface QueueHeaderProps {
+  filter: FilterKey;
+  subtitle: string;
+  loading: boolean;
+  onRefresh: () => void;
+}
+
+function QueueHeader({ subtitle, loading, onRefresh }: Readonly<QueueHeaderProps>) {
+  return (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight text-gradient-title">
+          Console de Files d'Attente
+        </h1>
+        <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+          {subtitle}
+        </p>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onRefresh} 
+          className="btn-ghost h-9 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm font-medium" 
+          disabled={loading}
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} /> 
+          Actualiser
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+interface QueueFilterItem {
+  key: FilterKey;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  activeColor: string;
+  value: number | null;
+}
+
+interface QueueKpiSectionProps {
+  loading: boolean;
+  stats: TicketStats | null;
+  filters: QueueFilterItem[];
+  filter: FilterKey;
+  onFilterClick: (key: FilterKey) => void;
+}
+
+function QueueKpiSection({ loading, stats, filters, filter, onFilterClick }: Readonly<QueueKpiSectionProps>) {
+  if (loading && !stats) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }, (_, idx) => `skel-queue-kpi-${idx}`).map((key) => <KpiSkeleton key={key} />)}
+      </div>
+    );
+  }
+
+  if (!stats) return null;
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {filters.map((f) => {
+        const isActive = filter === f.key;
+        return (
+          <KpiCard
+            key={f.key}
+            f={f}
+            isActive={isActive}
+            onClick={() => onFilterClick(f.key)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+interface QueueTableSectionProps {
+  filter: FilterKey;
+  items: DisplayItem[];
+  filteredItems: DisplayItem[];
+  loading: boolean;
+  assigning: string | null;
+  search: string;
+  setSearch: (s: string) => void;
+  channelFilter: string;
+  setChannelFilter: (c: string) => void;
+  priorityFilter: number | 'ALL';
+  setPriorityFilter: (p: number | 'ALL') => void;
+  sortBy: SortOption;
+  setSortBy: (s: SortOption) => void;
+  showAdvancedFilters: boolean;
+  setShowAdvancedFilters: (b: boolean) => void;
+  handleAutoDispatch: () => void;
+  handleAssign: (ticketId: string) => void;
+  navigate: (path: string) => void;
+}
+
+function QueueTableSection({
+  filter,
+  items,
+  filteredItems,
+  loading,
+  assigning,
+  search,
+  setSearch,
+  channelFilter,
+  setChannelFilter,
+  priorityFilter,
+  setPriorityFilter,
+  sortBy,
+  setSortBy,
+  showAdvancedFilters,
+  setShowAdvancedFilters,
+  handleAutoDispatch,
+  handleAssign,
+  navigate,
+}: Readonly<QueueTableSectionProps>) {
+  return (
+    <div className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-xl">
+      <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5 flex-wrap gap-3">
+        <div className="font-mono text-[10px] text-txt-3 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
+          <ClipboardList size={11} className="text-indigo-400" />
+          Liste des incidents
+        </div>
+
+        <div className="flex items-center gap-2">
+          {(filter === 'QUEUE' || filter === 'NOUVEAU') && items.length > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleAutoDispatch}
+              disabled={assigning !== null}
+              className="btn-cta h-8 px-4 rounded-xl text-[10.5px] font-mono font-extrabold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer text-white disabled:opacity-50"
+            >
+              <Bot size={13} className={assigning ? 'animate-spin text-white' : 'animate-pulse text-white'} />
+              Auto-Dispatch (Suivant)
+            </motion.button>
+          )}
+          
+          <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2.5 py-1 border border-border rounded-xl shadow-sm">
+            {filteredItems.length} affiché{filteredItems.length > 1 ? 's' : ''} / {items.length} total
+          </span>
+        </div>
+      </div>
+
+      <AdvancedFiltersPanel
+        search={search}
+        setSearch={setSearch}
+        channelFilter={channelFilter}
+        setChannelFilter={setChannelFilter}
+        priorityFilter={priorityFilter}
+        setPriorityFilter={setPriorityFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        showAdvancedFilters={showAdvancedFilters}
+        setShowAdvancedFilters={setShowAdvancedFilters}
+      />
+
+      <div className="divide-y divide-border/60">
+        <AnimatePresence mode="popLayout">
+          {loading && filteredItems.length === 0 ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 5 }, (_, idx) => `skel-queue-row-${idx}`).map((key) => (
+                <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="py-12"
+            >
+              <EmptyState
+                icon={filter === 'QUEUE' ? 'check' : 'search'}
+                title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
+                subtitle={filter === 'QUEUE'
+                  ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
+                  : 'Aucun ticket ne correspond à vos critères de recherche ou filtres avancés.'
+                }
+              />
+            </motion.div>
+          ) : (
+            filteredItems.map((t, idx) => (
+              <TicketRow
+                key={t.ticketId}
+                t={t}
+                idx={idx}
+                filter={filter}
+                assigning={assigning}
+                onAssign={handleAssign}
+                onNavigate={(id) => navigate(`/tickets/${id}`)}
+              />
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 export default function QueuePage() {
   const {
     items,
@@ -633,137 +839,41 @@ export default function QueuePage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full px-1 py-2">
-      {/* Premium Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gradient-title">
-            Console de Files d'Attente
-          </h1>
-          <p className="text-xs text-txt-3 font-mono mt-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            {subtitleMap[filter]}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRefresh} 
-            className="btn-ghost h-9 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer border border-border bg-[var(--surface)] hover:bg-[var(--elevated)] shadow-sm font-medium" 
-            disabled={loading}
-          >
-            <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} /> 
-            Actualiser
-          </motion.button>
-        </div>
-      </div>
+      <QueueHeader
+        filter={filter}
+        subtitle={subtitleMap[filter]}
+        loading={loading}
+        onRefresh={handleRefresh}
+      />
 
-      {/* Bento Grid Filters */}
-      {loading && !stats ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }, (_, idx) => `skel-queue-kpi-${idx}`).map((key) => <KpiSkeleton key={key} />)}
-        </div>
-      ) : stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {filters.map((f) => {
-            const isActive = filter === f.key;
-            return (
-              <KpiCard
-                key={f.key}
-                f={f}
-                isActive={isActive}
-                onClick={() => handleFilterClick(f.key)}
-              />
-            );
-          })}
-        </div>
-      )}
+      <QueueKpiSection
+        loading={loading}
+        stats={stats}
+        filters={filters}
+        filter={filter}
+        onFilterClick={handleFilterClick}
+      />
 
-      {/* Ticket List command center */}
-      <div className="card-aurora rounded-2xl border border-border bg-gradient-to-b from-[var(--surface)] to-[var(--elevated)] overflow-hidden shadow-xl">
-        <div className="px-5 py-4 border-b border-border/80 flex items-center justify-between bg-black/5 flex-wrap gap-3">
-          <div className="font-mono text-[10px] text-txt-3 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
-            <ClipboardList size={11} className="text-indigo-400" />
-            Liste des incidents
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Auto-Dispatch CTA Button */}
-            {(filter === 'QUEUE' || filter === 'NOUVEAU') && items.length > 0 && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleAutoDispatch}
-                disabled={assigning !== null}
-                className="btn-cta h-8 px-4 rounded-xl text-[10.5px] font-mono font-extrabold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer text-white disabled:opacity-50"
-              >
-                <Bot size={13} className={assigning ? 'animate-spin text-white' : 'animate-pulse text-white'} />
-                Auto-Dispatch (Suivant)
-              </motion.button>
-            )}
-            
-            <span className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] px-2.5 py-1 border border-border rounded-xl shadow-sm">
-              {filteredItems.length} affiché{filteredItems.length > 1 ? 's' : ''} / {items.length} total
-            </span>
-          </div>
-        </div>
-
-        {/* Advanced Filters Panel */}
-        <AdvancedFiltersPanel
-          search={search}
-          setSearch={setSearch}
-          channelFilter={channelFilter}
-          setChannelFilter={setChannelFilter}
-          priorityFilter={priorityFilter}
-          setPriorityFilter={setPriorityFilter}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          showAdvancedFilters={showAdvancedFilters}
-          setShowAdvancedFilters={setShowAdvancedFilters}
-        />
-
-        <div className="divide-y divide-border/60">
-          <AnimatePresence mode="popLayout">
-            {loading && filteredItems.length === 0 ? (
-              <div className="p-5 space-y-3">
-                {Array.from({ length: 5 }, (_, idx) => `skel-queue-row-${idx}`).map((key) => (
-                  <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
-                ))}
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="py-12"
-              >
-                <EmptyState
-                  icon={filter === 'QUEUE' ? 'check' : 'search'}
-                  title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
-                  subtitle={filter === 'QUEUE'
-                    ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
-                    : 'Aucun ticket ne correspond à vos critères de recherche ou filtres avancés.'
-                  }
-                />
-              </motion.div>
-            ) : (
-              filteredItems.map((t, idx) => (
-                <TicketRow
-                  key={t.ticketId}
-                  t={t}
-                  idx={idx}
-                  filter={filter}
-                  assigning={assigning}
-                  onAssign={handleAssign}
-                  onNavigate={(id) => navigate(`/tickets/${id}`)}
-                />
-              ))
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+      <QueueTableSection
+        filter={filter}
+        items={items}
+        filteredItems={filteredItems}
+        loading={loading}
+        assigning={assigning}
+        search={search}
+        setSearch={setSearch}
+        channelFilter={channelFilter}
+        setChannelFilter={setChannelFilter}
+        priorityFilter={priorityFilter}
+        setPriorityFilter={setPriorityFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        showAdvancedFilters={showAdvancedFilters}
+        setShowAdvancedFilters={setShowAdvancedFilters}
+        handleAutoDispatch={handleAutoDispatch}
+        handleAssign={handleAssign}
+        navigate={navigate}
+      />
     </div>
   );
 }
-

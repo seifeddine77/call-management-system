@@ -572,16 +572,42 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
     setCurrentTime(newTime);
   };
 
-  const handleBarClick = (barIndex: number) => {
+  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || !Number.isFinite(audio.duration) || waveformData.length === 0) return;
-    const newTime = (barIndex / waveformData.length) * audio.duration;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = ratio * audio.duration;
+    audio.currentTime = newTime;
+    setProgress(ratio * 100);
+    setCurrentTime(newTime);
+  };
+
+  const handleWaveformKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    let newTime = audio.currentTime;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      newTime = Math.min(audio.duration, audio.currentTime + 5);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      newTime = Math.max(0, audio.currentTime - 5);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      newTime = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      newTime = audio.duration;
+    } else {
+      return;
+    }
     audio.currentTime = newTime;
     setProgress((newTime / audio.duration) * 100);
     setCurrentTime(newTime);
   };
 
-  // Use real waveform or fallback
   const barHeights = waveformData.length > 0
     ? waveformData
     : [30, 45, 60, 40, 25, 35, 55, 70, 80, 50, 40, 65, 90, 75, 45, 30, 40, 55, 75, 60, 45, 35, 50, 60, 70, 85, 95, 65, 40, 30, 20, 15];
@@ -620,40 +646,28 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
 
           {/* Audio Waveform Visualization */}
           <div className="flex-1 flex flex-col gap-2">
-            <div 
-              className="h-10 flex items-end gap-[2px] px-1 overflow-hidden select-none cursor-pointer"
+            <div
+              className="flex items-end justify-between h-8 gap-0.5 cursor-pointer"
+              onClick={handleWaveformClick}
+              onKeyDown={handleWaveformKeyDown}
               role="slider"
-              aria-label="Audio waveform"
-              aria-valuenow={Math.round(progress)}
+              tabIndex={0}
+              aria-label="Waveform"
+              aria-valuenow={progress}
               aria-valuemin={0}
               aria-valuemax={100}
-              tabIndex={0}
             >
-              {barHeights.map((h, i) => {
-                const barProgress = (i / barHeights.length) * 100;
-                const active = barProgress <= progress;
-                return (
-                  <div
-                    key={`waveform-bar-${i}`}
-                    className="flex-1 rounded-full transition-all duration-150"
-                    style={{
-                      height: `${h}%`,
-                      minWidth: '2px',
-                      backgroundColor: active 
-                        ? 'var(--primary)' 
-                        : 'rgba(99, 91, 255, 0.12)',
-                      boxShadow: active && isPlaying
-                        ? '0 0 6px var(--primary)'
-                        : 'none',
-                      transform: isPlaying && active
-                        ? `scaleY(${1 + Math.sin(currentTime * 3 + i) * 0.1})`
-                        : 'scaleY(1)',
-                      transformOrigin: 'bottom'
-                    }}
-                    onClick={() => handleBarClick(i)}
-                  />
-                );
-              })}
+              {barHeights.map((h, i) => (
+                <div
+                  key={i}
+                  className={`w-1 rounded-full transition-colors duration-300 ${
+                    (i / barHeights.length) * 100 <= progress 
+                      ? 'bg-[var(--primary)]' 
+                      : 'bg-[var(--border)]'
+                  }`}
+                  style={{ height: `${h}%` }}
+                />
+              ))}
             </div>
 
             {/* Progress Slider / Scrubber */}
@@ -687,6 +701,266 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
           <span>Audio indisponible: {error}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+interface DossierClientPanelProps {
+  id: string | undefined;
+  ticket: Ticket;
+  agenceName: string | null;
+  operateurName: string | null;
+  fieldRefs: ReferenceData | null;
+  formData: Record<string, string>;
+  setFormData: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  existingPhotos: string[];
+  photoPreviews: string[];
+  photoFiles: File[];
+  photoInputRef: React.RefObject<HTMLInputElement | null>;
+  uploadingPhotos: boolean;
+  setLightboxIndex: React.Dispatch<React.SetStateAction<number | null>>;
+  handlePhotoSelect: (files: FileList | null) => Promise<void>;
+  removePhoto: (index: number) => void;
+  handleUploadPhotos: () => Promise<void>;
+}
+
+function DossierClientPanel({
+  id,
+  ticket,
+  agenceName,
+  operateurName,
+  fieldRefs,
+  formData,
+  setFormData,
+  existingPhotos,
+  photoPreviews,
+  photoFiles,
+  photoInputRef,
+  uploadingPhotos,
+  setLightboxIndex,
+  handlePhotoSelect,
+  removePhoto,
+  handleUploadPhotos,
+}: Readonly<DossierClientPanelProps>) {
+  return (
+    <div className="flex flex-col gap-6">
+      
+      {/* Card 1.1: General Client / Agency Metadata Info */}
+      <div className="card-aurora rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+            <User size={14} className="text-primary" />
+            Dossier Client
+          </h3>
+          <span className="font-mono text-[8px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+            Garantie active
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
+            <span className="font-mono text-[8px] text-txt-3 uppercase">Agence locale affiliée</span>
+            <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
+              <Award size={12} className="text-teal-400" />
+              {ticket.agenceName || agenceName || 'Non affiliée'}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
+            <span className="font-mono text-[8px] text-txt-3 uppercase">Conseiller en charge</span>
+            <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
+              <Shield size={12} className="text-indigo-400" />
+              {ticket.operateurName || operateurName || 'Non assigné'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
+              <span className="font-mono text-[8px] text-txt-3 uppercase">RGPD Audio</span>
+              <span className={`text-[10px] font-bold ${ticket.consentementEnregistrement ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {ticket.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé'}
+              </span>
+            </div>
+            <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
+              <span className="font-mono text-[8px] text-txt-3 uppercase">ID Ticket</span>
+              <span className="text-[10px] font-mono text-txt-2 truncate">
+                {id?.substring(0, 8)}...
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Card 1.2: Dynamic Demand Input Form (Fiche Technique / Saisie de la demande) */}
+      <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-orange-500" />
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+              <FileText size={14} className="text-amber-400" />
+              Saisie de la demande
+            </h3>
+            {(ticket.statut === 'FERME' || ticket.statut === 'RESOLU') && (
+              <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 flex items-center gap-1">
+                <Lock size={10} />
+                Verrouillé
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3.5">
+            {(fieldRefs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => {
+              const isRequired = ['typePiece', 'ageVehiculeAns', 'kilometrage', 'categorieClient', 'typeSinistre'].includes(fd.field);
+              const isLocked = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
+              return (
+                <div key={fd.field} className="space-y-1">
+                  <label htmlFor={`detail-field-${fd.field}`} className="font-mono text-[9px] text-txt-2 uppercase tracking-wide flex items-center justify-between">
+                    <span>{fd.label}</span>
+                    {isRequired && <span className="text-[8px] text-amber-500 font-bold bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">Requis</span>}
+                  </label>
+                  {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
+                    <select 
+                      id={`detail-field-${fd.field}`}
+                      value={formData[fd.field] || ''} 
+                      onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))} 
+                      disabled={isLocked} 
+                      className="aurora-select text-[11px] py-2 w-full disabled:opacity-50 font-mono font-medium rounded-xl"
+                    >
+                      <option value="">Sélectionner une option…</option>
+                      {fd.values.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <div className="relative">
+                      <input 
+                        id={`detail-field-${fd.field}`}
+                        type={fd.type === 'number' ? 'number' : 'text'}
+                        placeholder={fd.type === 'number' ? 'Ex: 5' : 'Saisir une valeur...'}
+                        value={formData[fd.field] || ''}
+                        onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))}
+                        disabled={isLocked}
+                        className="aurora-input text-[11px] py-2 px-3 w-full disabled:opacity-50 rounded-xl"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Card 1.3: Photos of the Incident (Upload & Preview Gallery) */}
+      <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-400 to-rose-500" />
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+              <Camera size={14} className="text-pink-400" />
+              Preuves Visuelles
+            </h3>
+            <span className="font-mono text-[9px] text-txt-3">
+              {existingPhotos.length} enregistrée(s)
+            </span>
+          </div>
+
+          {/* Grid of existing database photos */}
+          {existingPhotos.length > 0 && (
+            <div className="mb-4">
+              <span className="font-mono text-[8px] text-txt-3 uppercase block mb-2 tracking-wide">Galerie du dossier :</span>
+              <div className="grid grid-cols-4 gap-2">
+                {existingPhotos.map((path, i) => {
+                  const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
+                  return (
+                    <button 
+                      key={path} 
+                      type="button"
+                      className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
+                      onClick={() => setLightboxIndex(i)}
+                    >
+                      <img 
+                        src={imgUrl} 
+                        alt={`Sinistre ${i+1}`} 
+                        className="w-full h-full object-cover" 
+                        onError={e => { 
+                          (e.target as HTMLImageElement).style.display = 'none'; 
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-sm flex items-center justify-center w-full h-full">🖼️</span>'; 
+                        }} 
+                      />
+                      <span className="absolute bottom-1 right-1 font-mono text-[7px] bg-black/60 text-white px-1.5 py-0.5 rounded-md font-bold">
+                        #{i + 1}
+                      </span>
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                        <span className="text-white text-[10px] bg-black/50 p-1.5 rounded-full">🔍</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Animated Drag & Drop Zone */}
+          {ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
+            <label
+              htmlFor="ticket-photo-upload"
+              className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group block"
+              onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-pink-500/50', 'bg-pink-500/5'); }}
+              onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); }}
+              onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
+            >
+              <input
+                id="ticket-photo-upload"
+                ref={photoInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                onChange={e => handlePhotoSelect(e.target.files)}
+              />
+              <div className="text-2xl mb-1.5 transition-transform duration-300 group-hover:scale-110">📸</div>
+              <div className="text-[11px] text-txt-2 font-medium">Déposer des fichiers ou cliquer pour explorer</div>
+              <div className="font-mono text-[8px] text-txt-3 mt-1 uppercase tracking-wide">JPEG, PNG, WebP · max 10MB</div>
+            </label>
+          )}
+
+          {/* Local uploading file previews */}
+          {photoPreviews.length > 0 && (
+            <div className="mt-4 p-3 bg-[var(--elevated)] rounded-xl border border-border space-y-3">
+              <span className="font-mono text-[8px] text-txt-3 uppercase block tracking-wide">Fichiers en attente d'envoi :</span>
+              <div className="flex flex-wrap gap-2">
+                {photoPreviews.map((src, i) => {
+                  const file = photoFiles[i];
+                  const key = file ? `${file.name}-${file.size}` : `upload-preview-${i}`;
+                  return (
+                    <div key={key} className="relative group rounded-lg overflow-hidden border border-border shadow">
+                      <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[10px]"
+                      >
+                        <Trash2 size={10} className="text-rose-400" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={handleUploadPhotos}
+                disabled={uploadingPhotos}
+                className="btn-cta h-8 px-4 rounded-xl text-[10px] font-mono text-white cursor-pointer disabled:opacity-50 w-full flex items-center justify-center gap-1.5"
+              >
+                {uploadingPhotos ? (
+                  <>⏳ Envoi en cours...</>
+                ) : (
+                  <span>📤 Sauvegarder les {photoFiles.length} photos</span>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1193,224 +1467,24 @@ export default function TicketDetailPage() {
         {/* ========================================================================= */}
         {/* COLUMN 1: CLIENT & VEHICLE PROFILE, DEMAND FORM, AND PHOTOS               */}
         {/* ========================================================================= */}
-        <div className="flex flex-col gap-6">
-          
-          {/* Card 1.1: General Client / Agency Metadata Info */}
-          <div className="card-aurora rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
-                <User size={14} className="text-primary" />
-                Dossier Client
-              </h3>
-              <span className="font-mono text-[8px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
-                Garantie active
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
-                <span className="font-mono text-[8px] text-txt-3 uppercase">Agence locale affiliée</span>
-                <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
-                  <Award size={12} className="text-teal-400" />
-                  {ticket.agenceName || agenceName || 'Non affilié'}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1 p-2 bg-[var(--elevated)] rounded-xl border border-border">
-                <span className="font-mono text-[8px] text-txt-3 uppercase">Conseiller en charge</span>
-                <span className="text-xs font-semibold text-txt flex items-center gap-1.5">
-                  <Shield size={12} className="text-indigo-400" />
-                  {ticket.operateurName || operateurName || 'Non assigné'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
-                  <span className="font-mono text-[8px] text-txt-3 uppercase">RGPD Audio</span>
-                  <span className={`text-[10px] font-bold ${ticket.consentementEnregistrement ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {ticket.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé'}
-                  </span>
-                </div>
-                <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
-                  <span className="font-mono text-[8px] text-txt-3 uppercase">ID Ticket</span>
-                  <span className="text-[10px] font-mono text-txt-2 truncate">
-                    {id?.substring(0, 8)}...
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 1.2: Dynamic Demand Input Form (Fiche Technique / Saisie de la demande) */}
-          <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-400 to-orange-500" />
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
-                  <FileText size={14} className="text-amber-400" />
-                  Saisie de la demande
-                </h3>
-                {(ticket.statut === 'FERME' || ticket.statut === 'RESOLU') && (
-                  <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 flex items-center gap-1">
-                    <Lock size={10} />
-                    Verrouillé
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-3.5">
-                {(fieldRefs?.fields || []).filter((fd: FieldDef) => fd.field !== 'transcriptionText').map((fd: FieldDef) => {
-                  const isRequired = ['typePiece', 'ageVehiculeAns', 'kilometrage', 'categorieClient', 'typeSinistre'].includes(fd.field);
-                  const isLocked = ticket.statut === 'FERME' || ticket.statut === 'RESOLU';
-                  return (
-                    <div key={fd.field} className="space-y-1">
-                      <label htmlFor={`detail-field-${fd.field}`} className="font-mono text-[9px] text-txt-2 uppercase tracking-wide flex items-center justify-between">
-                        <span>{fd.label}</span>
-                        {isRequired && <span className="text-[8px] text-amber-500 font-bold bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">Requis</span>}
-                      </label>
-                      {fd.type === 'enum' && fd.values && fd.values.length > 0 ? (
-                        <select 
-                          id={`detail-field-${fd.field}`}
-                          value={formData[fd.field] || ''} 
-                          onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))} 
-                          disabled={isLocked} 
-                          className="aurora-select text-[11px] py-2 w-full disabled:opacity-50 font-mono font-medium rounded-xl"
-                        >
-                          <option value="">Sélectionner une option…</option>
-                          {fd.values.map(v => <option key={v} value={v}>{v}</option>)}
-                        </select>
-                      ) : (
-                        <div className="relative">
-                          <input 
-                            id={`detail-field-${fd.field}`}
-                            type={fd.type === 'number' ? 'number' : 'text'}
-                            placeholder={fd.type === 'number' ? 'Ex: 5' : 'Saisir une valeur...'}
-                            value={formData[fd.field] || ''}
-                            onChange={e => setFormData(p => ({ ...p, [fd.field]: e.target.value }))}
-                            disabled={isLocked}
-                            className="aurora-input text-[11px] py-2 px-3 w-full disabled:opacity-50 rounded-xl"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 1.3: Photos of the Incident (Upload & Preview Gallery) */}
-          <div className="card-aurora rounded-2xl overflow-hidden relative shadow-md">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-400 to-rose-500" />
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
-                  <Camera size={14} className="text-pink-400" />
-                  Preuves Visuelles
-                </h3>
-                <span className="font-mono text-[9px] text-txt-3">
-                  {existingPhotos.length} enregistrée(s)
-                </span>
-              </div>
-
-              {/* Grid of existing database photos */}
-              {existingPhotos.length > 0 && (
-                <div className="mb-4">
-                  <span className="font-mono text-[8px] text-txt-3 uppercase block mb-2 tracking-wide">Galerie du dossier :</span>
-                  <div className="grid grid-cols-4 gap-2">
-                    {existingPhotos.map((path, i) => {
-                      const imgUrl = `${import.meta.env.VITE_API_URL || ''}/api/tickets${path}`;
-                      return (
-                        <button 
-                          key={path} 
-                          type="button"
-                          className="relative aspect-square rounded-xl bg-[var(--elevated)] border border-border overflow-hidden cursor-pointer group shadow-sm transition-all hover:scale-105"
-                          onClick={() => setLightboxIndex(i)}
-                        >
-                          <img 
-                            src={imgUrl} 
-                            alt={`Sinistre ${i+1}`} 
-                            className="w-full h-full object-cover" 
-                            onError={e => { 
-                              (e.target as HTMLImageElement).style.display = 'none'; 
-                              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-sm flex items-center justify-center w-full h-full">🖼️</span>'; 
-                            }} 
-                          />
-                          <span className="absolute bottom-1 right-1 font-mono text-[7px] bg-black/60 text-white px-1.5 py-0.5 rounded-md font-bold">
-                            #{i + 1}
-                          </span>
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                            <span className="text-white text-[10px] bg-black/50 p-1.5 rounded-full">🔍</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Custom Animated Drag & Drop Zone */}
-              {ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
-                <label
-                  htmlFor="ticket-photo-upload"
-                  className="border-2 border-dashed border-border hover:border-pink-500/40 rounded-xl p-5 text-center cursor-pointer hover:bg-pink-500/[0.01] transition-all relative group block"
-                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-pink-500/50', 'bg-pink-500/5'); }}
-                  onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('border-pink-500/50', 'bg-pink-500/5'); handlePhotoSelect(e.dataTransfer.files); }}
-                >
-                  <input
-                    id="ticket-photo-upload"
-                    ref={photoInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => handlePhotoSelect(e.target.files)}
-                  />
-                  <div className="text-2xl mb-1.5 transition-transform duration-300 group-hover:scale-110">📸</div>
-                  <div className="text-[11px] text-txt-2 font-medium">Déposer des fichiers ou cliquer pour explorer</div>
-                  <div className="font-mono text-[8px] text-txt-3 mt-1 uppercase tracking-wide">JPEG, PNG, WebP · max 10MB</div>
-                </label>
-              )}
-
-              {/* Local uploading file previews */}
-              {photoPreviews.length > 0 && (
-                <div className="mt-4 p-3 bg-[var(--elevated)] rounded-xl border border-border space-y-3">
-                  <span className="font-mono text-[8px] text-txt-3 uppercase block tracking-wide">Fichiers en attente d'envoi :</span>
-                  <div className="flex flex-wrap gap-2">
-                    {photoPreviews.map((src, i) => {
-                      const file = photoFiles[i];
-                      const key = file ? `${file.name}-${file.size}` : `upload-preview-${i}`;
-                      return (
-                        <div key={key} className="relative group rounded-lg overflow-hidden border border-border shadow">
-                          <img src={src} alt={`Upload preview ${i + 1}`} className="w-12 h-12 object-cover" />
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white text-[10px]"
-                          >
-                            <Trash2 size={10} className="text-rose-400" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={handleUploadPhotos}
-                    disabled={uploadingPhotos}
-                    className="btn-cta h-8 px-4 rounded-xl text-[10px] font-mono text-white cursor-pointer disabled:opacity-50 w-full flex items-center justify-center gap-1.5"
-                  >
-                    {uploadingPhotos ? (
-                      <>⏳ Envoi en cours...</>
-                    ) : (
-                      <span>📤 Sauvegarder les {photoFiles.length} photos</span>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <DossierClientPanel
+          id={id}
+          ticket={ticket}
+          agenceName={agenceName}
+          operateurName={operateurName}
+          fieldRefs={fieldRefs}
+          formData={formData}
+          setFormData={setFormData}
+          existingPhotos={existingPhotos}
+          photoPreviews={photoPreviews}
+          photoFiles={photoFiles}
+          photoInputRef={photoInputRef}
+          uploadingPhotos={uploadingPhotos}
+          setLightboxIndex={setLightboxIndex}
+          handlePhotoSelect={handlePhotoSelect}
+          removePhoto={removePhoto}
+          handleUploadPhotos={handleUploadPhotos}
+        />
 
         {/* ========================================================================= */}
         {/* COLUMN 2: CORE INCIDENT COMMUNICATIONS & ACTION HISTORY TIMELINE          */}
