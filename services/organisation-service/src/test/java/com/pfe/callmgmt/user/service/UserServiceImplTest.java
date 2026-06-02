@@ -225,4 +225,144 @@ class UserServiceImplTest {
                 userService.changePassword(userId, "WrongPass", NEW_PASS));
         verify(userRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("11. getUserById — succès")
+    void getUserById_success() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(savedUser));
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+
+        UserResponse result = userService.getUserById(userId);
+
+        assertNotNull(result);
+        assertEquals(EMAIL_TEST, result.getEmail());
+    }
+
+    @Test
+    @DisplayName("12. getUserByEmail — utilisateur trouvé")
+    void getUserByEmail_found() {
+        when(userRepository.findByEmail(EMAIL_TEST)).thenReturn(Optional.of(savedUser));
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+
+        UserResponse result = userService.getUserByEmail(EMAIL_TEST);
+
+        assertNotNull(result);
+        assertEquals(EMAIL_TEST, result.getEmail());
+    }
+
+    @Test
+    @DisplayName("13. getUserByEmail — non trouvé → EntityNotFoundException")
+    void getUserByEmail_notFound() {
+        when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class, () ->
+                userService.getUserByEmail("unknown@test.com"));
+    }
+
+    @Test
+    @DisplayName("14. getAllUsers — sans filtres retourne tous les actifs")
+    void getAllUsers_noFilter_returnsAll() {
+        Page<User> page = new PageImpl<>(List.of(savedUser));
+        when(userRepository.findByActifTrue(any(Pageable.class))).thenReturn(page);
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+
+        Page<UserResponse> result = userService.getAllUsers(null, null, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+    }
+
+    @Test
+    @DisplayName("15. getAllUsers — filtre par agenceId uniquement")
+    void getAllUsers_filterByAgence_returnsFiltered() {
+        Page<User> page = new PageImpl<>(List.of(savedUser));
+        when(userRepository.findByActifTrueAndAgenceId(eq(agenceId), any(Pageable.class))).thenReturn(page);
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+
+        Page<UserResponse> result = userService.getAllUsers(null, agenceId, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+    }
+
+    @Test
+    @DisplayName("16. getAllUsers — filtre par rôle ET agenceId")
+    void getAllUsers_filterByRoleAndAgence_returnsFiltered() {
+        Page<User> page = new PageImpl<>(List.of(savedUser));
+        when(userRepository.findByActifTrueAndAgenceIdAndRole(eq(agenceId), eq(ROLE_OPERATOR), any(Pageable.class)))
+                .thenReturn(page);
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+
+        Page<UserResponse> result = userService.getAllUsers(ROLE_OPERATOR, agenceId, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+    }
+
+    @Test
+    @DisplayName("17. updateLastLogin — met à jour la date de dernière connexion")
+    void updateLastLogin_updatesField() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(savedUser));
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        userService.updateLastLogin(userId);
+
+        verify(userRepository).save(savedUser);
+        assertNotNull(savedUser.getLastLogin());
+    }
+
+    @Test
+    @DisplayName("18. updateUser — OPERATOR tente de changer son rôle → AccessDeniedException")
+    void updateUser_operatorCantChangeRole() {
+        UserRequest req = new UserRequest();
+        req.setNom("Test"); req.setEmail(EMAIL_TEST);
+        req.setRole("SUPERVISOR"); // tentative de changement de rôle
+        req.setAgenceId(agenceId);
+
+        // Même userId → l'opérateur modifie son propre profil mais tente un role change
+        when(userRepository.findById(userId)).thenReturn(Optional.of(savedUser));
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.updateUser(userId, req, userId, ROLE_OPERATOR, agenceId));
+    }
+
+    @Test
+    @DisplayName("19. updateUser — SUPERVISOR tente de modifier utilisateur d'une autre agence → AccessDeniedException")
+    void updateUser_supervisorCantUpdateOtherAgence() {
+        UUID otherAgenceId = UUID.randomUUID();
+        UUID supervisorId = UUID.randomUUID();
+        Agence otherAgence = Agence.builder().id(otherAgenceId).nom("Autre Agence").build();
+        User otherUser = User.builder().id(userId).role(ROLE_OPERATOR).agence(otherAgence).build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(otherUser));
+
+        assertThrows(AccessDeniedException.class,
+                () -> userService.updateUser(userId, validRequest, supervisorId, "SUPERVISOR", agenceId));
+    }
+
+    @Test
+    @DisplayName("20. createUserInternal — succès avec mot de passe déjà hashé")
+    void createUserInternal_success() {
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(false);
+        when(agenceRepository.findById(agenceId)).thenReturn(Optional.of(agence));
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        var result = userService.createUserInternal(validRequest);
+
+        assertNotNull(result);
+        assertEquals(EMAIL_TEST, result.getEmail());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("21. createUser — OPERATOR sans agenceId → IllegalArgumentException")
+    void createUser_operatorWithoutAgence_throws() {
+        UserRequest req = new UserRequest();
+        req.setEmail("op@test.com");
+        req.setPassword("Pass123");
+        req.setNom("Op"); req.setRole(ROLE_OPERATOR);
+        req.setAgenceId(null); // manquant
+
+        when(userRepository.existsByEmail("op@test.com")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                userService.createUser(req, null));
+    }
 }
