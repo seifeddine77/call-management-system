@@ -131,5 +131,172 @@ class SupervisionServiceTest {
 
             assertThat(alerts).anyMatch(a -> a.getType() == SupervisionAlert.AlertType.NON_ASSIGNE);
         }
+
+        @Test
+        @DisplayName("Tickets non assignés >= 10 → alerte CRITIQUE")
+        void manyUnassignedTickets_returnsCritique() {
+            when(ticketRepository.countBlockedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countOldUnassignedTickets(any())).thenReturn(12L);
+            when(ticketRepository.countCreatedAfter(any())).thenReturn(0L);
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(8L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(10L);
+
+            List<SupervisionAlert> alerts = supervisionService.getAlerts();
+
+            assertThat(alerts).anyMatch(a ->
+                a.getType() == SupervisionAlert.AlertType.NON_ASSIGNE
+                && a.getSeverity() == SupervisionAlert.Severity.CRITIQUE);
+        }
+
+        @Test
+        @DisplayName("Volume spike — tickets aujourd'hui > 2x la moyenne → alerte VOLUME_SPIKE WARNING")
+        void volumeSpike_returnsWarning() {
+            when(ticketRepository.countBlockedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countOldUnassignedTickets(any())).thenReturn(0L);
+            // today=50, week=70 → avg=10, spike si today > 20
+            when(ticketRepository.countCreatedAfter(any()))
+                .thenReturn(50L)  // todayCount (1st call: atStartOfDay)
+                .thenReturn(70L); // weekCount (2nd call: minusDays(7))
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(8L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(10L);
+
+            List<SupervisionAlert> alerts = supervisionService.getAlerts();
+
+            assertThat(alerts).anyMatch(a ->
+                a.getType() == SupervisionAlert.AlertType.VOLUME_SPIKE
+                && a.getSeverity() == SupervisionAlert.Severity.WARNING);
+        }
+
+        @Test
+        @DisplayName("SLA < 70% et >= 50% → alerte WARNING OPERATEUR_SURCHARGE")
+        void slaLow_returnsWarning() {
+            when(ticketRepository.countBlockedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countOldUnassignedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countCreatedAfter(any())).thenReturn(0L);
+            // SLA = 6/10 = 60% → < 70%, >= 50%
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(6L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(10L);
+
+            List<SupervisionAlert> alerts = supervisionService.getAlerts();
+
+            assertThat(alerts).anyMatch(a ->
+                a.getType() == SupervisionAlert.AlertType.OPERATEUR_SURCHARGE
+                && a.getSeverity() == SupervisionAlert.Severity.WARNING);
+        }
+
+        @Test
+        @DisplayName("SLA < 50% → alerte CRITIQUE OPERATEUR_SURCHARGE")
+        void slaVeryLow_returnsCritique() {
+            when(ticketRepository.countBlockedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countOldUnassignedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countCreatedAfter(any())).thenReturn(0L);
+            // SLA = 4/10 = 40% → < 50%
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(4L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(10L);
+
+            List<SupervisionAlert> alerts = supervisionService.getAlerts();
+
+            assertThat(alerts).anyMatch(a ->
+                a.getType() == SupervisionAlert.AlertType.OPERATEUR_SURCHARGE
+                && a.getSeverity() == SupervisionAlert.Severity.CRITIQUE);
+        }
+
+        @Test
+        @DisplayName("Aucun ticket résolu → SLA globale = 0 (pas d'alerte SLA)")
+        void noResolvedTickets_noSlaAlert() {
+            when(ticketRepository.countBlockedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countOldUnassignedTickets(any())).thenReturn(0L);
+            when(ticketRepository.countCreatedAfter(any())).thenReturn(0L);
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L); // totalResolved = 0
+
+            List<SupervisionAlert> alerts = supervisionService.getAlerts();
+
+            // Only the positive INFO alert
+            assertThat(alerts).hasSize(1);
+            assertThat(alerts.get(0).getSeverity()).isEqualTo(SupervisionAlert.Severity.INFO);
+        }
+    }
+
+    @Nested
+    @DisplayName("getOperatorPerformance — period variants")
+    class PeriodVariants {
+
+        @Test
+        @DisplayName("period='today' → filtre depuis début du jour")
+        void period_today() {
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of());
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance("today");
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("period='30d' → filtre depuis 30 jours")
+        void period_30d() {
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of());
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance("30d");
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("period='90d' → filtre depuis 90 jours")
+        void period_90d() {
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of());
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance("90d");
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("period=null → défaut 7 jours")
+        void period_null() {
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of());
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance(null);
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("opId comme String (non UUID natif) → parse correctement")
+        void operatorId_asString_parsesCorrectly() {
+            UUID opId = UUID.randomUUID();
+            // row[0] as String instead of UUID
+            Object[] row = new Object[]{
+                opId.toString(), 10, 2, 7, 30.0, 5, 3, 2
+            };
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of(new Object[][]{row}));
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(5L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(7L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance("week");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getOperateurId()).isEqualTo(opId);
+        }
+
+        @Test
+        @DisplayName("total=0 → tauxResolution=0, scoreComposite calculé sans division par zéro")
+        void totalZero_tauxResolutionZero() {
+            UUID opId = UUID.randomUUID();
+            Object[] row = new Object[]{opId, 0, 0, 0, BigDecimal.ZERO, 0, 0, 0};
+            when(ticketRepository.findOperatorPerformanceRaw(any())).thenReturn(List.of(new Object[][]{row}));
+            when(ticketRepository.countSlaCompliant(any())).thenReturn(0L);
+            when(ticketRepository.countResolvedAfter(any())).thenReturn(0L);
+
+            List<OperatorPerformanceResponse> result = supervisionService.getOperatorPerformance("7d");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getTauxResolution()).isEqualTo(0.0);
+        }
     }
 }

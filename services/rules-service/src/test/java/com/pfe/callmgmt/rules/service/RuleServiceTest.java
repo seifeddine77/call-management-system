@@ -554,5 +554,165 @@ class RuleServiceTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("liste");
         }
+
+        @Test
+        @DisplayName("Opérateur global invalide (MAYBE) → IllegalArgumentException")
+        void invalidGlobalOperator_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "age"); cond.put("operator", "GT"); cond.put("value", 5);
+            Map<String, Object> conditions = new HashMap<>();
+            conditions.put("operator", "MAYBE"); // invalide
+            conditions.put("conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("AND");
+        }
+
+        @Test
+        @DisplayName("'conditions' n'est pas une List → IllegalArgumentException")
+        void conditionsNotAList_throws() {
+            Map<String, Object> conditions = new HashMap<>();
+            conditions.put("operator", "AND");
+            conditions.put("conditions", "not-a-list"); // String au lieu de List
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("liste");
+        }
+
+        @Test
+        @DisplayName("Condition n'est pas un Map → IllegalArgumentException")
+        void conditionNotAMap_throws() {
+            Map<String, Object> conditions = Map.of(
+                "operator", "AND",
+                "conditions", List.of("invalid-string") // pas un Map
+            );
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("objet");
+        }
+
+        @Test
+        @DisplayName("Condition avec 'field' vide → IllegalArgumentException")
+        void blankField_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "   "); // blank
+            cond.put("operator", "GT"); cond.put("value", 5);
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("field");
+        }
+
+        @Test
+        @DisplayName("Condition sans 'operator' ni 'op' → IllegalArgumentException")
+        void missingOperator_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "age"); cond.put("value", 5); // pas d'operator
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("opérateur");
+        }
+
+        @Test
+        @DisplayName("Condition avec opérateur inconnu (BETWEEN) → IllegalArgumentException")
+        void unknownOperator_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "age"); cond.put("operator", "BETWEEN"); cond.put("value", 5);
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Opérateur inconnu");
+        }
+
+        @Test
+        @DisplayName("Condition sans clé 'value' → IllegalArgumentException")
+        void missingValueKey_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "age"); cond.put("operator", "GT"); // pas de value
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("value");
+        }
+
+        @Test
+        @DisplayName("Condition avec value=null → IllegalArgumentException")
+        void nullValue_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "age"); cond.put("operator", "GT"); cond.put("value", null);
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("null");
+        }
+
+        @Test
+        @DisplayName("Opérateur NOT_IN avec valeur non-list → IllegalArgumentException")
+        void notInOperatorWithNonList_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "categorie"); cond.put("operator", "NOT_IN"); cond.put("value", "VIP");
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("liste");
+        }
+
+        @Test
+        @DisplayName("Condition valide avec opérateur 'op' (alias) → création réussie")
+        void validConditionWithOpAlias_succeeds() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "ageVehiculeAns");
+            cond.put("op", "LTE"); // alias pour "operator"
+            cond.put("value", 5);
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("Test op alias").conditions(conditions)
+                    .action("FAVORABLE").actionMotif("OK")
+                    .priorite((short) 5).scoreImpact((short) 0).build();
+
+            Rule saved = Rule.builder().id(UUID.randomUUID()).nom("Test op alias")
+                    .action("FAVORABLE").actif(true).version((short) 1).build();
+            when(ruleRepository.save(any())).thenReturn(saved);
+
+            RuleResponse response = ruleService.createRule(request, UUID.randomUUID(), "user");
+            assertThat(response.getNom()).isEqualTo("Test op alias");
+        }
     }
 }
