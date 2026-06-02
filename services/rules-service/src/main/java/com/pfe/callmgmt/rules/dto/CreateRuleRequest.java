@@ -38,9 +38,11 @@ public class CreateRuleRequest {
     private String actionMotif;
 
     @Range(min = 1, max = 10, message = "La priorité doit être entre 1 et 10")
+    @Builder.Default
     private Short priorite = 5;
 
     @NotNull(message = "L'impact de score est obligatoire")
     @Range(min = -50, max = 50, message = "L'impact de score doit être entre -50 et +50")
+    @Builder.Default
     private Short scoreImpact = 0;
 }
