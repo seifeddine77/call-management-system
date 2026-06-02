@@ -243,4 +243,317 @@ class RuleServiceTest {
                     .isInstanceOf(EntityNotFoundException.class);
         }
     }
+
+    @Nested
+    @DisplayName("updateRule")
+    class UpdateRule {
+
+        private UpdateRuleRequest buildUpdateRequest(String nom, String action, String motif, Short priorite, Short score) {
+            UpdateRuleRequest r = new UpdateRuleRequest();
+            r.setNom(nom);
+            r.setDescription("desc");
+            r.setConditions(validConditions());
+            r.setAction(action);
+            r.setActionMotif(motif);
+            r.setPriorite(priorite);
+            r.setScoreImpact(score);
+            return r;
+        }
+
+        @Test
+        @DisplayName("Met à jour la règle et archive la version précédente")
+        void updatesRuleAndArchivesPreviousVersion() {
+            UUID ruleId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            Rule existingRule = Rule.builder()
+                    .id(ruleId).nom("Old Name").description("Old desc")
+                    .conditions(validConditions()).action("DEFAVORABLE")
+                    .actionMotif("Old motif").priorite((short) 5).scoreImpact((short) 0)
+                    .actif(true).version((short) 1).build();
+
+            UpdateRuleRequest request = buildUpdateRequest("New Name", "FAVORABLE", "New motif", (short) 8, (short) 10);
+
+            when(ruleRepository.findById(ruleId)).thenReturn(Optional.of(existingRule));
+            when(ruleVersionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(ruleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            RuleResponse response = ruleService.updateRule(ruleId, request, userId, "Admin");
+
+            verify(ruleVersionRepository).save(any(RuleVersion.class));
+            assertThat(response.getNom()).isEqualTo("New Name");
+            assertThat(response.getAction()).isEqualTo("FAVORABLE");
+            assertThat(response.getVersion()).isEqualTo((short) 2);
+        }
+
+        @Test
+        @DisplayName("priorite/scoreImpact null dans la requête conserve les valeurs existantes")
+        void updateRule_nullPrioriteAndScore_keepsExisting() {
+            UUID ruleId = UUID.randomUUID();
+
+            Rule existingRule = Rule.builder()
+                    .id(ruleId).nom("Rule").conditions(validConditions()).action("FAVORABLE")
+                    .priorite((short) 7).scoreImpact((short) 5).actif(true).version((short) 1).build();
+
+            // null priorite/scoreImpact → doit conserver les valeurs existantes
+            UpdateRuleRequest request = buildUpdateRequest("Rule", "FAVORABLE", "m", null, null);
+
+            when(ruleRepository.findById(ruleId)).thenReturn(Optional.of(existingRule));
+            when(ruleVersionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(ruleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            RuleResponse response = ruleService.updateRule(ruleId, request, UUID.randomUUID(), "User");
+
+            assertThat(response.getPriorite()).isEqualTo((short) 7);
+            assertThat(response.getScoreImpact()).isEqualTo((short) 5);
+        }
+
+        @Test
+        @DisplayName("Lève EntityNotFoundException si règle non trouvée")
+        void updateRule_notFound_throws() {
+            UUID ruleId = UUID.randomUUID();
+            when(ruleRepository.findById(ruleId)).thenReturn(Optional.empty());
+
+            UpdateRuleRequest request = buildUpdateRequest("x", "FAVORABLE", "m", null, null);
+
+            assertThatThrownBy(() -> ruleService.updateRule(ruleId, request, UUID.randomUUID(), "User"))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("findAll")
+    class FindAll {
+
+        @Test
+        @DisplayName("Sans filtre retourne toutes les règles")
+        void findAll_noFilter_returnsAll() {
+            Rule rule = Rule.builder().id(UUID.randomUUID()).nom("R1").action("FAVORABLE")
+                    .actif(true).version((short) 1).build();
+            Page<Rule> page = new PageImpl<>(List.of(rule));
+            when(ruleRepository.findAll(any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+            Page<RuleResponse> result = ruleService.findAll(null, PageRequest.of(0, 10));
+
+            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.getContent().get(0).getNom()).isEqualTo("R1");
+        }
+
+        @Test
+        @DisplayName("Avec filtre actif=true retourne uniquement les règles actives")
+        void findAll_withActifFilter_returnsFiltered() {
+            Rule rule = Rule.builder().id(UUID.randomUUID()).nom("Active").action("FAVORABLE")
+                    .actif(true).version((short) 1).build();
+            Page<Rule> page = new PageImpl<>(List.of(rule));
+            when(ruleRepository.findByActif(eq(true), any())).thenReturn(page);
+
+            Page<RuleResponse> result = ruleService.findAll(true, PageRequest.of(0, 10));
+
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getActif()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("getHistory")
+    class GetHistory {
+
+        @Test
+        @DisplayName("Retourne l'historique des versions")
+        void getHistory_returnsVersionList() {
+            UUID ruleId = UUID.randomUUID();
+            Rule rule = Rule.builder().id(ruleId).nom("R").action("FAVORABLE")
+                    .actif(true).version((short) 2).build();
+            RuleVersion v1 = RuleVersion.builder().ruleId(ruleId).version((short) 1).build();
+
+            when(ruleRepository.findById(ruleId)).thenReturn(Optional.of(rule));
+            when(ruleVersionRepository.findByRuleIdOrderByVersionDesc(ruleId)).thenReturn(List.of(v1));
+
+            List<RuleVersion> history = ruleService.getHistory(ruleId);
+
+            assertThat(history).hasSize(1);
+            assertThat(history.get(0).getVersion()).isEqualTo((short) 1);
+        }
+
+        @Test
+        @DisplayName("Lève EntityNotFoundException si règle non trouvée")
+        void getHistory_notFound_throws() {
+            UUID ruleId = UUID.randomUUID();
+            when(ruleRepository.findById(ruleId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> ruleService.getHistory(ruleId))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("evaluate - cas étendus")
+    class EvaluateExtended {
+
+        @Test
+        @DisplayName("Une règle DEFAVORABLE matche → décision DEFAVORABLE")
+        void oneRuleMatches_returnsDefavorable() {
+            Rule rule = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Véhicule ancien")
+                    .action("DEFAVORABLE").actionMotif("Trop vieux")
+                    .priorite((short) 8).scoreImpact((short) -15)
+                    .actif(true).build();
+
+            when(ruleRepository.findByActifTrueOrderByPrioriteDesc()).thenReturn(List.of(rule));
+            when(ruleEvaluator.evaluate(any(), any())).thenReturn(true);
+
+            EvaluateResponse response = ruleService.evaluate(EvaluateRequest.builder().build());
+
+            assertThat(response.getDecision()).isEqualTo("DEFAVORABLE");
+            assertThat(response.getAmbiguous()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Règle ETUDE matchée → décision ETUDE (priorité sécurité)")
+        void etudeRule_takesOverFavorable() {
+            Rule etudeRule = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Cas complexe")
+                    .action("ETUDE").actionMotif("Vérification manuelle requise")
+                    .priorite((short) 9).actif(true).build();
+            Rule favorableRule = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Client VIP")
+                    .action("FAVORABLE").actionMotif("Client fidèle")
+                    .priorite((short) 5).actif(true).build();
+
+            when(ruleRepository.findByActifTrueOrderByPrioriteDesc())
+                    .thenReturn(List.of(etudeRule, favorableRule));
+            when(ruleEvaluator.evaluate(any(), any())).thenReturn(true);
+
+            EvaluateResponse response = ruleService.evaluate(EvaluateRequest.builder().build());
+
+            assertThat(response.getDecision()).isEqualTo("ETUDE");
+            assertThat(response.getAmbiguous()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Conflit FAVORABLE vs DEFAVORABLE → règle plus prioritaire gagne")
+        void conflictFavorableDefavorable_highestPriorityWins() {
+            Rule favorable = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Favorable High")
+                    .action("FAVORABLE").actionMotif("F")
+                    .priorite((short) 10).scoreImpact((short) 10).actif(true).build();
+            Rule defavorable = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Defavorable Low")
+                    .action("DEFAVORABLE").actionMotif("D")
+                    .priorite((short) 3).scoreImpact((short) -5).actif(true).build();
+
+            when(ruleRepository.findByActifTrueOrderByPrioriteDesc())
+                    .thenReturn(List.of(favorable, defavorable));
+            when(ruleEvaluator.evaluate(any(), any())).thenReturn(true);
+
+            EvaluateResponse response = ruleService.evaluate(EvaluateRequest.builder().build());
+
+            assertThat(response.getDecision()).isEqualTo("FAVORABLE");
+            assertThat(response.getAmbiguous()).isTrue();
+            assertThat(response.getMatchedRules()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("Transcription avec mots-clés garantie booste le score FAVORABLE")
+        void evaluate_withPositiveTranscription_boostsScore() {
+            Rule rule = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Client VIP")
+                    .action("FAVORABLE").actionMotif("OK")
+                    .priorite((short) 5).scoreImpact((short) 0).actif(true).build();
+
+            when(ruleRepository.findByActifTrueOrderByPrioriteDesc()).thenReturn(List.of(rule));
+            when(ruleEvaluator.evaluate(any(), any())).thenReturn(true);
+
+            EvaluateRequest request = EvaluateRequest.builder()
+                    .transcriptionText("La voiture est sous garantie constructeur et entretien régulier effectué")
+                    .build();
+
+            EvaluateResponse response = ruleService.evaluate(request);
+
+            assertThat(response.getDecision()).isEqualTo("FAVORABLE");
+            assertThat(response.getScore()).isGreaterThan(65.0); // bonus transcription
+        }
+
+        @Test
+        @DisplayName("Transcription avec mots-clés fraude réduit le score DEFAVORABLE")
+        void evaluate_withFraudTranscription_lowersScore() {
+            Rule rule = Rule.builder()
+                    .id(UUID.randomUUID()).nom("Fraude détectée")
+                    .action("DEFAVORABLE").actionMotif("Fraude")
+                    .priorite((short) 9).scoreImpact((short) 0).actif(true).build();
+
+            when(ruleRepository.findByActifTrueOrderByPrioriteDesc()).thenReturn(List.of(rule));
+            when(ruleEvaluator.evaluate(any(), any())).thenReturn(true);
+
+            EvaluateRequest request = EvaluateRequest.builder()
+                    .transcriptionText("fausse déclaration et kilométrage falsifié")
+                    .build();
+
+            EvaluateResponse response = ruleService.evaluate(request);
+
+            assertThat(response.getDecision()).isEqualTo("DEFAVORABLE");
+            assertThat(response.getScore()).isLessThanOrEqualTo(35.0); // malus fraude
+        }
+    }
+
+    @Nested
+    @DisplayName("validateConditionsStructure")
+    class ValidateConditions {
+
+        @Test
+        @DisplayName("conditions null → IllegalArgumentException")
+        void nullConditions_throws() {
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(null).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("nulles");
+        }
+
+        @Test
+        @DisplayName("conditions sans 'conditions' list → IllegalArgumentException")
+        void missingConditionsList_throws() {
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R")
+                    .conditions(Map.of("operator", "AND"))
+                    .action("FAVORABLE")
+                    .build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("obligatoire");
+        }
+
+        @Test
+        @DisplayName("conditions list vide → IllegalArgumentException")
+        void emptyConditionsList_throws() {
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R")
+                    .conditions(Map.of("operator", "AND", "conditions", List.of()))
+                    .action("FAVORABLE")
+                    .build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("vide");
+        }
+
+        @Test
+        @DisplayName("Opérateur IN avec valeur non-list → IllegalArgumentException")
+        void inOperatorWithNonList_throws() {
+            Map<String, Object> cond = new HashMap<>();
+            cond.put("field", "categorie");
+            cond.put("operator", "IN");
+            cond.put("value", "VIP"); // devrait être une liste
+            Map<String, Object> conditions = Map.of("operator", "AND", "conditions", List.of(cond));
+
+            CreateRuleRequest request = CreateRuleRequest.builder()
+                    .nom("R").conditions(conditions).action("FAVORABLE").build();
+
+            assertThatThrownBy(() -> ruleService.createRule(request, UUID.randomUUID(), "u"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("liste");
+        }
+    }
 }

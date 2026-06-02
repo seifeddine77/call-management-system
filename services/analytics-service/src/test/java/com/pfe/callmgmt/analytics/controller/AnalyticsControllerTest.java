@@ -1,5 +1,6 @@
 package com.pfe.callmgmt.analytics.controller;
 
+import com.pfe.callmgmt.analytics.dto.KpiComparison;
 import com.pfe.callmgmt.analytics.dto.HourlyData;
 import com.pfe.callmgmt.analytics.dto.KpiResponse;
 import com.pfe.callmgmt.analytics.entity.DailyStat;
@@ -98,5 +99,106 @@ class AnalyticsControllerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isEqualTo("OK");
+    }
+
+    @Test
+    @DisplayName("GET /kpis/comparison — retourne la comparaison période-sur-période")
+    void getComparison_returnsKpiComparison() {
+        KpiResponse current  = KpiResponse.builder().totalTickets(100).period(PERIOD_7D).build();
+        KpiResponse previous = KpiResponse.builder().totalTickets(80).period(PERIOD_7D).build();
+        KpiComparison comparison = KpiComparison.builder()
+                .current(current).previous(previous)
+                .deltaTickets(25.0).deltaResolution(0.0)
+                .deltaTempsMoyen(0.0).deltaDecisions(0.0)
+                .deltaFavorable(0.0).build();
+
+        when(analyticsService.getComparison(PERIOD_7D)).thenReturn(comparison);
+
+        ResponseEntity<KpiComparison> response = controller.getComparison(PERIOD_7D);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getDeltaTickets()).isEqualTo(25.0);
+        assertThat(response.getBody().getCurrent().getTotalTickets()).isEqualTo(100);
+        verify(analyticsService).getComparison(PERIOD_7D);
+    }
+
+    @Test
+    @DisplayName("GET /export/csv — retourne CSV avec en-têtes pour données présentes")
+    void exportCsv_withData_returnsCsvBytes() {
+        LocalDate today = LocalDate.now();
+        DailyStat stat = DailyStat.builder()
+                .date(today)
+                .totalTickets(10)
+                .ticketsNouveau(3)
+                .ticketsEnCours(4)
+                .ticketsResolus(2)
+                .ticketsFerme(1)
+                .ticketsCall(5)
+                .ticketsEmail(3)
+                .ticketsWeb(2)
+                .decisionsFavorable(4)
+                .decisionsDefavorable(2)
+                .decisionsEtude(1)
+                .tempsMoyenMinutes(java.math.BigDecimal.valueOf(15.5))
+                .build();
+
+        KpiResponse kpi = KpiResponse.builder()
+                .totalTickets(10).ticketsResolu(2)
+                .tauxResolution(20.0).tempsMoyenMinutes(15.5)
+                .period("30d").build();
+
+        when(analyticsService.getDailyStats("30d")).thenReturn(List.of(stat));
+        when(analyticsService.getKpis("30d")).thenReturn(kpi);
+
+        ResponseEntity<byte[]> response = controller.exportCsv("30d");
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getHeaders().getFirst("Content-Disposition"))
+                .contains("autoassist_analytics_30d.csv");
+        String csv = new String(response.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(csv).contains("AutoAssist");
+        assertThat(csv).contains(today.toString());
+        assertThat(csv).contains("15.5");
+    }
+
+    @Test
+    @DisplayName("GET /export/csv — tempsMoyenMinutes null est remplacé par chaîne vide")
+    void exportCsv_nullTempsMoyen_writesEmptyField() {
+        LocalDate today = LocalDate.now();
+        DailyStat stat = DailyStat.builder()
+                .date(today).totalTickets(5)
+                .ticketsNouveau(1).ticketsEnCours(1).ticketsResolus(1)
+                .ticketsFerme(0).ticketsCall(2).ticketsEmail(1).ticketsWeb(2)
+                .decisionsFavorable(1).decisionsDefavorable(0).decisionsEtude(0)
+                .tempsMoyenMinutes(null)
+                .build();
+
+        KpiResponse kpi = KpiResponse.builder().totalTickets(5).period("30d").build();
+        when(analyticsService.getDailyStats("30d")).thenReturn(List.of(stat));
+        when(analyticsService.getKpis("30d")).thenReturn(kpi);
+
+        ResponseEntity<byte[]> response = controller.exportCsv("30d");
+        String csv = new String(response.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+
+        // La dernière valeur de la ligne (tempsMoyenMinutes) doit être vide
+        assertThat(csv).contains(today.toString());
+        // Vérifie que la ligne se termine par une virgule suivie d'un saut de ligne (valeur vide)
+        assertThat(csv).containsPattern(today.toString() + ".*,\n");
+    }
+
+    @Test
+    @DisplayName("GET /export/csv — liste vide retourne CSV avec uniquement les en-têtes")
+    void exportCsv_emptyStats_returnsHeadersOnly() {
+        KpiResponse kpi = KpiResponse.builder().totalTickets(0).period("30d").build();
+        when(analyticsService.getDailyStats("30d")).thenReturn(List.of());
+        when(analyticsService.getKpis("30d")).thenReturn(kpi);
+
+        ResponseEntity<byte[]> response = controller.exportCsv("30d");
+        String csv = new String(response.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThat(csv).contains("Date,Total Tickets");
+        // Seules les lignes d'en-tête sont présentes
+        assertThat(csv.lines().filter(l -> !l.isBlank() && !l.startsWith("#") && !l.startsWith("Date")).count()).isZero();
     }
 }

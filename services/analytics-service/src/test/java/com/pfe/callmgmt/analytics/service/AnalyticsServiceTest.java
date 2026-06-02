@@ -300,5 +300,240 @@ class AnalyticsServiceTest {
             verify(dailyStatRepository).save(captor.capture());
             assertThat(captor.getValue().getDecisionsDefavorable()).isEqualTo(9);
         }
+
+        @Test
+        @DisplayName("Incrémente ETUDE")
+        void incrementDecision_etude() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.incrementDecision("ETUDE");
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            assertThat(captor.getValue().getDecisionsEtude()).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("Décision nulle ignorée silencieusement")
+        void incrementDecision_null_ignored() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.incrementDecision(null);
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            // compteurs inchangés
+            assertThat(captor.getValue().getDecisionsFavorable()).isEqualTo(15);
+        }
+    }
+
+    @Nested
+    @DisplayName("incrementTicketCreated - canaux supplémentaires")
+    class IncrementTicketCreatedExtra {
+
+        @Test
+        @DisplayName("Canal EMAIL incrémente ticketsEmail")
+        void incrementTicketCreated_email() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.incrementTicketCreated("EMAIL");
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            assertThat(captor.getValue().getTicketsEmail()).isEqualTo(16);
+        }
+
+        @Test
+        @DisplayName("Canal WEB incrémente ticketsWeb")
+        void incrementTicketCreated_web() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.incrementTicketCreated("WEB");
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            assertThat(captor.getValue().getTicketsWeb()).isEqualTo(16);
+        }
+
+        @Test
+        @DisplayName("Canal inconnu ignoré silencieusement")
+        void incrementTicketCreated_unknownCanal_ignored() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.incrementTicketCreated("AUTRE");
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            // total incrémenté mais aucun canal spécifique
+            assertThat(captor.getValue().getTotalTickets()).isEqualTo(51);
+            assertThat(captor.getValue().getTicketsCall()).isEqualTo(20);
+            assertThat(captor.getValue().getTicketsEmail()).isEqualTo(15);
+            assertThat(captor.getValue().getTicketsWeb()).isEqualTo(15);
+        }
+    }
+
+    @Nested
+    @DisplayName("onTicketStatusChanged - cas supplémentaires")
+    class OnTicketStatusChangedExtra {
+
+        @Test
+        @DisplayName("Transition avec ancien statut null ne lance pas d'exception")
+        void statusChanged_nullOldStatut_noException() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            assertThatNoException().isThrownBy(
+                () -> analyticsService.onTicketStatusChanged(null, STATUT_EN_COURS)
+            );
+        }
+
+        @Test
+        @DisplayName("Transition vers statut inconnu ignorée silencieusement")
+        void statusChanged_unknownNewStatut_ignored() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            assertThatNoException().isThrownBy(
+                () -> analyticsService.onTicketStatusChanged(STATUT_NOUVEAU, "INCONNU")
+            );
+        }
+
+        @Test
+        @DisplayName("Transition RESOLU ne modifie pas le compteur (append-only)")
+        void statusChanged_resolvedStatut_noCounterChange() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            analyticsService.onTicketStatusChanged("EN_COURS", "RESOLU");
+
+            ArgumentCaptor<DailyStat> captor = ArgumentCaptor.forClass(DailyStat.class);
+            verify(dailyStatRepository).save(captor.capture());
+            // EN_COURS décrémenté, RESOLU non incrémenté (append-only via incrementTicketResolved)
+            assertThat(captor.getValue().getTicketsEnCours()).isEqualTo(11);
+            assertThat(captor.getValue().getTicketsResolus()).isEqualTo(30); // inchangé
+        }
+    }
+
+    @Nested
+    @DisplayName("getComparison")
+    class GetComparison {
+
+        @Test
+        @DisplayName("Comparaison 7d retourne les deltas corrects")
+        void getComparison_7d_returnsDeltas() {
+            DailyStat current = DailyStat.builder()
+                    .date(LocalDate.now())
+                    .totalTickets(100).ticketsResolus(80)
+                    .decisionsFavorable(40).decisionsDefavorable(20).decisionsEtude(10)
+                    .tempsMoyenMinutes(BigDecimal.valueOf(10.0))
+                    .totalResolutionMinutes(BigDecimal.valueOf(800.0))
+                    .resolvedCountToday(80)
+                    .build();
+
+            DailyStat previous = DailyStat.builder()
+                    .date(LocalDate.now().minusDays(8))
+                    .totalTickets(80).ticketsResolus(60)
+                    .decisionsFavorable(30).decisionsDefavorable(15).decisionsEtude(8)
+                    .tempsMoyenMinutes(BigDecimal.valueOf(12.0))
+                    .totalResolutionMinutes(BigDecimal.valueOf(720.0))
+                    .resolvedCountToday(60)
+                    .build();
+
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of(current))
+                    .thenReturn(List.of(previous));
+
+            var comparison = analyticsService.getComparison("7d");
+
+            assertThat(comparison.getCurrent().getTotalTickets()).isEqualTo(100);
+            assertThat(comparison.getPrevious().getTotalTickets()).isEqualTo(80);
+            assertThat(comparison.getDeltaTickets()).isGreaterThan(0); // 100 vs 80 = +25%
+        }
+    }
+
+    @Nested
+    @DisplayName("getDailyStats - périodes")
+    class GetDailyStats {
+
+        @Test
+        @DisplayName("Période 'today' retourne les stats du jour")
+        void getDailyStats_today() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of(todayStat));
+
+            List<DailyStat> result = analyticsService.getDailyStats("today");
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Période 'month' retourne les stats du mois")
+        void getDailyStats_month() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of(todayStat));
+
+            List<DailyStat> result = analyticsService.getDailyStats("month");
+            assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Période 'week' est synonyme de 7d")
+        void getDailyStats_week() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of());
+
+            List<DailyStat> result = analyticsService.getDailyStats("week");
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Période '90d' est synonyme de year")
+        void getDailyStats_90d() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of(todayStat));
+
+            List<DailyStat> result = analyticsService.getDailyStats("90d");
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Période 'year' utilise 90 jours")
+        void getDailyStats_year() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of(todayStat));
+
+            List<DailyStat> result = analyticsService.getDailyStats("year");
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Période inconnue utilise 7 jours par défaut")
+        void getDailyStats_unknownPeriod_defaults7d() {
+            when(dailyStatRepository.findByDateBetweenOrderByDateDesc(any(), any()))
+                    .thenReturn(List.of());
+
+            List<DailyStat> result = analyticsService.getDailyStats("invalid");
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("nightlyAggregation")
+    class NightlyAggregation {
+
+        @Test
+        @DisplayName("nightlyAggregation crée ou récupère la stat du jour")
+        void nightlyAggregation_createsTodayStat() {
+            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.empty());
+            when(dailyStatRepository.save(any())).thenReturn(todayStat);
+
+            analyticsService.nightlyAggregation();
+
+            verify(dailyStatRepository).save(any());
+        }
     }
 }
