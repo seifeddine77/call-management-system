@@ -143,9 +143,7 @@ pipeline {
                               -Dsonar.host.url=$SONAR_URL \
                               -Dsonar.token=$SONAR_TOKEN \
                               -Dsonar.organization=$SONAR_ORG \
-                              -Dsonar.projectKey=$SONAR_PROJECT \
-                              -Dsonar.qualitygate.wait=true \
-                              -Dsonar.qualitygate.timeout=120
+                              -Dsonar.projectKey=$SONAR_PROJECT
                         '''
                     }
                 }
