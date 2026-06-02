@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { safeRandom } from '../utils/cryptoRandom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from '../components/ui/Logo';
@@ -37,14 +38,14 @@ function useParallax() {
 
 const STATIC_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
   id: `p-${i}`,
-  w: 2 + Math.random() * 3,
-  h: 2 + Math.random() * 3,
-  left: Math.random() * 100,
-  top: Math.random() * 100,
-  bgRand1: 0.15 + Math.random() * 0.2,
-  bgRand2: 0.1 + Math.random() * 0.15,
-  animDur: 8 + Math.random() * 12,
-  animDelay: Math.random() * -20,
+  w: 2 + safeRandom() * 3,
+  h: 2 + safeRandom() * 3,
+  left: safeRandom() * 100,
+  top: safeRandom() * 100,
+  bgRand1: 0.15 + safeRandom() * 0.2,
+  bgRand2: 0.1 + safeRandom() * 0.15,
+  animDur: 8 + safeRandom() * 12,
+  animDelay: safeRandom() * -20,
 }));
 
 /* ── Animated Background ── */

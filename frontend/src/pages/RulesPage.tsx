@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { safeRandom } from '../utils/cryptoRandom';
 import { AlertTriangle, GripVertical, Pencil, Plus, Settings, Wrench, Users, Zap, ClipboardList, Ruler, FlaskConical, ScrollText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ruleService, type RefItem } from '../services/ruleService';
@@ -226,7 +227,7 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
   };
 
   const handleAdd = () => {
-    onChange({ ...conditions, conditions: [...conditions.conditions, { field: '', operator: '=', value: '', _id: `cond-new-${Math.random().toString(36).substring(2, 9)}` }] });
+    onChange({ ...conditions, conditions: [...conditions.conditions, { field: '', operator: '=', value: '', _id: `cond-new-${safeRandom().toString(36).substring(2, 9)}` }] });
   };
 
   return (

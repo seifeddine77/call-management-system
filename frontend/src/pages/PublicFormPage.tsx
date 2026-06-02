@@ -37,9 +37,12 @@ function validateTel(tel: string, touched: boolean): string {
   return '';
 }
 
+// Safe email regex: specific character classes with bounded quantifiers — avoids ReDoS
+const SAFE_EMAIL_RE = /^[a-zA-Z0-9._%+\-]{1,64}@[a-zA-Z0-9.\-]{1,253}\.[a-zA-Z]{2,}$/;
+
 function validateEmail(email: string, touched: boolean): string {
   if (!touched) return '';
-  if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (email.trim() && !SAFE_EMAIL_RE.test(email.trim())) {
     return 'Veuillez saisir une adresse e-mail valide.';
   }
   return '';
@@ -64,7 +67,7 @@ function validateStep0(
   if (form.telephone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(form.telephone.trim().replace(/\s/g, ''))) {
     return 'Le format du numéro de téléphone est incorrect.';
   }
-  if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+  if (form.email.trim() && !SAFE_EMAIL_RE.test(form.email.trim())) {
     return "L'adresse e-mail n'est pas valide.";
   }
   return null;

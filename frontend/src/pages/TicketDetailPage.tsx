@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from 'react';
+import { safeRandom } from '../utils/cryptoRandom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Play, Pause, User, Phone, Mail, Award, Clock, Sparkles, Brain,
@@ -478,7 +479,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
           if (!cancelled) setWaveformData(normalized);
           audioContext.close();
         } catch {
-          const fallback = Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70));
+          const fallback = Array.from({ length: 48 }, () => Math.round(15 + safeRandom() * 70));
           if (!cancelled) setWaveformData(fallback);
         }
 
@@ -487,7 +488,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erreur de chargement');
           setIsLoading(false);
-          setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + Math.random() * 70)));
+          setWaveformData(Array.from({ length: 48 }, () => Math.round(15 + safeRandom() * 70)));
         }
       }
     };
