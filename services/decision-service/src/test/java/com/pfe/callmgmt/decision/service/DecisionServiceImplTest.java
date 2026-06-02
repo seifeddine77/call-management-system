@@ -355,4 +355,145 @@ class DecisionServiceImplTest {
                 assertThatThrownBy(() -> decisionService.getByTicketId(ticketId))
                                 .isInstanceOf(NoSuchElementException.class);
         }
+
+        @Test
+        @DisplayName("finalizeDecision — finalDecision=ETUDE → IllegalArgumentException")
+        void finalizeDecision_invalidFinalDecision_throws() {
+                UUID decisionId = UUID.randomUUID();
+                Decision decision = Decision.builder()
+                                .id(decisionId).ticketId(UUID.randomUUID())
+                                .decision(ETUDE).score(BigDecimal.valueOf(45.0))
+                                .motif("Ambigu").source(SOURCE_RULES).build();
+                when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
+
+                OverrideRequest req = new OverrideRequest();
+                req.setFinalDecision(ETUDE); // invalide
+                req.setMotif("Ne peut pas être ETUDE");
+
+                assertThatThrownBy(() -> decisionService.acceptDecision(decisionId, req))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("FAVORABLE ou DEFAVORABLE");
+        }
+
+        @Test
+        @DisplayName("finalizeDecision — decision introuvable → NoSuchElementException")
+        void finalizeDecision_notFound_throws() {
+                UUID decisionId = UUID.randomUUID();
+                when(decisionRepository.findById(decisionId)).thenReturn(Optional.empty());
+
+                OverrideRequest req = new OverrideRequest();
+                req.setFinalDecision(FAVORABLE);
+
+                assertThatThrownBy(() -> decisionService.acceptDecision(decisionId, req))
+                                .isInstanceOf(NoSuchElementException.class);
+        }
+
+        @Test
+        @DisplayName("finalizeDecision — letterGeneration échoue → IllegalStateException")
+        void finalizeDecision_letterFails_throws() throws Exception {
+                UUID decisionId = UUID.randomUUID();
+                Decision decision = Decision.builder()
+                                .id(decisionId).ticketId(UUID.randomUUID())
+                                .decision(FAVORABLE).score(BigDecimal.valueOf(85.0))
+                                .motif("Test").source(SOURCE_RULES).build();
+                when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
+                when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+                doThrow(new RuntimeException("PDF generation failed"))
+                                .when(letterService).generateLetter(any());
+
+                OverrideRequest req = new OverrideRequest();
+                req.setFinalDecision(FAVORABLE);
+                req.setMotif("Test");
+                req.setOperateurId(UUID.randomUUID());
+
+                assertThatThrownBy(() -> decisionService.acceptDecision(decisionId, req))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("courrier PDF");
+        }
+
+        @Test
+        @DisplayName("deleteByTicketId — décision existante → suppression")
+        void deleteByTicketId_exists_deletes() {
+                UUID ticketId = UUID.randomUUID();
+                Decision decision = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(ticketId)
+                                .decision(FAVORABLE).source(SOURCE_RULES).build();
+                when(decisionRepository.findByTicketId(ticketId)).thenReturn(Optional.of(decision));
+
+                decisionService.deleteByTicketId(ticketId);
+
+                verify(decisionRepository).delete(decision);
+        }
+
+        @Test
+        @DisplayName("deleteByTicketId — aucune décision → ne fait rien")
+        void deleteByTicketId_notExists_noOp() {
+                UUID ticketId = UUID.randomUUID();
+                when(decisionRepository.findByTicketId(ticketId)).thenReturn(Optional.empty());
+
+                decisionService.deleteByTicketId(ticketId);
+
+                verify(decisionRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("findById — retourne l'Optional")
+        void findById_returnsOptional() {
+                UUID decisionId = UUID.randomUUID();
+                Decision decision = Decision.builder().id(decisionId).build();
+                when(decisionRepository.findById(decisionId)).thenReturn(Optional.of(decision));
+
+                Optional<Decision> result = decisionService.findById(decisionId);
+
+                assertThat(result).isPresent();
+                assertThat(result.get().getId()).isEqualTo(decisionId);
+        }
+
+        @Test
+        @DisplayName("analyze — rules ambigu, cache null → fallback ETUDE avec score null")
+        void analyze_rulesAmbiguous_nullScore_fallback() {
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                // Rules retourne null decision et null score
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(null).score(null).motif(null)
+                                .rulesApplied(null).ambiguous(true).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(ETUDE).score(BigDecimal.ZERO)
+                                .motif("Analyse manuelle requise — résultat ambigu")
+                                .source(SOURCE_RULES).rulesApplied(Collections.emptyList()).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(ETUDE);
+        }
+
+        @Test
+        @DisplayName("analyze — cache JSON corrompu → continue vers rules")
+        void analyze_corruptedCache_continuesEvaluation() {
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn("NOT_VALID_JSON{{{{");
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(FAVORABLE).score(80.0).motif("OK")
+                                .rulesApplied(List.of("R1")).ambiguous(false).matchedRules(1).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(FAVORABLE).score(BigDecimal.valueOf(80.0))
+                                .motif("OK").source(SOURCE_RULES).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(FAVORABLE);
+        }
 }
