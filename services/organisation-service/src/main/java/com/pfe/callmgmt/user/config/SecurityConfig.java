@@ -19,6 +19,17 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    /**
+     * Security filter chain for the Organisation microservice.
+     * <p>
+     * CSRF is disabled because this is a stateless REST API that uses JWT bearer tokens
+     * (no cookies or server-side sessions). CSRF protection is unnecessary.
+     * <p>
+     * All endpoints permit unauthenticated access because this service runs behind
+     * the API Gateway which handles JWT validation via {@code JwtAuthFilter}.
+     * Direct access is blocked at the Docker network level.
+     */
+    @SuppressWarnings("java:S4502") // CSRF disabled intentionally — stateless JWT API behind API Gateway
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -32,7 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         // All other endpoints require the Gateway to have set X-User headers
-                        .anyRequest().permitAll()); // Gateway handles JWT — organisation-service trusts headers
+                        .anyRequest().permitAll()); // Security enforced at Gateway level (JwtAuthFilter + RoleFilter)
 
         return http.build();
     }

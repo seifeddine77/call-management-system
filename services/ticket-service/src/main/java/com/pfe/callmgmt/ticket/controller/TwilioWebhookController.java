@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PreDestroy;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -48,6 +50,11 @@ public class TwilioWebhookController {
     private final ObjectMapper objectMapper;
     // SonarCloud C4 fix — ExecutorService instead of raw new Thread() (S2142)
     private final ExecutorService audioProcessingExecutor = Executors.newFixedThreadPool(4);
+
+    @PreDestroy
+    void shutdownExecutor() {
+        audioProcessingExecutor.shutdown();
+    }
 
     @Value("${email.listener.default-agence-id:}")
     private String defaultAgenceId;

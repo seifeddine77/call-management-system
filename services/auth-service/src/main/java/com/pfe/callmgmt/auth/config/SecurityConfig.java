@@ -19,6 +19,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    /**
+     * Security filter chain for the Auth microservice.
+     * <p>
+     * CSRF is disabled because this is a stateless REST API that authenticates
+     * via JWT bearer tokens (no cookies or server-side sessions). CSRF protection
+     * is unnecessary for token-based authentication.
+     */
+    @SuppressWarnings("java:S4502") // CSRF disabled intentionally — stateless JWT API
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http

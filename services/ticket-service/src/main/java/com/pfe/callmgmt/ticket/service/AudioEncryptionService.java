@@ -23,6 +23,7 @@ import java.util.Base64;
  */
 @Slf4j
 @Service
+@SuppressWarnings({"java:S5542", "java:S5547"}) // AES-256-GCM is the NIST-recommended authenticated encryption; key injected from env var
 public class AudioEncryptionService {
 
     private static final String ALGORITHM = "AES/GCM/NoPadding";

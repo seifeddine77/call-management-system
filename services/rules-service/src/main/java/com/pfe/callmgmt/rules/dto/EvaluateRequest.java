@@ -1,6 +1,9 @@
 package com.pfe.callmgmt.rules.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
@@ -17,6 +20,9 @@ import java.util.Map;
  * Le RuleEvaluator cherche d'abord dans "data", puis fallback sur les champs typés.
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class EvaluateRequest {
 
     private String typePiece; // MECANIQUE, ELECTRIQUE, CARROSSERIE, ELECTRONIQUE, PNEUMATIQUE, AUTRE

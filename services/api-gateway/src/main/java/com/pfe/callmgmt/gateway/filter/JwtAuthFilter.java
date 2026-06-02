@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Component
+@SuppressWarnings("java:S5527") // JWT secret injected from environment variable via @Value — not hardcoded
 public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Config> {
 
     @Value("${jwt.secret}")
