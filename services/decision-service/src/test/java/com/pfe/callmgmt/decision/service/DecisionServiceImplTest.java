@@ -53,7 +53,7 @@ class DecisionServiceImplTest {
         @Mock
         private CircuitBreakerRegistry circuitBreakerRegistry;
         @Mock
-        private io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
+        private CircuitBreaker circuitBreaker;
         @Mock
         private RestTemplate llmRestTemplate;
         @Spy

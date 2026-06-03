@@ -427,4 +427,281 @@ class EmailListenerServiceTest {
 
         assertThat(status).isEqualTo(-1);
     }
+
+    // ─────────────────────────────────────────────────────
+    // pollEmails — IMAP Mocking tests (success & errors)
+    // ─────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("pollEmails — connexion et traitement d'un email avec succès")
+    void pollEmails_success() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+        ReflectionTestUtils.setField(emailListenerService, "imapHost", "imap.gmail.com");
+        ReflectionTestUtils.setField(emailListenerService, "imapPort", 993);
+        ReflectionTestUtils.setField(emailListenerService, "folderName", "INBOX");
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+
+            Folder mockFolder = mock(Folder.class);
+            when(mockStore.getFolder("INBOX")).thenReturn(mockFolder);
+
+            Message mockMessage = mock(Message.class);
+            when(mockMessage.getSubject()).thenReturn("Test Sujet");
+            when(mockMessage.getContent()).thenReturn("Test Corps");
+            Address[] fromAddresses = {new InternetAddress("sender@test.com", "Sender Name")};
+            when(mockMessage.getFrom()).thenReturn(fromAddresses);
+
+            when(mockFolder.search(any())).thenReturn(new Message[]{mockMessage});
+
+            TicketResponse mockResponse = new TicketResponse();
+            mockResponse.setNumero("T-100");
+            when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-IMAP"))).thenReturn(mockResponse);
+
+            emailListenerService.pollEmails();
+
+            verify(mockStore).connect("imap.gmail.com", 993, "user@test.com", "secret");
+            verify(mockFolder).open(Folder.READ_WRITE);
+            verify(mockMessage).setFlag(Flags.Flag.SEEN, true);
+        }
+    }
+
+    @Test
+    @DisplayName("pollEmails — échec d'authentification IMAP")
+    void pollEmails_authFailed() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+            doThrow(new AuthenticationFailedException("Auth failed")).when(mockStore)
+                    .connect(anyString(), anyInt(), anyString(), anyString());
+
+            emailListenerService.pollEmails();
+
+            verifyNoInteractions(ticketService);
+        }
+    }
+
+    @Test
+    @DisplayName("pollEmails — exception générique lors de la connexion")
+    void pollEmails_genericException() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+            doThrow(new RuntimeException("Generic connection error")).when(mockStore)
+                    .connect(anyString(), anyInt(), anyString(), anyString());
+
+            emailListenerService.pollEmails();
+
+            verifyNoInteractions(ticketService);
+        }
+    }
+
+    @Test
+    @DisplayName("pollEmails — aucun nouveau message trouvé")
+    void pollEmails_noMessages() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+
+            Folder mockFolder = mock(Folder.class);
+            when(mockStore.getFolder(anyString())).thenReturn(mockFolder);
+            when(mockFolder.search(any())).thenReturn(new Message[0]);
+
+            emailListenerService.pollEmails();
+
+            verifyNoInteractions(ticketService);
+        }
+    }
+
+    @Test
+    @DisplayName("pollEmails — serviceStartTime déjà initialisé et skipOldEmails=true")
+    void pollEmails_serviceStartTimeAlreadySet() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", new Date());
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", true);
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+
+            Folder mockFolder = mock(Folder.class);
+            when(mockStore.getFolder(anyString())).thenReturn(mockFolder);
+            when(mockFolder.search(any())).thenReturn(new Message[0]);
+
+            emailListenerService.pollEmails();
+
+            verify(mockFolder).search(any(jakarta.mail.search.AndTerm.class));
+        }
+    }
+
+    @Test
+    @DisplayName("pollEmails — skipOldEmails=false")
+    void pollEmails_skipOldEmailsFalse() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "enabled", true);
+        ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
+        ReflectionTestUtils.setField(emailListenerService, "password", "secret");
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", false);
+
+        try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            sessionMock.when(() -> Session.getInstance(any(java.util.Properties.class))).thenReturn(mockSession);
+
+            Store mockStore = mock(Store.class);
+            when(mockSession.getStore("imaps")).thenReturn(mockStore);
+
+            Folder mockFolder = mock(Folder.class);
+            when(mockStore.getFolder(anyString())).thenReturn(mockFolder);
+            when(mockFolder.search(any())).thenReturn(new Message[0]);
+
+            emailListenerService.pollEmails();
+
+            verify(mockFolder).search(any(jakarta.mail.search.FlagTerm.class));
+        }
+    }
+
+    @Test
+    @DisplayName("extractEmailAddress — custom Address type → retourne sa représentation String")
+    void extractEmailAddress_customAddressType_returnsStringRepresentation() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("extractEmailAddress", Address[].class);
+        m.setAccessible(true);
+
+        Address mockAddr = mock(Address.class);
+        when(mockAddr.toString()).thenReturn("custom-address-string");
+        Address[] addresses = {mockAddr};
+        String result = (String) m.invoke(emailListenerService, new Object[]{addresses});
+
+        assertThat(result).isEqualTo("custom-address-string");
+    }
+
+    @Test
+    @DisplayName("extractSenderName — custom Address type → retourne null")
+    void extractSenderName_customAddressType_returnsNull() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("extractSenderName", Address[].class);
+        m.setAccessible(true);
+
+        Address mockAddr = mock(Address.class);
+        Address[] addresses = {mockAddr};
+        String result = (String) m.invoke(emailListenerService, new Object[]{addresses});
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("extractSenderName — tableau vide → retourne null")
+    void extractSenderName_emptyArray_returnsNull() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("extractSenderName", Address[].class);
+        m.setAccessible(true);
+
+        Address[] addresses = {};
+        String result = (String) m.invoke(emailListenerService, new Object[]{addresses});
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("extractTextContent — multipart avec text/plain → extrait le texte brut")
+    void extractTextContent_multipartWithPlainText_extractsSuccessfully() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("extractTextContent", Message.class);
+        m.setAccessible(true);
+
+        Message msg = mock(Message.class);
+        MimeMultipart multipart = mock(MimeMultipart.class);
+        when(multipart.getCount()).thenReturn(1);
+        BodyPart part = mock(BodyPart.class);
+        when(part.isMimeType("text/plain")).thenReturn(true);
+        when(part.getContent()).thenReturn("Texte brut de test");
+        when(multipart.getBodyPart(0)).thenReturn(part);
+
+        when(msg.getContent()).thenReturn(multipart);
+
+        String result = (String) m.invoke(emailListenerService, msg);
+        assertThat(result).isEqualTo("Texte brut de test");
+    }
+
+    @Test
+    @DisplayName("extractTextContent — multipart avec text/plain et text/html → combine text/plain et ignore text/html")
+    void extractTextContent_multipartMultipleParts_combinesSuccessfully() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("extractTextContent", Message.class);
+        m.setAccessible(true);
+
+        Message msg = mock(Message.class);
+        MimeMultipart multipart = mock(MimeMultipart.class);
+        when(multipart.getCount()).thenReturn(2);
+
+        BodyPart part1 = mock(BodyPart.class);
+        when(part1.isMimeType("text/plain")).thenReturn(true);
+        when(part1.getContent()).thenReturn("Partie texte brut. ");
+        when(multipart.getBodyPart(0)).thenReturn(part1);
+
+        BodyPart part2 = mock(BodyPart.class);
+        when(part2.isMimeType("text/plain")).thenReturn(false);
+        when(part2.isMimeType("text/html")).thenReturn(true);
+        when(multipart.getBodyPart(1)).thenReturn(part2);
+
+        when(msg.getContent()).thenReturn(multipart);
+
+        String result = (String) m.invoke(emailListenerService, msg);
+        assertThat(result).isEqualTo("Partie texte brut. ");
+    }
+
+    @Test
+    @DisplayName("matchesKeywords — sujet ou corps null avec mots-clés configurés → retourne false sans lever d'exception")
+    void matchesKeywords_subjectOrBodyNull_noMatch() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "filterKeywords", List.of("panne"));
+        Method m = EmailListenerService.class.getDeclaredMethod("matchesKeywords", String.class, String.class);
+        m.setAccessible(true);
+
+        boolean result1 = (boolean) m.invoke(emailListenerService, null, "Bonjour");
+        boolean result2 = (boolean) m.invoke(emailListenerService, "Demande", null);
+        boolean result3 = (boolean) m.invoke(emailListenerService, null, null);
+
+        assertThat(result1).isFalse();
+        assertThat(result2).isFalse();
+        assertThat(result3).isFalse();
+    }
+
+    @Test
+    @DisplayName("detectPriority — détection de priorité sur différents mots clés")
+    void detectPriority_variousKeywords() throws Exception {
+        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
+        m.setAccessible(true);
+
+        short p1 = (short) m.invoke(emailListenerService, "Problème", "panne d'alternateur");
+        short p2 = (short) m.invoke(emailListenerService, "Demande", "traiter rapidement s'il vous plaît");
+
+        assertThat(p1).isEqualTo((short) 1);
+        assertThat(p2).isEqualTo((short) 2);
+    }
 }
