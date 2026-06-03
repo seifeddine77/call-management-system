@@ -164,6 +164,65 @@ class AuthServiceImplTest {
                                         .isInstanceOf(UnauthorizedException.class)
                                         .hasMessageContaining("désactivé");
                 }
+
+                @Test
+                @DisplayName("Login avec FeignException lève ServiceUnavailableException")
+                void login_feignException_throwsServiceUnavailable() {
+                        // Given
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, PASSWORD_RAW);
+                        Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
+                                        new RequestTemplate());
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
+                                        .thenThrow(new FeignException.InternalServerError("Internal Server Error", feignRequest, null, null));
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.login(request))
+                                        .isInstanceOf(com.pfe.callmgmt.common.exception.ServiceUnavailableException.class)
+                                        .hasMessage("Service utilisateur indisponible");
+                }
+
+                @Test
+                @DisplayName("Login avec utilisateur null lève UnauthorizedException")
+                void login_userNull_throwsUnauthorized() {
+                        // Given
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, PASSWORD_RAW);
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
+                                        .thenReturn(ResponseEntity.ok(null));
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.login(request))
+                                        .isInstanceOf(UnauthorizedException.class)
+                                        .hasMessage("Email ou mot de passe incorrect");
+                }
+
+                @Test
+                @DisplayName("Login continue même si la mise à jour de lastLogin échoue")
+                void login_updateLastLoginFails_logsWarning() {
+                        // Given
+                        LoginRequest request = new LoginRequest(OPERATOR_EMAIL, PASSWORD_RAW);
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
+                                        .thenReturn(ResponseEntity.ok(testUser));
+                        when(passwordEncoder.matches(PASSWORD_RAW, PASSWORD_HASH))
+                                        .thenReturn(true);
+                        doThrow(new RuntimeException("DB error"))
+                                        .when(userServiceClient).updateLastLogin(testUser.getId());
+                        when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any()))
+                                        .thenReturn(ACCESS_TOKEN);
+                        when(jwtUtils.generateRefreshToken(any(), anyString(), anyString(), any()))
+                                        .thenReturn(REFRESH_TOKEN);
+                        when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
+                        when(jwtUtils.getRefreshExpirationMs()).thenReturn(604800000L);
+                        when(refreshTokenRepository.save(any(RefreshToken.class)))
+                                        .thenAnswer(inv -> inv.getArgument(0));
+
+                        // When
+                        AuthResponse response = authService.login(request);
+
+                        // Then
+                        assertThat(response).isNotNull();
+                        assertThat(response.getAccessToken()).isEqualTo(ACCESS_TOKEN);
+                        verify(userServiceClient).updateLastLogin(testUser.getId());
+                }
         }
 
         // ─────────────────────────────────────────────────────
@@ -230,6 +289,74 @@ class AuthServiceImplTest {
                         assertThatThrownBy(() -> authService.register(request))
                                         .isInstanceOf(ConflictException.class)
                                         .hasMessage("Un utilisateur avec cet email existe déjà");
+                }
+
+                @Test
+                @DisplayName("Inscription avec FeignException sur la recherche email lève ServiceUnavailableException")
+                void register_feignExceptionOnEmailCheck_throwsServiceUnavailable() {
+                        // Given
+                        RegisterRequest request = new RegisterRequest();
+                        request.setEmail(NEW_USER_EMAIL);
+                        request.setPassword(PASSWORD_RAW);
+                        request.setNom("Nouveau User");
+                        request.setRole(ROLE_OPERATOR);
+
+                        Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
+                                        new RequestTemplate());
+                        when(userServiceClient.findByEmail(NEW_USER_EMAIL))
+                                        .thenThrow(new FeignException.InternalServerError("Internal Error", feignRequest, null, null));
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.register(request))
+                                        .isInstanceOf(com.pfe.callmgmt.common.exception.ServiceUnavailableException.class)
+                                        .hasMessage("Service utilisateur indisponible");
+                }
+
+                @Test
+                @DisplayName("Inscription avec FeignException lors de la création de l'utilisateur lève ServiceUnavailableException")
+                void register_feignExceptionOnCreate_throwsServiceUnavailable() {
+                        // Given
+                        RegisterRequest request = new RegisterRequest();
+                        request.setEmail(NEW_USER_EMAIL);
+                        request.setPassword(PASSWORD_RAW);
+                        request.setNom("Nouveau User");
+                        request.setRole(ROLE_OPERATOR);
+
+                        Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
+                                        new RequestTemplate());
+                        when(userServiceClient.findByEmail(NEW_USER_EMAIL))
+                                        .thenThrow(new FeignException.NotFound("Not Found", feignRequest, null, null));
+                        when(passwordEncoder.encode(PASSWORD_RAW)).thenReturn("$2a$12$encodedPassword");
+                        when(userServiceClient.createUser(any()))
+                                        .thenThrow(new FeignException.InternalServerError("Internal Error", feignRequest, null, null));
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.register(request))
+                                        .isInstanceOf(com.pfe.callmgmt.common.exception.ServiceUnavailableException.class)
+                                        .hasMessage("Impossible de créer l'utilisateur");
+                }
+
+                @Test
+                @DisplayName("Inscription avec réponse de création d'utilisateur null lève ServiceUnavailableException")
+                void register_createdUserNull_throwsServiceUnavailable() {
+                        // Given
+                        RegisterRequest request = new RegisterRequest();
+                        request.setEmail(NEW_USER_EMAIL);
+                        request.setPassword(PASSWORD_RAW);
+                        request.setNom("Nouveau User");
+                        request.setRole(ROLE_OPERATOR);
+
+                        Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
+                                        new RequestTemplate());
+                        when(userServiceClient.findByEmail(NEW_USER_EMAIL))
+                                        .thenThrow(new FeignException.NotFound("Not Found", feignRequest, null, null));
+                        when(passwordEncoder.encode(PASSWORD_RAW)).thenReturn("$2a$12$encodedPassword");
+                        when(userServiceClient.createUser(any())).thenReturn(ResponseEntity.ok(null));
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.register(request))
+                                        .isInstanceOf(com.pfe.callmgmt.common.exception.ServiceUnavailableException.class)
+                                        .hasMessage("Impossible de créer l'utilisateur");
                 }
         }
 
@@ -342,6 +469,130 @@ class AuthServiceImplTest {
                         assertThatThrownBy(() -> authService.refreshToken(expiredToken))
                                         .isInstanceOf(UnauthorizedException.class)
                                         .hasMessage("Refresh token expiré");
+                }
+
+                @Test
+                @DisplayName("Refresh token non trouvé en base lève UnauthorizedException")
+                @SuppressWarnings("unchecked")
+                void refreshToken_tokenNotFound_throwsUnauthorized() {
+                        // Given
+                        String tokenStr = "not-found-token";
+                        Jws<Claims> mockClaims = mock(Jws.class);
+                        when(jwtUtils.validateRefreshToken(tokenStr)).thenReturn(mockClaims);
+                        when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.empty());
+
+                        // When/Then
+                        assertThatThrownBy(() -> authService.refreshToken(tokenStr))
+                                        .isInstanceOf(UnauthorizedException.class)
+                                        .hasMessage("Refresh token non trouvé");
+                }
+
+                @Test
+                @DisplayName("Refresh token utilise les infos du token si le client Feign lève une exception")
+                @SuppressWarnings("unchecked")
+                void refreshToken_userServiceClientThrowsFeignException_fallsbackToTokenInfo() {
+                        // Given
+                        String tokenStr = "valid-token";
+                        Jws<Claims> mockClaims = mock(Jws.class);
+                        when(jwtUtils.validateRefreshToken(tokenStr)).thenReturn(mockClaims);
+                        when(jwtUtils.extractUserId(mockClaims)).thenReturn(testUserId);
+                        when(jwtUtils.extractEmail(mockClaims)).thenReturn(OPERATOR_EMAIL);
+                        when(jwtUtils.extractRole(mockClaims)).thenReturn(ROLE_OPERATOR);
+
+                        RefreshToken storedToken = RefreshToken.builder()
+                                        .userId(testUserId)
+                                        .token(tokenStr)
+                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .revoked(false)
+                                        .build();
+                        when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));
+
+                        Request feignRequest = Request.create(Request.HttpMethod.GET, "/", Collections.emptyMap(), null,
+                                        new RequestTemplate());
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL))
+                                        .thenThrow(new FeignException.InternalServerError("Internal Server Error", feignRequest, null, null));
+
+                        when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any())).thenReturn("new-access");
+                        when(jwtUtils.generateRefreshToken(any(), anyString(), anyString(), any())).thenReturn("new-refresh");
+                        when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
+                        when(jwtUtils.getRefreshExpirationMs()).thenReturn(604800000L);
+
+                        // When
+                        AuthResponse response = authService.refreshToken(tokenStr);
+
+                        // Then
+                        assertThat(response).isNotNull();
+                        assertThat(response.getAccessToken()).isEqualTo("new-access");
+                        verify(refreshTokenRepository, times(2)).save(any());
+                }
+
+                @Test
+                @DisplayName("Refresh token utilise les infos du token si le client Feign retourne un body null")
+                @SuppressWarnings("unchecked")
+                void refreshToken_userServiceClientReturnsNullBody_fallsbackToTokenInfo() {
+                        // Given
+                        String tokenStr = "valid-token";
+                        Jws<Claims> mockClaims = mock(Jws.class);
+                        when(jwtUtils.validateRefreshToken(tokenStr)).thenReturn(mockClaims);
+                        when(jwtUtils.extractUserId(mockClaims)).thenReturn(testUserId);
+                        when(jwtUtils.extractEmail(mockClaims)).thenReturn(OPERATOR_EMAIL);
+                        when(jwtUtils.extractRole(mockClaims)).thenReturn(ROLE_OPERATOR);
+
+                        RefreshToken storedToken = RefreshToken.builder()
+                                        .userId(testUserId)
+                                        .token(tokenStr)
+                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .revoked(false)
+                                        .build();
+                        when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));
+                        when(userServiceClient.findByEmail(OPERATOR_EMAIL)).thenReturn(ResponseEntity.ok(null));
+
+                        when(jwtUtils.generateAccessToken(any(), anyString(), anyString(), any())).thenReturn("new-access");
+                        when(jwtUtils.generateRefreshToken(any(), anyString(), anyString(), any())).thenReturn("new-refresh");
+                        when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
+                        when(jwtUtils.getRefreshExpirationMs()).thenReturn(604800000L);
+
+                        // When
+                        AuthResponse response = authService.refreshToken(tokenStr);
+
+                        // Then
+                        assertThat(response).isNotNull();
+                        assertThat(response.getAccessToken()).isEqualTo("new-access");
+                }
+
+                @Test
+                @DisplayName("Refresh token cherche par ID si l'email dans le token est absent ou null")
+                @SuppressWarnings("unchecked")
+                void refreshToken_userServiceClientReturnsNullEmailInClaims_fallsbackToId() {
+                        // Given
+                        String tokenStr = "valid-token";
+                        Jws<Claims> mockClaims = mock(Jws.class);
+                        when(jwtUtils.validateRefreshToken(tokenStr)).thenReturn(mockClaims);
+                        when(jwtUtils.extractUserId(mockClaims)).thenReturn(testUserId);
+                        when(jwtUtils.extractEmail(mockClaims)).thenReturn(null); // NULL email
+
+                        RefreshToken storedToken = RefreshToken.builder()
+                                        .userId(testUserId)
+                                        .token(tokenStr)
+                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .revoked(false)
+                                        .build();
+                        when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));
+                        
+                        // ServiceClient will be called with the stringified userId as fallback
+                        when(userServiceClient.findByEmail(testUserId.toString())).thenReturn(ResponseEntity.ok(testUser));
+
+                        when(jwtUtils.generateAccessToken(any(), any(), anyString(), any())).thenReturn("new-access");
+                        when(jwtUtils.generateRefreshToken(any(), any(), anyString(), any())).thenReturn("new-refresh");
+                        when(jwtUtils.getAccessExpirationMs()).thenReturn(900000L);
+                        when(jwtUtils.getRefreshExpirationMs()).thenReturn(604800000L);
+
+                        // When
+                        AuthResponse response = authService.refreshToken(tokenStr);
+
+                        // Then
+                        assertThat(response).isNotNull();
+                        verify(userServiceClient).findByEmail(testUserId.toString());
                 }
         }
 

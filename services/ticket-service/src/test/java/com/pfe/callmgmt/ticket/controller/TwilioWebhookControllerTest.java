@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -220,5 +222,86 @@ class TwilioWebhookControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         // aiServiceClient ne devrait jamais être appelé directement (async)
         verifyNoInteractions(aiServiceClient);
+    }
+
+    @Test
+    @DisplayName("processRecording asynchrone réussit complet avec chiffrement")
+    void processRecording_async_success() throws Exception {
+        String callSid = "CA_ASYNC_001";
+        UUID ticketId = UUID.randomUUID();
+        TicketResponse mockTicket = new TicketResponse();
+        mockTicket.setId(ticketId);
+        mockTicket.setNumero(TICKET_NUMERO);
+        when(ticketService.createTicket(any(), eq(null), eq(SYSTEM_TWILIO))).thenReturn(mockTicket);
+        when(twilioService.generateVoiceResponse(any())).thenReturn("<Response/>");
+        
+        // 1. Appel voix pour mapper le CallSid
+        controller.handleIncomingCall(callSid, "+33600000002", null, "Test", null, null);
+
+        // Stub twilioService download
+        byte[] audioBytes = new byte[]{1, 2, 3};
+        when(twilioService.downloadRecording("https://recording-url")).thenReturn(audioBytes);
+
+        // Stub audioEncryptionService
+        when(audioEncryptionService.isEnabled()).thenReturn(true);
+        when(audioEncryptionService.encrypt(audioBytes)).thenReturn(new byte[]{4, 5, 6});
+
+        // Stub aiServiceClient
+        when(aiServiceClient.transcribeAudio(any(), eq(ticketId.toString())))
+                .thenReturn(Map.of("text", "Hello Twilio", "file_path", "transcription.wav"));
+        when(aiServiceClient.analyzeText(any()))
+                .thenReturn(Map.of("type_sinistre", "PANNE", "sentiment", "POSITIF"));
+
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"type_sinistre\":\"PANNE\"}");
+        when(twilioService.generateRecordingCompleteResponse()).thenReturn("<Response/>");
+
+        // 2. Appel du webhook recording complet
+        controller.handleRecordingComplete(callSid, "https://recording-url", "RE123", "10");
+
+        // Attendre que la tâche asynchrone se termine
+        ExecutorService executor = (ExecutorService) org.springframework.test.util.ReflectionTestUtils.getField(controller, "audioProcessingExecutor");
+        
+        // As the executor is shutdown, we need to re-initialize it or re-create the controller for subsequent tests if JUnit reusing.
+        // But since this is a unit test class with MockitoExtension, each test method is executed on a new instance of the test class,
+        // which calls setUp() and constructs a new controller instance with a new executor. So shutting down is completely safe!
+        executor.shutdown();
+        executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        // Vérifier les appels
+        verify(twilioService).downloadRecording("https://recording-url");
+        verify(audioEncryptionService).encrypt(audioBytes);
+        verify(aiServiceClient).transcribeAudio(any(), eq(ticketId.toString()));
+        verify(aiServiceClient).analyzeText(any());
+        verify(ticketService).updateAudioTranscription(eq(ticketId), anyString(), eq("Hello Twilio"), anyString());
+    }
+
+    @Test
+    @DisplayName("processRecording asynchrone gère les exceptions")
+    void processRecording_async_handlesException() throws Exception {
+        String callSid = "CA_ASYNC_FAIL";
+        UUID ticketId = UUID.randomUUID();
+        TicketResponse mockTicket = new TicketResponse();
+        mockTicket.setId(ticketId);
+        mockTicket.setNumero(TICKET_NUMERO);
+        when(ticketService.createTicket(any(), eq(null), eq(SYSTEM_TWILIO))).thenReturn(mockTicket);
+        when(twilioService.generateVoiceResponse(any())).thenReturn("<Response/>");
+        
+        // 1. Appel voix pour mapper le CallSid
+        controller.handleIncomingCall(callSid, "+33600000002", null, "Test", null, null);
+
+        // Stub twilioService download to throw exception
+        when(twilioService.downloadRecording(anyString())).thenThrow(new RuntimeException("Download failed"));
+        when(twilioService.generateRecordingCompleteResponse()).thenReturn("<Response/>");
+
+        // 2. Appel du webhook recording complet
+        controller.handleRecordingComplete(callSid, "https://recording-url", "RE123", "10");
+
+        // Attendre que la tâche asynchrone se termine
+        ExecutorService executor = (ExecutorService) org.springframework.test.util.ReflectionTestUtils.getField(controller, "audioProcessingExecutor");
+        executor.shutdown();
+        executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        // Verifier que l'exception a été gérée et qu'on n'a pas appelé updateAudioTranscription
+        verify(ticketService, never()).updateAudioTranscription(any(), any(), any(), any());
     }
 }

@@ -305,4 +305,295 @@ class TicketControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).hasSize(1);
     }
+
+    // ═══════════════════════════════════════
+    // getTickets, getTicketById, createTicket, updateStatut, assignTicket
+    // ═══════════════════════════════════════
+
+    @Test
+    @DisplayName("getTickets → appelle le service et retourne une page de tickets")
+    void getTickets_returnsOk() {
+        TicketFilter filter = new TicketFilter();
+        UUID userId = UUID.randomUUID();
+        UUID userAgenceId = UUID.randomUUID();
+        org.springframework.data.domain.Page<TicketResponse> expectedPage = org.springframework.data.domain.Page.empty();
+        when(ticketService.getTickets(filter, ROLE_OPERATOR, userId, userAgenceId)).thenReturn(expectedPage);
+
+        ResponseEntity<org.springframework.data.domain.Page<TicketResponse>> response =
+                controller.getTickets(filter, userId, ROLE_OPERATOR, userAgenceId);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEqualTo(expectedPage);
+    }
+
+    @Test
+    @DisplayName("getTicketById → appelle le service et retourne le ticket")
+    void getTicketById_returnsOk() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID userAgenceId = UUID.randomUUID();
+        TicketResponse expectedTicket = new TicketResponse();
+        when(ticketService.getTicketById(id, ROLE_OPERATOR, userId, userAgenceId)).thenReturn(expectedTicket);
+
+        ResponseEntity<TicketResponse> response =
+                controller.getTicketById(id, userId, ROLE_OPERATOR, userAgenceId);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEqualTo(expectedTicket);
+    }
+
+    @Test
+    @DisplayName("createTicket → appelle le service et retourne le ticket créé")
+    void createTicket_returnsCreated() {
+        CreateTicketRequest request = new CreateTicketRequest();
+        UUID userId = UUID.randomUUID();
+        String userEmail = "test@user.com";
+        TicketResponse expectedTicket = new TicketResponse();
+        when(ticketService.createTicket(request, userId, userEmail)).thenReturn(expectedTicket);
+
+        ResponseEntity<TicketResponse> response =
+                controller.createTicket(request, userId, userEmail);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody()).isEqualTo(expectedTicket);
+    }
+
+    @Test
+    @DisplayName("updateStatut → appelle le service et retourne le ticket mis à jour")
+    void updateStatut_returnsOk() {
+        UUID id = UUID.randomUUID();
+        UpdateStatutRequest request = new UpdateStatutRequest();
+        UUID userId = UUID.randomUUID();
+        String userEmail = "test@user.com";
+        TicketResponse expectedTicket = new TicketResponse();
+        when(ticketService.updateStatut(id, request, userId, userEmail)).thenReturn(expectedTicket);
+
+        ResponseEntity<TicketResponse> response =
+                controller.updateStatut(id, request, userId, userEmail);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEqualTo(expectedTicket);
+    }
+
+    @Test
+    @DisplayName("assignTicket → appelle le service et retourne le ticket mis à jour")
+    void assignTicket_returnsOk() {
+        UUID id = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        AssignTicketRequest request = new AssignTicketRequest(operatorId);
+        UUID requesterId = UUID.randomUUID();
+        UUID requesterAgenceId = UUID.randomUUID();
+        TicketResponse expectedTicket = new TicketResponse();
+        when(ticketService.assignTicket(id, operatorId, requesterId, ROLE_OPERATOR, requesterAgenceId)).thenReturn(expectedTicket);
+
+        ResponseEntity<TicketResponse> response =
+                controller.assignTicket(id, request, requesterId, ROLE_OPERATOR, requesterAgenceId);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEqualTo(expectedTicket);
+    }
+
+    // ═══════════════════════════════════════
+    // uploadAudio
+    // ═══════════════════════════════════════
+
+    @Nested
+    @DisplayName("uploadAudio")
+    class UploadAudio {
+        @Test
+        @DisplayName("Consentement absent ou false → log warning, exécute transcription, analyse, et chiffrement")
+        void noConsentement_proceeds() throws Exception {
+            UUID id = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("test.wav");
+            when(file.getBytes()).thenReturn(new byte[]{1, 2, 3});
+
+            UUID userId = UUID.randomUUID();
+            String userName = "test@user.com";
+
+            TicketResponse ticket = new TicketResponse();
+            ticket.setId(id);
+            ticket.setConsentementEnregistrement(false);
+            
+            // First call to check consent (with admin role)
+            when(ticketService.getTicketById(id, ROLE_ADMIN, userId, null)).thenReturn(ticket);
+
+            // Mock AI service
+            when(aiServiceClient.transcribeAudio(file, id.toString()))
+                    .thenReturn(Map.of("text", "Hello client", "file_path", "/audio/test.wav"));
+            when(aiServiceClient.analyzeText(any()))
+                    .thenReturn(Map.of("keywords", List.of("hello", "client"), "type_sinistre", "PANNE"));
+
+            when(objectMapper.writeValueAsString(any())).thenReturn("[\"hello\",\"client\"]");
+
+            // Mock Audio Encryption
+            when(audioEncryptionService.isEnabled()).thenReturn(true);
+            when(audioEncryptionService.encrypt(any())).thenReturn(new byte[]{4, 5, 6});
+
+            ResponseEntity<TicketResponse> response = controller.uploadAudio(id, file, userId, userName);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(ticketService).updateAudioTranscription(id, "/audio/test.wav.enc", "Hello client", "[\"hello\",\"client\"]");
+        }
+
+        @Test
+        @DisplayName("Exception dans le service AI → fallback en stockant uniquement le chemin audio")
+        void aiServiceFails_fallbackToPathOnly() throws Exception {
+            UUID id = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("test.wav");
+
+            UUID userId = UUID.randomUUID();
+            String userName = "test@user.com";
+
+            TicketResponse ticket = new TicketResponse();
+            ticket.setId(id);
+            ticket.setConsentementEnregistrement(true);
+
+            when(ticketService.getTicketById(id, ROLE_ADMIN, userId, null)).thenReturn(ticket);
+            when(aiServiceClient.transcribeAudio(any(), anyString())).thenThrow(new RuntimeException("AI down"));
+
+            ResponseEntity<TicketResponse> response = controller.uploadAudio(id, file, userId, userName);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(ticketService).updateAudioTranscription(eq(id), anyString(), eq(null), eq(null));
+        }
+
+        @Test
+        @DisplayName("Exception dans le chiffrement → fallback sur le chemin non chiffré")
+        void encryptionFails_fallbackToUnencrypted() throws Exception {
+            UUID id = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getOriginalFilename()).thenReturn("test.wav");
+            when(file.getBytes()).thenReturn(new byte[]{1, 2, 3});
+
+            UUID userId = UUID.randomUUID();
+            String userName = "test@user.com";
+
+            TicketResponse ticket = new TicketResponse();
+            ticket.setId(id);
+            ticket.setConsentementEnregistrement(true);
+
+            when(ticketService.getTicketById(id, ROLE_ADMIN, userId, null)).thenReturn(ticket);
+            when(aiServiceClient.transcribeAudio(file, id.toString()))
+                    .thenReturn(Map.of("text", "Hello client", "file_path", "/audio/test.wav"));
+            when(aiServiceClient.analyzeText(any()))
+                    .thenReturn(Map.of("keywords", List.of("hello"), "type_sinistre", "PANNE"));
+            when(objectMapper.writeValueAsString(any())).thenReturn("[\"hello\"]");
+
+            when(audioEncryptionService.isEnabled()).thenReturn(true);
+            when(audioEncryptionService.encrypt(any())).thenThrow(new RuntimeException("Cipher error"));
+
+            ResponseEntity<TicketResponse> response = controller.uploadAudio(id, file, userId, userName);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(ticketService).updateAudioTranscription(id, "/audio/test.wav", "Hello client", "[\"hello\"]");
+        }
+    }
+
+    // ═══════════════════════════════════════
+    // Photos management
+    // ═══════════════════════════════════════
+
+    @Nested
+    @DisplayName("Photos management")
+    class PhotosManagement {
+        private final String tempStoragePath = "target/test-photos";
+
+        @BeforeEach
+        void initPhotosPath() {
+            org.springframework.test.util.ReflectionTestUtils.setField(controller, "photosStoragePath", tempStoragePath);
+        }
+
+        @Test
+        @DisplayName("processSinglePhoto avec content type invalide → ignore le fichier")
+        void uploadPhotos_invalidContentType_ignoresFile() {
+            UUID ticketId = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getContentType()).thenReturn("application/pdf");
+            when(file.getOriginalFilename()).thenReturn("doc.pdf");
+
+            ResponseEntity<TicketResponse> response = controller.uploadPhotos(ticketId, List.of(file), UUID.randomUUID());
+
+            assertThat(response.getStatusCode().value()).isEqualTo(400);
+        }
+
+        @Test
+        @DisplayName("processSinglePhoto avec taille trop grande → ignore le fichier")
+        void uploadPhotos_tooLarge_ignoresFile() {
+            UUID ticketId = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getContentType()).thenReturn("image/png");
+            when(file.getOriginalFilename()).thenReturn("image.png");
+            when(file.getSize()).thenReturn(11 * 1024 * 1024L); // 11MB
+
+            ResponseEntity<TicketResponse> response = controller.uploadPhotos(ticketId, List.of(file), UUID.randomUUID());
+
+            assertThat(response.getStatusCode().value()).isEqualTo(400);
+        }
+
+        @Test
+        @DisplayName("uploadPhotos avec succès → sauvegarde sur disque et fusionne les chemins")
+        void uploadPhotos_success() throws Exception {
+            UUID ticketId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getContentType()).thenReturn("image/jpeg");
+            when(file.getOriginalFilename()).thenReturn("photo.jpg");
+            when(file.getSize()).thenReturn(1024L);
+
+            TicketResponse ticket = new TicketResponse();
+            ticket.setId(ticketId);
+            ticket.setPhotosPaths("[\"/photos/old.jpg\"]");
+
+            when(ticketService.getTicketById(ticketId, "ADMIN", userId, null)).thenReturn(ticket);
+            when(objectMapper.readValue(anyString(), eq(List.class))).thenReturn(new java.util.ArrayList<>(List.of("/photos/old.jpg")));
+            when(objectMapper.writeValueAsString(any())).thenReturn("[\"/photos/old.jpg\",\"/photos/" + ticketId + "/new.jpg\"]");
+
+            ResponseEntity<TicketResponse> response = controller.uploadPhotos(ticketId, List.of(file), userId);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(file).transferTo(any(java.io.File.class));
+            verify(ticketService).updatePhotosPaths(eq(ticketId), anyString());
+        }
+
+        @Test
+        @DisplayName("servePhoto retourne le fichier s'il existe")
+        void servePhoto_exists() throws Exception {
+            java.nio.file.Path tempDir = java.nio.file.Paths.get(tempStoragePath, "123");
+            java.nio.file.Files.createDirectories(tempDir);
+            java.nio.file.Path tempFile = tempDir.resolve("test.png");
+            java.nio.file.Files.write(tempFile, new byte[]{1, 2, 3});
+
+            ResponseEntity<org.springframework.core.io.Resource> response = controller.servePhoto("123", "test.png");
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            assertThat(response.getHeaders().getContentType().toString()).isEqualTo("image/png");
+
+            // Cleanup
+            java.nio.file.Files.deleteIfExists(tempFile);
+            java.nio.file.Files.deleteIfExists(tempDir);
+        }
+
+        @Test
+        @DisplayName("servePhoto retourne 404 si le fichier n'existe pas")
+        void servePhoto_notExists() {
+            ResponseEntity<org.springframework.core.io.Resource> response = controller.servePhoto("non-existent", "photo.png");
+            assertThat(response.getStatusCode().value()).isEqualTo(404);
+        }
+
+        @Test
+        @DisplayName("processSinglePhoto lève IOException → log et retourne null")
+        void uploadPhotos_transferToThrowsIOException() throws Exception {
+            UUID ticketId = UUID.randomUUID();
+            org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+            when(file.getContentType()).thenReturn("image/png");
+            when(file.getOriginalFilename()).thenReturn("photo.png");
+            doThrow(new java.io.IOException("Disk full")).when(file).transferTo(any(java.io.File.class));
+
+            ResponseEntity<TicketResponse> response = controller.uploadPhotos(ticketId, List.of(file), UUID.randomUUID());
+
+            assertThat(response.getStatusCode().value()).isEqualTo(400);
+        }
+    }
 }
