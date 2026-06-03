@@ -2,6 +2,7 @@ package com.pfe.callmgmt.ticket.service;
 
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMultipart;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -11,6 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.lang.reflect.Method;
 import java.util.Date;
 import java.util.List;
+import com.pfe.callmgmt.ticket.dto.TicketResponse;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -291,5 +293,138 @@ class EmailListenerServiceTest {
 
         assertThat(status).isEqualTo(0);
         verify(msg).setFlag(Flags.Flag.SEEN, true);
+    }
+
+    @Test
+    @DisplayName("processSingleEmail — email valide avec texte brut → crée un ticket et retourne status=1")
+    void processSingleEmail_validPlainEmail_createsTicket() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", false);
+        ReflectionTestUtils.setField(emailListenerService, "defaultAgenceId", "22222222-2222-2222-2222-222222222222");
+
+        Message msg = mock(Message.class);
+        when(msg.getSubject()).thenReturn("Panne de voiture importante");
+        when(msg.getContent()).thenReturn("Bonjour, ma voiture est en panne.");
+        
+        Address[] fromAddresses = {new InternetAddress("sender@test.com", "Jean Dupont")};
+        when(msg.getFrom()).thenReturn(fromAddresses);
+
+        TicketResponse mockResponse = new TicketResponse();
+        mockResponse.setNumero("T-123");
+        when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-IMAP"))).thenReturn(mockResponse);
+
+        Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
+        m.setAccessible(true);
+
+        int status = (int) m.invoke(emailListenerService, msg);
+
+        assertThat(status).isEqualTo(1);
+        verify(msg).setFlag(Flags.Flag.SEEN, true);
+        verify(ticketService).createTicket(argThat(req -> 
+            req.getClientNom().equals("Jean Dupont") &&
+            req.getClientEmail().equals("sender@test.com") &&
+            req.getCanal().equals("EMAIL") &&
+            req.getPriorite() == (short) 1 && // urgent/panne = 1
+            req.getAgenceId().toString().equals("22222222-2222-2222-2222-222222222222")
+        ), eq(null), eq("SYSTEM-IMAP"));
+    }
+
+    @Test
+    @DisplayName("processSingleEmail — email avec multipart html → extrait html et crée ticket")
+    void processSingleEmail_multipartHtml_createsTicket() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", false);
+
+        Message msg = mock(Message.class);
+        when(msg.getSubject()).thenReturn("Demande importante de renseignement");
+        
+        // Mock MimeMultipart
+        MimeMultipart multipart = mock(MimeMultipart.class);
+        when(multipart.getCount()).thenReturn(1);
+        BodyPart part = mock(BodyPart.class);
+        when(part.isMimeType("text/plain")).thenReturn(false);
+        when(part.isMimeType("text/html")).thenReturn(true);
+        when(part.getContent()).thenReturn("<html><body><p>Besoin d'aide rapidement</p></body></html>");
+        when(multipart.getBodyPart(0)).thenReturn(part);
+
+        when(msg.getContent()).thenReturn(multipart);
+        
+        Address[] fromAddresses = {new InternetAddress("sender2@test.com", "")};
+        when(msg.getFrom()).thenReturn(fromAddresses);
+
+        TicketResponse mockResponse = new TicketResponse();
+        mockResponse.setNumero("T-124");
+        when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-IMAP"))).thenReturn(mockResponse);
+
+        Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
+        m.setAccessible(true);
+
+        int status = (int) m.invoke(emailListenerService, msg);
+
+        assertThat(status).isEqualTo(1);
+        verify(msg).setFlag(Flags.Flag.SEEN, true);
+        verify(ticketService).createTicket(argThat(req -> 
+            req.getClientNom().equals("sender2@test.com") &&
+            req.getPriorite() == (short) 2 // important/rapidement = 2
+        ), eq(null), eq("SYSTEM-IMAP"));
+    }
+
+    @Test
+    @DisplayName("processSingleEmail — email avec contenu non lisible")
+    void processSingleEmail_unreadableContent() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", false);
+
+        Message msg = mock(Message.class);
+        when(msg.getSubject()).thenReturn("Test Sujet");
+        when(msg.getContent()).thenReturn(new Object()); // Unknown content type
+        
+        Address[] fromAddresses = {new InternetAddress("sender@test.com", "Nom")};
+        when(msg.getFrom()).thenReturn(fromAddresses);
+
+        TicketResponse mockResponse = new TicketResponse();
+        mockResponse.setNumero("T-125");
+        when(ticketService.createTicket(any(), eq(null), eq("SYSTEM-IMAP"))).thenReturn(mockResponse);
+
+        Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
+        m.setAccessible(true);
+
+        int status = (int) m.invoke(emailListenerService, msg);
+
+        assertThat(status).isEqualTo(1);
+        verify(ticketService).createTicket(argThat(req -> 
+            req.getDescription().contains("(Contenu non lisible)")
+        ), eq(null), eq("SYSTEM-IMAP"));
+    }
+
+    @Test
+    @DisplayName("processSingleEmail — ne correspond pas aux mots-clés configurés → ignoré (status=0)")
+    void processSingleEmail_noKeywordMatch_ignored() throws Exception {
+        ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", false);
+        ReflectionTestUtils.setField(emailListenerService, "filterKeywords", List.of("panne", "urgente"));
+
+        Message msg = mock(Message.class);
+        when(msg.getSubject()).thenReturn("Bonjour");
+        when(msg.getContent()).thenReturn("Je vous contacte pour un simple renseignement.");
+
+        Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
+        m.setAccessible(true);
+
+        int status = (int) m.invoke(emailListenerService, msg);
+
+        assertThat(status).isEqualTo(0);
+        verify(msg).setFlag(Flags.Flag.SEEN, true);
+        verifyNoInteractions(ticketService);
+    }
+
+    @Test
+    @DisplayName("processSingleEmail — lève une exception → retourne status=-1")
+    void processSingleEmail_throwsException_returnsNegativeOne() throws Exception {
+        Message msg = mock(Message.class);
+        when(msg.getSubject()).thenThrow(new RuntimeException("Mail error"));
+
+        Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
+        m.setAccessible(true);
+
+        int status = (int) m.invoke(emailListenerService, msg);
+
+        assertThat(status).isEqualTo(-1);
     }
 }
