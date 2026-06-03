@@ -17,6 +17,10 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -46,6 +50,12 @@ class DecisionServiceImplTest {
         private ValueOperations<String, String> valueOperations;
         @Mock
         private LetterGenerationService letterService;
+        @Mock
+        private CircuitBreakerRegistry circuitBreakerRegistry;
+        @Mock
+        private io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
+        @Mock
+        private RestTemplate llmRestTemplate;
         @Spy
         private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -496,4 +506,254 @@ class DecisionServiceImplTest {
 
                 assertThat(result.getDecision()).isEqualTo(FAVORABLE);
         }
+
+        @Test
+        @DisplayName("analyze — LLM succès -> retour decision LLM (source HYBRID)")
+        void analyze_llmSuccess_returnsLlmDecision() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(1).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                String llmResponseBody = "{\"choices\":[{\"message\":{\"content\":\"{\\\"decision\\\": \\\"FAVORABLE\\\", \\\"score\\\": 85.0, \\\"motif\\\": \\\"Accepté par LLM\\\"}\"}}]}";
+                ResponseEntity<String> responseEntity = ResponseEntity.ok(llmResponseBody);
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenReturn(responseEntity);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(FAVORABLE).score(BigDecimal.valueOf(85.0))
+                                .motif("Accepté par LLM").source("HYBRID").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(FAVORABLE);
+                assertThat(result.getSource()).isEqualTo("HYBRID");
+                assertThat(result.getScore()).isEqualTo(85.0);
+                assertThat(result.getMotif()).isEqualTo("Accepté par LLM");
+        }
+
+        @Test
+        @DisplayName("analyze — LLM avec markdown fence -> extrait et retourne la decision")
+        void analyze_llmFenceSuccess_returnsLlmDecision() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                String llmResponseBody = "{\"choices\":[{\"message\":{\"content\":\"Voici le résultat :\\n```json\\n{\\n  \\\"decision\\\": \\\"DEFAVORABLE\\\",\\n  \\\"score\\\": 35.0,\\n  \\\"motif\\\": \\\"Refusé\\\"\\n}\\n```\"}}]}";
+                ResponseEntity<String> responseEntity = ResponseEntity.ok(llmResponseBody);
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenReturn(responseEntity);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(DEFAVORABLE).score(BigDecimal.valueOf(35.0))
+                                .motif("Refusé").source("AI").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(DEFAVORABLE);
+                assertThat(result.getSource()).isEqualTo("AI");
+                assertThat(result.getScore()).isEqualTo(35.0);
+        }
+
+        @Test
+        @DisplayName("analyze — LLM avec reasoning_content uniquement -> extrait et retourne la decision")
+        void analyze_llmReasoningSuccess_returnsLlmDecision() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                String llmResponseBody = "{\"choices\":[{\"message\":{\"content\":\"\",\"reasoning_content\":\"Raisonnement... {\\\"decision\\\": \\\"FAVORABLE\\\", \\\"score\\\": 90.0, \\\"motif\\\": \\\"Accepté\\\"}\"}}]}";
+                ResponseEntity<String> responseEntity = ResponseEntity.ok(llmResponseBody);
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenReturn(responseEntity);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(FAVORABLE).score(BigDecimal.valueOf(90.0))
+                                .motif("Accepté").source("AI").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(FAVORABLE);
+                assertThat(result.getSource()).isEqualTo("AI");
+        }
+
+        @Test
+        @DisplayName("analyze — LLM repond sans JSON valide -> fallback ETUDE")
+        void analyze_llmInvalidJson_returnsEtudeFallback() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                String llmResponseBody = "{\"choices\":[{\"message\":{\"content\":\"Désolé, pas de JSON\"}}]}";
+                ResponseEntity<String> responseEntity = ResponseEntity.ok(llmResponseBody);
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenReturn(responseEntity);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(ETUDE).score(BigDecimal.ZERO)
+                                .motif("Réponse IA sans JSON exploitable — analyse manuelle requise").source("AI").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(ETUDE);
+        }
+
+        @Test
+        @DisplayName("analyze — LLM retourne decision inattendue -> fallback ETUDE par normalisation")
+        void analyze_llmUnexpectedDecision_defaultsToEtude() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                String llmResponseBody = "{\"choices\":[{\"message\":{\"content\":\"{\\\"decision\\\": \\\"INCONNUE\\\", \\\"score\\\": 50.0, \\\"motif\\\": \\\"Inconnu\\\"}\"}}]}";
+                ResponseEntity<String> responseEntity = ResponseEntity.ok(llmResponseBody);
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenReturn(responseEntity);
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(ETUDE).score(BigDecimal.valueOf(50.0))
+                                .motif("Inconnu").source("AI").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(ETUDE);
+        }
+
+        @Test
+        @DisplayName("analyze — RestTemplate lance une exception -> fallback ETUDE")
+        void analyze_llmApiError_returnsEtudeFallback() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenAnswer(inv -> {
+                        java.util.function.Supplier<?> supplier = inv.getArgument(0);
+                        return supplier.get();
+                });
+
+                when(llmRestTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                                .thenThrow(new org.springframework.web.client.RestClientException("Timeout"));
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(ETUDE).score(BigDecimal.ZERO)
+                                .motif("Erreur d'analyse IA — réponse invalide").source("AI").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(ETUDE);
+        }
+
+        @Test
+        @DisplayName("analyze — Circuit Breaker ouvert -> fallback ETUDE (source CIRCUIT_BREAKER)")
+        void analyze_circuitBreakerOpen_returnsCircuitBreakerFallback() {
+                ReflectionTestUtils.setField(decisionService, "openaiApiKey", "test-api-key");
+
+                when(decisionRepository.findByTicketId(baseRequest.getTicketId())).thenReturn(Optional.empty());
+                when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+                when(valueOperations.get(anyString())).thenReturn(null);
+
+                RulesEvaluateResponse rulesResp = RulesEvaluateResponse.builder()
+                                .decision(ETUDE).score(45.0).motif("Ambigu")
+                                .rulesApplied(List.of("R1")).ambiguous(true).matchedRules(0).build();
+                when(rulesServiceClient.evaluate(any())).thenReturn(rulesResp);
+
+                when(circuitBreakerRegistry.circuitBreaker("llm")).thenReturn(circuitBreaker);
+                when(circuitBreaker.executeSupplier(any())).thenThrow(new RuntimeException("Call not permitted by circuit breaker"));
+
+                Decision saved = Decision.builder()
+                                .id(UUID.randomUUID()).ticketId(baseRequest.getTicketId())
+                                .decision(ETUDE).score(BigDecimal.ZERO)
+                                .motif("Service IA temporairement indisponible — analyse manuelle requise").source("CIRCUIT_BREAKER").rulesApplied(List.of("R1")).build();
+                when(decisionRepository.save(any())).thenReturn(saved);
+
+                DecisionResult result = decisionService.analyze(baseRequest);
+
+                assertThat(result.getDecision()).isEqualTo(ETUDE);
+                assertThat(result.getSource()).isEqualTo("CIRCUIT_BREAKER");
+        }
 }
+

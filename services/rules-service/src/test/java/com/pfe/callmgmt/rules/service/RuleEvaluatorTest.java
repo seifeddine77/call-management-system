@@ -459,4 +459,87 @@ class RuleEvaluatorTest {
             assertTrue(evaluator.evaluate(conditions, createRequest("MECANIQUE", 2, 50000, "NOUVEAU", "PANNE")));
         }
     }
+
+    @Nested
+    @DisplayName("Tests de couverture additionnels")
+    class AdditionalCoverageTests {
+
+        @Test
+        @DisplayName("Support du mot-clé 'operator' au lieu de 'op'")
+        void testOperatorKeyword() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "operator", "=", KEY_VALUE, VAL_MECANIQUE)));
+            assertTrue(evaluator.evaluate(conditions, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+        }
+
+        @Test
+        @DisplayName("Support des opérateurs symboliques")
+        void testSymbolicOperators() {
+            // !=
+            Map<String, Object> condNeq = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "operator", "!=", KEY_VALUE, VAL_ELECTRIQUE)));
+            assertTrue(evaluator.evaluate(condNeq, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+
+            // <
+            Map<String, Object> condLt = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_AGE_VEHICULE, "operator", "<", KEY_VALUE, 5)));
+            assertTrue(evaluator.evaluate(condLt, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+
+            // >
+            Map<String, Object> condGt = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_AGE_VEHICULE, "operator", ">", KEY_VALUE, 2)));
+            assertTrue(evaluator.evaluate(condGt, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+
+            // <=
+            Map<String, Object> condLte = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_KILOMETRAGE, "operator", "<=", KEY_VALUE, 50000)));
+            assertTrue(evaluator.evaluate(condLte, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+
+            // >=
+            Map<String, Object> condGte = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_KILOMETRAGE, "operator", ">=", KEY_VALUE, 50000)));
+            assertTrue(evaluator.evaluate(condGte, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+        }
+
+        @Test
+        @DisplayName("IN et NOT IN avec une valeur attendue qui n'est pas une liste")
+        void testInAndNotInWithNonList() {
+            Map<String, Object> condIn = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "op", "IN", KEY_VALUE, "not-a-list")));
+            assertFalse(evaluator.evaluate(condIn, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+
+            Map<String, Object> condNotIn = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "op", "NOT_IN", KEY_VALUE, "not-a-list")));
+            assertFalse(evaluator.evaluate(condNotIn, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+        }
+
+        @Test
+        @DisplayName("Exception lors de la comparaison de chaînes non numériques")
+        void testComparisonException() {
+            Map<String, Object> conditions = Map.of(
+                    KEY_OPERATOR, "AND",
+                    KEY_CONDITIONS, List.of(
+                            Map.of(KEY_FIELD, FIELD_TYPE_PIECE, "op", "LT", KEY_VALUE, "non-numeric")));
+            // Comparer MECANIQUE < non-numeric avec LT (qui fait toDouble) lèvera une NumberFormatException.
+            // RuleEvaluator attrape l'exception et retourne false.
+            assertFalse(evaluator.evaluate(conditions, createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE)));
+        }
+
+        @Test
+        @DisplayName("Support des getters pour la transcription")
+        void testTranscriptionGetters() {
+            EvaluateRequest request = createRequest(VAL_MECANIQUE, 3, 50000, VAL_STANDARD, VAL_PANNE);
+            request.setTranscriptionText("Appel urgent");
+
+            Map<String, Object> condText = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, "transcriptionText", "op", "EQ", KEY_VALUE, "Appel urgent")));
+            assertTrue(evaluator.evaluate(condText, request));
+
+            Map<String, Object> condShort = Map.of(KEY_OPERATOR, "AND", KEY_CONDITIONS, List.of(
+                    Map.of(KEY_FIELD, "transcription", "op", "EQ", KEY_VALUE, "Appel urgent")));
+            assertTrue(evaluator.evaluate(condShort, request));
+        }
+    }
 }

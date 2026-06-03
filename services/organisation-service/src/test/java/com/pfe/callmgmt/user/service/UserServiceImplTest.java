@@ -365,4 +365,149 @@ class UserServiceImplTest {
         assertThrows(IllegalArgumentException.class, () ->
                 userService.createUser(req, null));
     }
+
+    @Test
+    @DisplayName("22. createUser — SUPERVISOR sans agenceId → IllegalArgumentException")
+    void createUser_supervisorWithoutAgence_throws() {
+        UserRequest req = new UserRequest();
+        req.setEmail("sup@test.com");
+        req.setPassword("Pass123");
+        req.setNom("Sup"); req.setRole("SUPERVISOR");
+        req.setAgenceId(null);
+
+        when(userRepository.existsByEmail("sup@test.com")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                userService.createUser(req, null));
+    }
+
+    @Test
+    @DisplayName("23. createUserInternal — OPERATOR sans agenceId → IllegalArgumentException")
+    void createUserInternal_operatorWithoutAgence_throws() {
+        UserRequest req = new UserRequest();
+        req.setEmail("op-internal@test.com");
+        req.setPassword("Pass123");
+        req.setNom("Op"); req.setRole(ROLE_OPERATOR);
+        req.setAgenceId(null);
+
+        when(userRepository.existsByEmail("op-internal@test.com")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                userService.createUserInternal(req));
+    }
+
+    @Test
+    @DisplayName("24. createUserInternal — email déjà existant → ConflictException")
+    void createUserInternal_emailExists_throwsConflict() {
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(true);
+        assertThrows(UserServiceImpl.ConflictException.class, () ->
+                userService.createUserInternal(validRequest));
+    }
+
+    @Test
+    @DisplayName("25. createUser — ADMIN sans agenceId → Succès")
+    void createUser_adminWithoutAgence_success() {
+        UserRequest req = new UserRequest();
+        req.setEmail("admin@test.com");
+        req.setPassword("Pass123");
+        req.setNom("Admin"); req.setRole("ADMIN");
+        req.setAgenceId(null);
+
+        User adminUser = User.builder().id(UUID.randomUUID()).email("admin@test.com").role("ADMIN").build();
+        UserResponse adminResp = UserResponse.builder().email("admin@test.com").role("ADMIN").build();
+
+        when(userRepository.existsByEmail("admin@test.com")).thenReturn(false);
+        when(passwordEncoder.encode("Pass123")).thenReturn("$2a$12$encoded");
+        when(userRepository.save(any(User.class))).thenReturn(adminUser);
+        when(userMapper.toResponse(adminUser)).thenReturn(adminResp);
+
+        UserResponse result = userService.createUser(req, null);
+        assertNotNull(result);
+        assertEquals("admin@test.com", result.getEmail());
+    }
+
+    @Test
+    @DisplayName("26. createUser — exception de publication d'événement ignorée")
+    void createUser_eventPublisherThrows_loggedAndIgnored() {
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(false);
+        when(passwordEncoder.encode("SecurePass123")).thenReturn("$2a$12$encoded");
+        when(agenceRepository.findById(agenceId)).thenReturn(Optional.of(agence));
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(userMapper.toResponse(savedUser)).thenReturn(userResponse);
+        doThrow(new RuntimeException("RabbitMQ connection error")).when(eventPublisher).publishUserCreated(any());
+
+        UserResponse result = userService.createUser(validRequest, null);
+
+        assertNotNull(result);
+        verify(userRepository).save(any(User.class));
+        verify(eventPublisher).publishUserCreated(any());
+    }
+
+    @Test
+    @DisplayName("27. createUserInternal — exception de publication d'événement ignorée")
+    void createUserInternal_eventPublisherThrows_loggedAndIgnored() {
+        when(userRepository.existsByEmail(EMAIL_TEST)).thenReturn(false);
+        when(agenceRepository.findById(agenceId)).thenReturn(Optional.of(agence));
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        doThrow(new RuntimeException("RabbitMQ connection error")).when(eventPublisher).publishUserCreated(any());
+
+        var result = userService.createUserInternal(validRequest);
+
+        assertNotNull(result);
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("28. updateUser — mot de passe et rôle null/vide → pas de changement de mot de passe")
+    void updateUser_fieldsNullOrBlank_noException() {
+        UserRequest req = new UserRequest();
+        req.setNom("Updated");
+        req.setRole(null);
+        req.setPassword("");
+        req.setAgenceId(null);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(savedUser));
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(userMapper.toResponse(any(User.class))).thenReturn(userResponse);
+
+        UserResponse result = userService.updateUser(userId, req, UUID.randomUUID(), "ADMIN", null);
+        assertNotNull(result);
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    @DisplayName("29. updateUser — SUPERVISOR modifie un utilisateur sans agence → succès")
+    void updateUser_supervisorModifiesUserWithoutAgence_success() {
+        UUID supervisorId = UUID.randomUUID();
+        User target = User.builder().id(userId).role(ROLE_OPERATOR).agence(null).build();
+
+        UserRequest req = new UserRequest();
+        req.setNom("Updated");
+        req.setRole(ROLE_OPERATOR);
+        req.setAgenceId(null);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(target));
+        when(userRepository.save(any(User.class))).thenReturn(target);
+        when(userMapper.toResponse(any(User.class))).thenReturn(userResponse);
+
+        UserResponse result = userService.updateUser(userId, req, supervisorId, "SUPERVISOR", agenceId);
+        assertNotNull(result);
+    }
+
+    @Test
+    @DisplayName("30. getUserByEmailInternal — trouvé → retourne InternalUserResponse")
+    void getUserByEmailInternal_found() {
+        when(userRepository.findByEmail(EMAIL_TEST)).thenReturn(Optional.of(savedUser));
+        var result = userService.getUserByEmailInternal(EMAIL_TEST);
+        assertNotNull(result);
+        assertEquals(EMAIL_TEST, result.getEmail());
+    }
+
+    @Test
+    @DisplayName("31. getUserByEmailInternal — non trouvé → EntityNotFoundException")
+    void getUserByEmailInternal_notFound() {
+        when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () ->
+                userService.getUserByEmailInternal("unknown@test.com"));
+    }
 }
