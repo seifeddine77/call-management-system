@@ -78,6 +78,11 @@ class RulesService {
     return list.map<Rule>((r) => Rule.fromJson(r)).toList();
   }
 
+  Future<Rule> getRuleById(String id) async {
+    final res = await _api.dio.get('${ApiConfig.rulesPath}/$id');
+    return Rule.fromJson(res.data);
+  }
+
   Future<Rule> createRule(Map<String, dynamic> data) async {
     final res = await _api.dio.post(ApiConfig.rulesPath, data: data);
     return Rule.fromJson(res.data);
@@ -128,6 +133,11 @@ class RulesService {
 
   Future<RefItem> createRefItem(Map<String, dynamic> data) async {
     final res = await _api.dio.post(ApiConfig.refItemsPath, data: data);
+    return RefItem.fromJson(res.data);
+  }
+
+  Future<RefItem> updateRefItem(String id, Map<String, dynamic> data) async {
+    final res = await _api.dio.put('${ApiConfig.refItemsPath}/$id', data: data);
     return RefItem.fromJson(res.data);
   }
 

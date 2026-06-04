@@ -1,0 +1,251 @@
+{
+  "evaluation_date": "2026-06-04T17:48:29.911504",
+  "version": "v2",
+  "improvements": [
+    "Chunking avec overlap (150 chars)",
+    "Query Expansion (synonymes domaine assurance)",
+    "Retrieval elargi top-10 -> top-5",
+    "Contexte LLM enrichi 800 chars"
+  ],
+  "baseline_scores": {
+    "rouge1_f1_mean": 0.28,
+    "rouge1_recall_mean": 0.81,
+    "cosine_similarity_mean": 0.74,
+    "semantic_adequacy_mean": 0.75
+  },
+  "v2_scores": {
+    "rouge1_f1_mean": 0.2018,
+    "rouge1_recall_mean": 0.743,
+    "cosine_similarity_mean": 0.7693,
+    "semantic_adequacy_mean": 0.8
+  },
+  "improvement_pp": {
+    "rouge1_f1": -7.8,
+    "rouge1_recall": -6.7,
+    "cosine": 2.9,
+    "semantic_adequacy": 5.0
+  },
+  "total_questions": 20,
+  "model_embeddings": "paraphrase-multilingual-MiniLM-L12-v2",
+  "knowledge_docs_count": 60,
+  "category_scores": {
+    "Processus metier (flux, statuts)": {
+      "count": 4,
+      "rouge1_f1_mean": 0.1936,
+      "rouge1_recall_mean": 0.7473,
+      "cosine_similarity_mean": 0.7777
+    },
+    "Aide a la decision IA": {
+      "count": 4,
+      "rouge1_f1_mean": 0.1979,
+      "rouge1_recall_mean": 0.7356,
+      "cosine_similarity_mean": 0.6811
+    },
+    "Regles metier": {
+      "count": 3,
+      "rouge1_f1_mean": 0.1826,
+      "rouge1_recall_mean": 0.6469,
+      "cosine_similarity_mean": 0.7824
+    },
+    "Procedures operationnelles": {
+      "count": 4,
+      "rouge1_f1_mean": 0.2034,
+      "rouge1_recall_mean": 0.7767,
+      "cosine_similarity_mean": 0.7368
+    },
+    "Architecture technique": {
+      "count": 2,
+      "rouge1_f1_mean": 0.1847,
+      "rouge1_recall_mean": 0.6857,
+      "cosine_similarity_mean": 0.8766
+    },
+    "FAQ et depannage": {
+      "count": 3,
+      "rouge1_f1_mean": 0.2463,
+      "rouge1_recall_mean": 0.8366,
+      "cosine_similarity_mean": 0.8345
+    }
+  },
+  "detailed_results": [
+    {
+      "id": 1,
+      "question": "Comment creer un ticket dans AutoAssist ?",
+      "category": "Processus metier (flux, statuts)",
+      "rouge1_f1": 0.16122004357298475,
+      "rouge1_precision": 0.09343434343434344,
+      "rouge1_recall": 0.5873015873015873,
+      "cosine_similarity": 0.9325762987136841
+    },
+    {
+      "id": 2,
+      "question": "Quels sont les statuts possibles d'un ticket ?",
+      "category": "Processus metier (flux, statuts)",
+      "rouge1_f1": 0.21674876847290642,
+      "rouge1_precision": 0.12535612535612536,
+      "rouge1_recall": 0.8,
+      "cosine_similarity": 0.4930058717727661
+    },
+    {
+      "id": 3,
+      "question": "Comment sont calculees les priorites des tickets ?",
+      "category": "Processus metier (flux, statuts)",
+      "rouge1_f1": 0.18811881188118815,
+      "rouge1_precision": 0.10555555555555556,
+      "rouge1_recall": 0.8636363636363636,
+      "cosine_similarity": 0.7976486682891846
+    },
+    {
+      "id": 4,
+      "question": "Comment resoudre et fermer un ticket ?",
+      "category": "Processus metier (flux, statuts)",
+      "rouge1_f1": 0.2082429501084599,
+      "rouge1_precision": 0.12121212121212122,
+      "rouge1_recall": 0.7384615384615385,
+      "cosine_similarity": 0.8877406120300293
+    },
+    {
+      "id": 5,
+      "question": "Comment fonctionne le pipeline decisionnel ?",
+      "category": "Aide a la decision IA",
+      "rouge1_f1": 0.22982885085574573,
+      "rouge1_precision": 0.13505747126436782,
+      "rouge1_recall": 0.7704918032786885,
+      "cosine_similarity": 0.7693063020706177
+    },
+    {
+      "id": 6,
+      "question": "Quelle est la difference entre FAVORABLE et DEFAVORABLE ?",
+      "category": "Aide a la decision IA",
+      "rouge1_f1": 0.22222222222222224,
+      "rouge1_precision": 0.13114754098360656,
+      "rouge1_recall": 0.7272727272727273,
+      "cosine_similarity": 0.7418925166130066
+    },
+    {
+      "id": 7,
+      "question": "Comment fonctionne le scoring et quelles sont les decisions possibles ?",
+      "category": "Aide a la decision IA",
+      "rouge1_f1": 0.13296398891966757,
+      "rouge1_precision": 0.07476635514018691,
+      "rouge1_recall": 0.6,
+      "cosine_similarity": 0.842290997505188
+    },
+    {
+      "id": 8,
+      "question": "Comment fonctionne l'analyse NLP automatique ?",
+      "category": "Aide a la decision IA",
+      "rouge1_f1": 0.20675105485232068,
+      "rouge1_precision": 0.11778846153846154,
+      "rouge1_recall": 0.8448275862068966,
+      "cosine_similarity": 0.3708803057670593
+    },
+    {
+      "id": 9,
+      "question": "Comment fonctionnent les regles metier ?",
+      "category": "Regles metier",
+      "rouge1_f1": 0.1628498727735369,
+      "rouge1_precision": 0.0927536231884058,
+      "rouge1_recall": 0.6666666666666666,
+      "cosine_similarity": 0.791067361831665
+    },
+    {
+      "id": 10,
+      "question": "Comment configurer une regle metier avec un operateur IN ?",
+      "category": "Regles metier",
+      "rouge1_f1": 0.12530120481927712,
+      "rouge1_precision": 0.07303370786516854,
+      "rouge1_recall": 0.4406779661016949,
+      "cosine_similarity": 0.7232316732406616
+    },
+    {
+      "id": 11,
+      "question": "Quels sont des exemples de regles metier typiques ?",
+      "category": "Regles metier",
+      "rouge1_f1": 0.25974025974025977,
+      "rouge1_precision": 0.15384615384615385,
+      "rouge1_recall": 0.8333333333333334,
+      "cosine_similarity": 0.8330099582672119
+    },
+    {
+      "id": 12,
+      "question": "Quelle est la procedure pour traiter un sinistre de type VOL ?",
+      "category": "Procedures operationnelles",
+      "rouge1_f1": 0.23404255319148937,
+      "rouge1_precision": 0.13513513513513514,
+      "rouge1_recall": 0.873015873015873,
+      "cosine_similarity": 0.5992709398269653
+    },
+    {
+      "id": 13,
+      "question": "Comment traiter une reclamation de type PANNE ?",
+      "category": "Procedures operationnelles",
+      "rouge1_f1": 0.1776765375854214,
+      "rouge1_precision": 0.1012987012987013,
+      "rouge1_recall": 0.7222222222222222,
+      "cosine_similarity": 0.9327343106269836
+    },
+    {
+      "id": 14,
+      "question": "Comment traiter une reclamation de type USURE ?",
+      "category": "Procedures operationnelles",
+      "rouge1_f1": 0.21935483870967745,
+      "rouge1_precision": 0.12561576354679804,
+      "rouge1_recall": 0.864406779661017,
+      "cosine_similarity": 0.9030725359916687
+    },
+    {
+      "id": 15,
+      "question": "Quelle est la procedure complete de traitement d'une reclamation ?",
+      "category": "Procedures operationnelles",
+      "rouge1_f1": 0.1825726141078838,
+      "rouge1_precision": 0.10628019323671498,
+      "rouge1_recall": 0.6470588235294118,
+      "cosine_similarity": 0.512301504611969
+    },
+    {
+      "id": 16,
+      "question": "Quelle est l'architecture technique d'AutoAssist ?",
+      "category": "Architecture technique",
+      "rouge1_f1": 0.16,
+      "rouge1_precision": 0.09207161125319693,
+      "rouge1_recall": 0.6101694915254238,
+      "cosine_similarity": 0.9460306763648987
+    },
+    {
+      "id": 17,
+      "question": "Comment les microservices communiquent entre eux ?",
+      "category": "Architecture technique",
+      "rouge1_f1": 0.20944558521560575,
+      "rouge1_precision": 0.12142857142857143,
+      "rouge1_recall": 0.7611940298507462,
+      "cosine_similarity": 0.8071853518486023
+    },
+    {
+      "id": 18,
+      "question": "Pourquoi le chatbot est lent a repondre ?",
+      "category": "FAQ et depannage",
+      "rouge1_f1": 0.2256637168141593,
+      "rouge1_precision": 0.13076923076923078,
+      "rouge1_recall": 0.8225806451612904,
+      "cosine_similarity": 0.8243383169174194
+    },
+    {
+      "id": 19,
+      "question": "Que faire si la decision IA est incorrecte ?",
+      "category": "FAQ et depannage",
+      "rouge1_f1": 0.23650385604113114,
+      "rouge1_precision": 0.1377245508982036,
+      "rouge1_recall": 0.8363636363636363,
+      "cosine_similarity": 0.8517752289772034
+    },
+    {
+      "id": 20,
+      "question": "Comment exporter les donnees analytics en CSV ?",
+      "category": "FAQ et depannage",
+      "rouge1_f1": 0.2766990291262136,
+      "rouge1_precision": 0.16521739130434782,
+      "rouge1_recall": 0.8507462686567164,
+      "cosine_similarity": 0.8274538516998291
+    }
+  ]
+}

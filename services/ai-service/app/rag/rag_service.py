@@ -1,7 +1,8 @@
 """
 RAG Service — Retrieval-Augmented Generation for AutoAssist Chatbot.
 
-8 Améliorations implémentées :
+8+4 Améliorations implémentées :
+--- Originales ---
 1. ✅ Sync dynamique des règles depuis rules-service
 2. ✅ Embeddings multilingues (paraphrase-multilingual-MiniLM-L12-v2)
 3. ✅ Mémoire de conversation (historique par groupe WhatsApp)
@@ -10,6 +11,11 @@ RAG Service — Retrieval-Augmented Generation for AutoAssist Chatbot.
 6. ✅ Chunking (découpage des longs documents)
 7. ✅ Feedback loop (notation 👍/👎 des réponses)
 8. ✅ Auto-refresh (endpoint de re-indexation à chaud)
+--- Améliorations v2 (post-évaluation) ---
+9. ✅ Chunking avec overlap (150 chars) — évite de couper le contexte
+10. ✅ Query Expansion — synonymes domaine assurance automobile
+11. ✅ Retrieval élargi (top-10 → re-rank → top-5) — plus de candidats
+12. ✅ Contexte LLM enrichi (800 chars/doc au lieu de 500)
 """
 import logging
 import re
@@ -41,7 +47,8 @@ logger = logging.getLogger("ai-service.rag")
 
 RULES_SERVICE_URL = "http://rules-service:8084"
 CHUNK_MAX_CHARS = 600  # Max characters per chunk for better retrieval
-CONTEXT_MAX_CHARS = 500  # Max chars per doc in LLM context (richer answers)
+CHUNK_OVERLAP_CHARS = 150  # ✨ Amélioration #9: overlap between chunks (prevents context cuts)
+CONTEXT_MAX_CHARS = 800  # ✨ Amélioration #12: richer LLM context (was 500)
 
 # ── Global state ────────────────────────────────────────────────
 _chroma_client: Optional[chromadb.Client] = None
@@ -227,6 +234,7 @@ def rewrite_query(question: str) -> str:
 def _chunk_document(doc: dict) -> list[dict]:
     """
     Split a long document into smaller chunks for better retrieval precision.
+    Amélioration #9: uses OVERLAP to avoid cutting context at chunk boundaries.
     Each chunk retains the original metadata for source tracking.
     """
     full_text = f"{doc['title']}. {doc['content']}"
@@ -239,6 +247,7 @@ def _chunk_document(doc: dict) -> list[dict]:
     chunks = []
     current_chunk = ""
     chunk_idx = 0
+    last_sentences: list[str] = []  # track last sentences for overlap
 
     for sentence in sentences:
         if len(current_chunk) + len(sentence) > CHUNK_MAX_CHARS and current_chunk:
@@ -248,10 +257,23 @@ def _chunk_document(doc: dict) -> list[dict]:
                 "title": doc["title"],
                 "content": current_chunk.strip(),
             })
-            current_chunk = sentence
             chunk_idx += 1
+
+            # ✨ Amélioration #9: start next chunk with overlap from end of previous
+            overlap_text = ""
+            for prev in reversed(last_sentences):
+                candidate = prev + " " + overlap_text
+                if len(candidate) <= CHUNK_OVERLAP_CHARS:
+                    overlap_text = candidate.strip()
+                else:
+                    break
+            current_chunk = overlap_text + " " + sentence if overlap_text else sentence
         else:
             current_chunk += " " + sentence
+
+        last_sentences.append(sentence)
+        if len(last_sentences) > 5:  # keep only last 5 for overlap computation
+            last_sentences.pop(0)
 
     if current_chunk.strip():
         chunks.append({
@@ -262,6 +284,62 @@ def _chunk_document(doc: dict) -> list[dict]:
         })
 
     return chunks
+
+
+# ✨ Amélioration #10 : QUERY EXPANSION — Synonymes domaine assurance auto
+
+# Domain-specific synonym dictionary for insurance/automotive claims
+_QUERY_SYNONYMS: dict[str, list[str]] = {
+    # Processus
+    "ticket": ["dossier", "réclamation", "demande", "requête"],
+    "statut": ["état", "situation", "étape"],
+    "créer": ["ouvrir", "soumettre", "déposer", "enregistrer"],
+    "traiter": ["gérer", "résoudre", "prendre en charge"],
+    # Décision
+    "favorable": ["accepté", "approuvé", "validé", "remboursé"],
+    "défavorable": ["refusé", "rejeté", "non couvert"],
+    "décision": ["verdict", "recommandation", "résultat"],
+    "scoring": ["score", "note", "évaluation", "points"],
+    # Technique
+    "panne": ["dysfonctionnement", "défaillance", "avarie", "problème"],
+    "erreur": ["bug", "problème", "incident", "anomalie"],
+    "lent": ["lenteur", "délai", "timeout", "performance"],
+    # Sinistres
+    "sinistre": ["accident", "dommage", "incident", "préjudice"],
+    "vol": ["vol de véhicule", "soustraction frauduleuse"],
+    "incendie": ["feu", "combustion"],
+    "collision": ["accident de circulation", "impact", "choc"],
+    # Assurance
+    "couverture": ["garantie", "prise en charge", "indemnisation"],
+    "règle": ["condition", "critère", "seuil", "clause"],
+    "opérateur": ["agent", "conseiller", "chargé de clientèle"],
+}
+
+
+def expand_query(question: str) -> str:
+    """
+    Amélioration #10: Expand user query with domain synonyms to improve recall.
+    Example: 'créer un ticket' → 'créer un ticket ouvrir dossier réclamation'
+    """
+    lower = question.lower()
+    expansion_terms: list[str] = []
+
+    for term, synonyms in _QUERY_SYNONYMS.items():
+        if term in lower:
+            # Add 1-2 synonyms (avoid making the query too noisy)
+            expansion_terms.extend(synonyms[:2])
+
+    if expansion_terms:
+        expanded = question + " " + " ".join(expansion_terms)
+        logger.info(
+            "🔍 Query expanded: '%s' → added terms: %s",
+            sanitize_log(question[:50]),
+            sanitize_log(", ".join(expansion_terms[:5])),
+        )
+        return expanded
+
+    return question
+
 
 
 # Amélioration #1 : SYNC DYNAMIQUE — Règles depuis rules-service
@@ -517,22 +595,27 @@ def _rerank(docs: list[dict], query: str) -> list[dict]:
     return docs
 
 
-def retrieve(query: str, n_results: int = 6) -> list[dict]:
+def retrieve(query: str, n_results: int = 10) -> list[dict]:  # ✨ #11: 6→10 candidates
     """
-    Hybrid retrieval: semantic search + keyword re-ranking.
+    Hybrid retrieval: semantic search + query expansion + keyword re-ranking.
 
     Steps:
-    1. ChromaDB semantic search → top-N candidates
-    2. Keyword scoring → hybrid score
-    3. Re-ranking → best documents first
+    1. Amélioration #10: Query expansion (add domain synonyms)
+    2. ChromaDB semantic search → top-10 candidates (was 6)
+    3. Keyword scoring → hybrid score
+    4. Re-ranking → best documents first
+    5. Return top-5 (was 4) for richer LLM context
     """
     if _collection is None:
         logger.warning("ChromaDB not initialized")
         return []
 
-    # ── Amélioration #4 : Retrieve more, then filter ──
+    # ✨ Amélioration #10: Expand query with domain synonyms before semantic search
+    expanded_query = expand_query(query)
+
+    # ✨ Amélioration #11: Retrieve more candidates (10 instead of 6)
     results = _collection.query(
-        query_texts=[query],
+        query_texts=[expanded_query],
         n_results=n_results,
     )
 
@@ -547,10 +630,10 @@ def retrieve(query: str, n_results: int = 6) -> list[dict]:
         })
 
     # ── Amélioration #5 : Re-rank with hybrid scoring ──
-    docs = _rerank(docs, query)
+    docs = _rerank(docs, query)  # use original query for keyword scoring (not expanded)
 
-    # Return top 4 after re-ranking
-    return docs[:4]
+    # ✨ Amélioration #11: Return top-5 after re-ranking (was 4)
+    return docs[:5]
 
 
 # Amélioration #7 : FEEDBACK LOOP — Notation des réponses

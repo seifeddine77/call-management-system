@@ -113,6 +113,7 @@ class EvaluateResponse {
   final double score;
   final String? motif;
   final int matchedRules;
+  final int totalRulesEvaluated;
   final List<String> rulesApplied;
   final bool ambiguous;
 
@@ -121,6 +122,7 @@ class EvaluateResponse {
     required this.score,
     this.motif,
     required this.matchedRules,
+    required this.totalRulesEvaluated,
     required this.rulesApplied,
     required this.ambiguous,
   });
@@ -131,6 +133,7 @@ class EvaluateResponse {
       score: (json['score'] ?? 0).toDouble(),
       motif: json['motif'],
       matchedRules: json['matchedRules'] ?? 0,
+      totalRulesEvaluated: json['totalRulesEvaluated'] ?? 0,
       rulesApplied: List<String>.from(json['rulesApplied'] ?? []),
       ambiguous: json['ambiguous'] ?? false,
     );

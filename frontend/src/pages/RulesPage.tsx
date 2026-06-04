@@ -271,7 +271,20 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
         {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="rule-priorite" className="field-label block">Priorité</label><input id="rule-priorite" className="aurora-input" type="number" value={f.priorite} onChange={e => setF(p => ({ ...p, priorite: Number.parseInt(e.target.value, 10) || 10 }))} /></div>
+        <div>
+          <label htmlFor="rule-priorite" className="field-label block">Priorité *</label>
+          <input
+            id="rule-priorite"
+            className={`aurora-input ${formErrors.priorite ? 'border-rose-500/60' : ''}`}
+            type="number"
+            value={f.priorite}
+            onChange={e => {
+              setF(p => ({ ...p, priorite: Number.parseInt(e.target.value, 10) || 0 }));
+              setFormErrors(e2 => ({ ...e2, priorite: undefined }));
+            }}
+          />
+          {formErrors.priorite && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.priorite}</span>}
+        </div>
         <div>
           <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
           <span className="text-[9px] text-txt-3 font-mono block mb-1">Plage : -50 à +50</span>
@@ -289,7 +302,19 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
             <option value="FAVORABLE">Favorable</option><option value="DEFAVORABLE">Défavorable</option><option value="ETUDE">Étude</option>
           </select>
         </div>
-        <div><label htmlFor="rule-motif" className="field-label block">Motif action</label><input id="rule-motif" className="aurora-input" value={f.actionMotif} onChange={e => setF(p => ({ ...p, actionMotif: e.target.value }))} /></div>
+        <div>
+          <label htmlFor="rule-motif" className="field-label block">Motif action *</label>
+          <input
+            id="rule-motif"
+            className={`aurora-input ${formErrors.actionMotif ? 'border-rose-500/60' : ''}`}
+            value={f.actionMotif}
+            onChange={e => {
+              setF(p => ({ ...p, actionMotif: e.target.value }));
+              setFormErrors(e2 => ({ ...e2, actionMotif: undefined }));
+            }}
+          />
+          {formErrors.actionMotif && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.actionMotif}</span>}
+        </div>
       </div>
       <ConditionsEditor conditions={f.conditions} onChange={c => setF(p => ({ ...p, conditions: c }))} refs={refs} formErrors={formErrors} />
     </div>
@@ -297,7 +322,7 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
 }
 
 // ─── Form Errors ───
-interface FormErrors { nom?: string; description?: string; conditions?: string; }
+interface FormErrors { nom?: string; description?: string; conditions?: string; actionMotif?: string; priorite?: string; }
 
 // ─── Reference categories config ───
 const REF_CATEGORIES = [
@@ -1079,6 +1104,8 @@ function useRulesState() {
     const errors: FormErrors = {};
     if (!f.nom.trim()) errors.nom = 'Nom obligatoire';
     if (!f.description.trim()) errors.description = 'Description obligatoire';
+    if (!f.actionMotif.trim()) errors.actionMotif = 'Le motif de l\'action est obligatoire';
+    if (f.priorite < 1 || f.priorite > 10) errors.priorite = 'La priorité doit être entre 1 et 10';
     if (f.conditions.conditions.some(c => !c.field || !c.value))
       errors.conditions = 'Tous les champs et valeurs des conditions sont obligatoires';
     setFormErrors(errors);

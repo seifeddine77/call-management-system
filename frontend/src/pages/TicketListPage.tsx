@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { ticketService } from '../services/ticketService';
 import { TableSkeleton, ErrorState, EmptyState } from '../components/ui/States';
 import type { Ticket, Canal, Statut, TicketFilter } from '../types/ticket';
+import { decisionService } from '../services/decisionService';
+import type { DecisionResult } from '../types/decision';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
@@ -27,6 +29,7 @@ export default function TicketListPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [decisions, setDecisions] = useState<Record<string, DecisionResult | null>>({});
 
   // ── Filtres avancés (CDC : liste filtrable) ──
   const [statut, setStatut] = useState<Statut | ''>('');
@@ -35,6 +38,7 @@ export default function TicketListPage() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'createdAt' | 'priorite' | 'statut'>('createdAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [recommandationFilter, setRecommandationFilter] = useState<'ALL' | 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE'>('ALL');
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -61,6 +65,22 @@ export default function TicketListPage() {
       setTickets(sorted);
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
+
+      // Fetch decisions for all loaded tickets in parallel
+      const decisionPromises = sorted.map(async (t) => {
+        try {
+          const decision = await decisionService.getByTicket(t.id);
+          return { id: t.id, decision };
+        } catch {
+          return { id: t.id, decision: null };
+        }
+      });
+      const decisionResults = await Promise.all(decisionPromises);
+      const decisionMap: Record<string, DecisionResult | null> = {};
+      decisionResults.forEach((res) => {
+        decisionMap[res.id] = res.decision;
+      });
+      setDecisions(decisionMap);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -69,6 +89,16 @@ export default function TicketListPage() {
   }, [page, statut, canal, priorite, search, sortBy, sortDir]);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
+
+  const filteredTickets = React.useMemo(() => {
+    return tickets.filter(t => {
+      if (recommandationFilter === 'ALL') return true;
+      const dec = decisions[t.id];
+      if (!dec) return false;
+      const finalDec = dec.finalDecision || dec.decision;
+      return finalDec === recommandationFilter;
+    });
+  }, [tickets, decisions, recommandationFilter]);
 
   const handleExportCSV = () => {
     const headers = ['Numéro', 'Client', 'Canal', 'Statut', 'Priorité', 'Date'];
@@ -81,8 +111,8 @@ export default function TicketListPage() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const resetFilters = () => { setStatut(''); setCanal(''); setPriorite(''); setSearch(''); setPage(0); };
-  const hasFilters = !!(statut || canal || priorite || search);
+  const resetFilters = () => { setStatut(''); setCanal(''); setPriorite(''); setSearch(''); setRecommandationFilter('ALL'); setPage(0); };
+  const hasFilters = !!(statut || canal || priorite || search || recommandationFilter !== 'ALL');
 
   if (error) return <ErrorState message={error} onRetry={fetchTickets} />;
 
@@ -160,7 +190,7 @@ export default function TicketListPage() {
                   <X size={12} />
                   <span>Reset</span>
                   <span className="flex items-center justify-center bg-[var(--danger)] text-white w-4.5 h-4.5 rounded-full text-[9px] font-bold">
-                    {[statut, canal, priorite, search].filter(Boolean).length}
+                    {[statut, canal, priorite, search, recommandationFilter !== 'ALL' ? 'REC' : ''].filter(Boolean).length}
                   </span>
                 </motion.button>
               )}
@@ -285,6 +315,40 @@ export default function TicketListPage() {
               </div>
             </div>
 
+            {/* Recommandation IA filter group */}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-[9px] text-[var(--text-3)] font-bold uppercase tracking-wider">Avis IA</span>
+              <div className="bg-[var(--elevated)]/50 border border-[var(--border)] rounded-xl p-1 flex gap-0.5 flex-wrap">
+                {([
+                  { value: 'ALL', label: 'Tous', icon: '⊙', color: undefined },
+                  { value: 'FAVORABLE', label: 'Favorable', icon: '✓', color: '#10B981' },
+                  { value: 'DEFAVORABLE', label: 'Refusé', icon: '✕', color: '#EF4444' },
+                  { value: 'ETUDE', label: 'Étude', icon: '⚠️', color: '#F59E0B' },
+                ] as const).map(r => (
+                  <button 
+                    key={r.value} 
+                    onClick={() => { setRecommandationFilter(r.value); setPage(0); }} 
+                    className="relative cursor-pointer px-3.5 py-1.5 rounded-lg text-[10.5px] font-semibold transition-all duration-300 flex items-center gap-1.5 border-none bg-transparent"
+                    style={{
+                      color: recommandationFilter === r.value ? (r.color || 'var(--primary)') : 'var(--text-2)',
+                    }}
+                  >
+                    {recommandationFilter === r.value && (
+                      <motion.div 
+                        layoutId="recommandation-seg" 
+                        className="absolute inset-0 rounded-lg bg-[var(--surface)] border border-[var(--primary)]/20 shadow-[0_2px_8px_rgba(99,91,255,0.08)]"
+                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <span style={{ color: r.color || 'var(--text-3)' }}>{r.icon}</span>
+                      {r.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       </motion.div>
@@ -293,7 +357,7 @@ export default function TicketListPage() {
       <motion.div variants={item} className="card-aurora rounded-2xl overflow-hidden">
         {(() => {
           if (loading) return <div className="p-4"><TableSkeleton rows={8} cols={7} /></div>;
-          if (tickets.length === 0) return (
+          if (filteredTickets.length === 0) return (
             <EmptyState icon="search" title="Aucun résultat" subtitle="Aucun ticket ne correspond à ces filtres" action={
               hasFilters ? <button onClick={resetFilters} className="btn-ghost h-8 px-4 rounded-lg text-xs cursor-pointer">Réinitialiser les filtres</button> : undefined
             } />
@@ -315,7 +379,7 @@ export default function TicketListPage() {
                 </tr>
               </thead>
               <tbody>
-                {tickets.map(t => (
+                {filteredTickets.map(t => (
                   <tr 
                     key={t.id} 
                     role="button"
@@ -343,9 +407,36 @@ export default function TicketListPage() {
                       })()}
                     </td>
                     <td>
-                      <span className="badge" style={{ background: `${statutColors[t.statut]}15`, color: statutColors[t.statut] }}>
-                        {statutLabels[t.statut] || t.statut}
-                      </span>
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className="badge" style={{ background: `${statutColors[t.statut]}15`, color: statutColors[t.statut] }}>
+                          {statutLabels[t.statut] || t.statut}
+                        </span>
+                        {(() => {
+                          const dec = decisions[t.id];
+                          if (!dec) return null;
+                          const finalDec = dec.finalDecision || dec.decision;
+                          if (finalDec === 'ETUDE') {
+                            return (
+                              <span className="badge text-[9px]" style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                ⚠️ Étude
+                              </span>
+                            );
+                          } else if (finalDec === 'FAVORABLE') {
+                            return (
+                              <span className="badge text-[9px]" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)' }}>
+                                ✓ Favorable
+                              </span>
+                            );
+                          } else if (finalDec === 'DEFAVORABLE') {
+                            return (
+                              <span className="badge text-[9px]" style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                ✕ Refusé
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </td>
                     <td>
                       {(() => {

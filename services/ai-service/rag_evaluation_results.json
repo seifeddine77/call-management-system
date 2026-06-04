@@ -1,0 +1,244 @@
+{
+  "evaluation_date": "2026-06-04T16:09:31.446554",
+  "total_questions": 20,
+  "model_embeddings": "paraphrase-multilingual-MiniLM-L12-v2",
+  "knowledge_docs_count": 60,
+  "global_scores": {
+    "rouge1_f1_mean": 0.2788,
+    "cosine_similarity_mean": 0.7413
+  },
+  "category_scores": {
+    "Processus métier (flux, statuts)": {
+      "count": 4,
+      "rouge1_f1_mean": 0.2705,
+      "cosine_similarity_mean": 0.7979
+    },
+    "Aide à la décision IA": {
+      "count": 4,
+      "rouge1_f1_mean": 0.2913,
+      "cosine_similarity_mean": 0.8361
+    },
+    "Règles métier": {
+      "count": 3,
+      "rouge1_f1_mean": 0.2339,
+      "cosine_similarity_mean": 0.656
+    },
+    "Procédures opérationnelles": {
+      "count": 4,
+      "rouge1_f1_mean": 0.2539,
+      "cosine_similarity_mean": 0.5344
+    },
+    "Architecture technique": {
+      "count": 2,
+      "rouge1_f1_mean": 0.2553,
+      "cosine_similarity_mean": 0.871
+    },
+    "FAQ et dépannage": {
+      "count": 3,
+      "rouge1_f1_mean": 0.3668,
+      "cosine_similarity_mean": 0.8143
+    }
+  },
+  "detailed_results": [
+    {
+      "id": 1,
+      "question": "Comment créer un ticket dans AutoAssist ?",
+      "category": "Processus métier (flux, statuts)",
+      "rouge1_f1": 0.21874999999999997,
+      "rouge1_precision": 0.1308411214953271,
+      "rouge1_recall": 0.6666666666666666,
+      "cosine_similarity": 0.9375554323196411,
+      "source_doc_id": "guide_creer_ticket"
+    },
+    {
+      "id": 2,
+      "question": "Quels sont les statuts possibles d'un ticket ?",
+      "category": "Processus métier (flux, statuts)",
+      "rouge1_f1": 0.2997275204359673,
+      "rouge1_precision": 0.1762820512820513,
+      "rouge1_recall": 1.0,
+      "cosine_similarity": 0.5138340592384338,
+      "source_doc_id": "flux_statuts"
+    },
+    {
+      "id": 3,
+      "question": "Comment sont calculées les priorités des tickets ?",
+      "category": "Processus métier (flux, statuts)",
+      "rouge1_f1": 0.2444444444444444,
+      "rouge1_precision": 0.14057507987220447,
+      "rouge1_recall": 0.9361702127659575,
+      "cosine_similarity": 0.8145918846130371,
+      "source_doc_id": "guide_priorites_tickets"
+    },
+    {
+      "id": 4,
+      "question": "Comment résoudre et fermer un ticket ?",
+      "category": "Processus métier (flux, statuts)",
+      "rouge1_f1": 0.3192019950124688,
+      "rouge1_precision": 0.1921921921921922,
+      "rouge1_recall": 0.9411764705882353,
+      "cosine_similarity": 0.9257677793502808,
+      "source_doc_id": "resoudre_fermer_ticket"
+    },
+    {
+      "id": 5,
+      "question": "Comment fonctionne le pipeline décisionnel ?",
+      "category": "Aide à la décision IA",
+      "rouge1_f1": 0.28720626631853785,
+      "rouge1_precision": 0.17080745341614906,
+      "rouge1_recall": 0.9016393442622951,
+      "cosine_similarity": 0.789345383644104,
+      "source_doc_id": "ia_decision"
+    },
+    {
+      "id": 6,
+      "question": "Quelle est la différence entre FAVORABLE et DEFAVORABLE ?",
+      "category": "Aide à la décision IA",
+      "rouge1_f1": 0.3536977491961415,
+      "rouge1_precision": 0.22448979591836735,
+      "rouge1_recall": 0.8333333333333334,
+      "cosine_similarity": 0.7840602397918701,
+      "source_doc_id": "decision_favorable_defavorable"
+    },
+    {
+      "id": 7,
+      "question": "Comment fonctionne le scoring et quelles sont les décisions possibles ?",
+      "category": "Aide à la décision IA",
+      "rouge1_f1": 0.1928374655647383,
+      "rouge1_precision": 0.109717868338558,
+      "rouge1_recall": 0.7954545454545454,
+      "cosine_similarity": 0.8685063123703003,
+      "source_doc_id": "ia_scoring"
+    },
+    {
+      "id": 8,
+      "question": "Comment fonctionne l'analyse NLP automatique ?",
+      "category": "Aide à la décision IA",
+      "rouge1_f1": 0.33149171270718236,
+      "rouge1_precision": 0.19933554817275748,
+      "rouge1_recall": 0.9836065573770492,
+      "cosine_similarity": 0.9026395082473755,
+      "source_doc_id": "ia_nlp"
+    },
+    {
+      "id": 9,
+      "question": "Comment fonctionnent les règles métier ?",
+      "category": "Règles métier",
+      "rouge1_f1": 0.2476190476190476,
+      "rouge1_precision": 0.14606741573033707,
+      "rouge1_recall": 0.8125,
+      "cosine_similarity": 0.9158095121383667,
+      "source_doc_id": "regles_fonctionnement"
+    },
+    {
+      "id": 10,
+      "question": "Comment configurer une règle métier avec un opérateur IN ?",
+      "category": "Règles métier",
+      "rouge1_f1": 0.22140221402214022,
+      "rouge1_precision": 0.14150943396226415,
+      "rouge1_recall": 0.5084745762711864,
+      "cosine_similarity": 0.707849383354187,
+      "source_doc_id": "regles_fonctionnement"
+    },
+    {
+      "id": 11,
+      "question": "Quels sont des exemples de règles métier typiques ?",
+      "category": "Règles métier",
+      "rouge1_f1": 0.23255813953488375,
+      "rouge1_precision": 0.1383399209486166,
+      "rouge1_recall": 0.7291666666666666,
+      "cosine_similarity": 0.3442836105823517,
+      "source_doc_id": "regles_exemples"
+    },
+    {
+      "id": 12,
+      "question": "Quelle est la procédure pour traiter un sinistre de type VOL ?",
+      "category": "Procédures opérationnelles",
+      "rouge1_f1": 0.36245954692556637,
+      "rouge1_precision": 0.22764227642276422,
+      "rouge1_recall": 0.8888888888888888,
+      "cosine_similarity": 0.8550386428833008,
+      "source_doc_id": "proc_vol"
+    },
+    {
+      "id": 13,
+      "question": "Comment traiter une réclamation de type PANNE ?",
+      "category": "Procédures opérationnelles",
+      "rouge1_f1": 0.19941348973607037,
+      "rouge1_precision": 0.11888111888111888,
+      "rouge1_recall": 0.6181818181818182,
+      "cosine_similarity": 0.21513445675373077,
+      "source_doc_id": "proc_panne"
+    },
+    {
+      "id": 14,
+      "question": "Comment traiter une réclamation de type USURE ?",
+      "category": "Procédures opérationnelles",
+      "rouge1_f1": 0.2144927536231884,
+      "rouge1_precision": 0.12937062937062938,
+      "rouge1_recall": 0.6271186440677966,
+      "cosine_similarity": 0.5561960935592651,
+      "source_doc_id": "proc_usure"
+    },
+    {
+      "id": 15,
+      "question": "Quelle est la procédure complète de traitement d'une réclamation ?",
+      "category": "Procédures opérationnelles",
+      "rouge1_f1": 0.23913043478260873,
+      "rouge1_precision": 0.14666666666666667,
+      "rouge1_recall": 0.6470588235294118,
+      "cosine_similarity": 0.511418879032135,
+      "source_doc_id": "proc_reclamation"
+    },
+    {
+      "id": 16,
+      "question": "Quelle est l'architecture technique d'AutoAssist ?",
+      "category": "Architecture technique",
+      "rouge1_f1": 0.20588235294117646,
+      "rouge1_precision": 0.12455516014234876,
+      "rouge1_recall": 0.5932203389830508,
+      "cosine_similarity": 0.9487432241439819,
+      "source_doc_id": "arch_microservices"
+    },
+    {
+      "id": 17,
+      "question": "Comment les microservices communiquent entre eux ?",
+      "category": "Architecture technique",
+      "rouge1_f1": 0.3048128342245989,
+      "rouge1_precision": 0.18566775244299674,
+      "rouge1_recall": 0.8507462686567164,
+      "cosine_similarity": 0.7933465838432312,
+      "source_doc_id": "arch_communication"
+    },
+    {
+      "id": 18,
+      "question": "Pourquoi le chatbot est lent à répondre ?",
+      "category": "FAQ et dépannage",
+      "rouge1_f1": 0.37037037037037035,
+      "rouge1_precision": 0.22900763358778625,
+      "rouge1_recall": 0.967741935483871,
+      "cosine_similarity": 0.7312262654304504,
+      "source_doc_id": "faq_temps_reponse"
+    },
+    {
+      "id": 19,
+      "question": "Que faire si la décision IA est incorrecte ?",
+      "category": "FAQ et dépannage",
+      "rouge1_f1": 0.29810298102981025,
+      "rouge1_precision": 0.1751592356687898,
+      "rouge1_recall": 1.0,
+      "cosine_similarity": 0.8686859011650085,
+      "source_doc_id": "faq_decision_incorrecte"
+    },
+    {
+      "id": 20,
+      "question": "Comment exporter les données analytics en CSV ?",
+      "category": "FAQ et dépannage",
+      "rouge1_f1": 0.4318936877076412,
+      "rouge1_precision": 0.2777777777777778,
+      "rouge1_recall": 0.9701492537313433,
+      "cosine_similarity": 0.8428407311439514,
+      "source_doc_id": "guide_export_donnees"
+    }
+  ]
+}

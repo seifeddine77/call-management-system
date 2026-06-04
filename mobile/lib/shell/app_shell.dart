@@ -14,9 +14,6 @@ import '../screens/users_screen.dart';
 import '../screens/agences_screen.dart';
 import '../screens/rules_screen.dart';
 import '../screens/notifications_screen.dart';
-import '../screens/audit_screen.dart';
-import '../services/ticket_service.dart';
-import '../models/ticket.dart';
 import '../widgets/logo.dart'; // Import du logo
 
 class AppShell extends StatefulWidget {
@@ -122,30 +119,64 @@ class _MoreScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final items = <_MenuItem>[
       if (auth.isSupervisor) ...[
-        _MenuItem('📈', 'Analytique', 'KPIs et graphiques', () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
-        }),
-        _MenuItem('📐', 'Règles', 'Moteur de règles', () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesScreen()));
-        }),
-        _MenuItem('👤', 'Utilisateurs', 'Gestion des comptes', () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
-        }),
-        _MenuItem('🏢', 'Agences', 'Gestion des agences', () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AgencesScreen()));
-        }),
-
+        _MenuItem(
+          Icon(Icons.analytics_outlined, color: c.primary),
+          'Analytique',
+          'KPIs et graphiques',
+          () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
+          },
+        ),
+        _MenuItem(
+          const Icon(Icons.rule_folder_outlined, color: Colors.indigo),
+          'Règles',
+          'Moteur de règles',
+          () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesScreen()));
+          },
+        ),
+        _MenuItem(
+          const Icon(Icons.people_outline, color: Colors.teal),
+          'Utilisateurs',
+          'Gestion des comptes',
+          () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
+          },
+        ),
+        _MenuItem(
+          const Icon(Icons.location_city_outlined, color: Colors.deepOrange),
+          'Agences',
+          'Gestion des agences',
+          () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AgencesScreen()));
+          },
+        ),
       ],
       if (auth.isAdmin)
-        _MenuItem('🔔', 'Notifications', 'Journal des envois', () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-        }),
-      _MenuItem('⚙️', 'Paramètres', 'Profil & Sécurité', () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-      }),
-      _MenuItem('🚪', 'Déconnexion', 'Se déconnecter', () async {
-        await auth.logout();
-      }),
+        _MenuItem(
+          const Icon(Icons.notifications_outlined, color: Colors.amber),
+          'Notifications',
+          'Journal des envois',
+          () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+          },
+        ),
+      _MenuItem(
+        const Icon(Icons.settings_outlined, color: Colors.blueGrey),
+        'Paramètres',
+        'Profil & Sécurité',
+        () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        },
+      ),
+      _MenuItem(
+        const Icon(Icons.logout_outlined, color: Colors.redAccent),
+        'Déconnexion',
+        'Se déconnecter',
+        () async {
+          await auth.logout();
+        },
+      ),
     ];
 
     return ListView(
@@ -162,6 +193,7 @@ class _MoreScreen extends StatelessWidget {
 
   Widget _buildMenuItem(BuildContext context, _MenuItem item, int index) {
     final c = context.colors;
+    final iconColor = (item.icon as Icon).color ?? c.primary;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -172,7 +204,15 @@ class _MoreScreen extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Text(item.icon, style: const TextStyle(fontSize: 24)),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(child: item.icon),
+        ),
         title: Text(item.title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
         subtitle: Text(item.subtitle, style: GoogleFonts.inter(fontSize: 11, color: c.text3)),
         trailing: Icon(Icons.chevron_right, size: 16, color: c.text3),
@@ -183,7 +223,7 @@ class _MoreScreen extends StatelessWidget {
 }
 
 class _MenuItem {
-  final String icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;

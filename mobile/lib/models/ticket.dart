@@ -13,10 +13,12 @@ class Ticket {
   final String? operateurId;
   final String? operateurName;
   final String? agenceId;
+  final String? agenceName;
   final String? audioPath;
   final String? transcription;
   final String? transcriptionKeywords;
   final String? photosPaths;
+  final bool consentementEnregistrement;
   final String createdAt;
   final String? updatedAt;
   final List<TicketAction> actions;
@@ -34,14 +36,64 @@ class Ticket {
     this.operateurId,
     this.operateurName,
     this.agenceId,
+    this.agenceName,
     this.audioPath,
     this.transcription,
     this.transcriptionKeywords,
     this.photosPaths,
+    this.consentementEnregistrement = false,
     required this.createdAt,
     this.updatedAt,
     this.actions = const [],
   });
+
+  Ticket copyWith({
+    String? id,
+    String? numero,
+    String? clientNom,
+    String? clientTel,
+    String? clientEmail,
+    String? canal,
+    String? statut,
+    int? priorite,
+    String? description,
+    String? operateurId,
+    String? operateurName,
+    String? agenceId,
+    String? agenceName,
+    String? audioPath,
+    String? transcription,
+    String? transcriptionKeywords,
+    String? photosPaths,
+    bool? consentementEnregistrement,
+    String? createdAt,
+    String? updatedAt,
+    List<TicketAction>? actions,
+  }) {
+    return Ticket(
+      id: id ?? this.id,
+      numero: numero ?? this.numero,
+      clientNom: clientNom ?? this.clientNom,
+      clientTel: clientTel ?? this.clientTel,
+      clientEmail: clientEmail ?? this.clientEmail,
+      canal: canal ?? this.canal,
+      statut: statut ?? this.statut,
+      priorite: priorite ?? this.priorite,
+      description: description ?? this.description,
+      operateurId: operateurId ?? this.operateurId,
+      operateurName: operateurName ?? this.operateurName,
+      agenceId: agenceId ?? this.agenceId,
+      agenceName: agenceName ?? this.agenceName,
+      audioPath: audioPath ?? this.audioPath,
+      transcription: transcription ?? this.transcription,
+      transcriptionKeywords: transcriptionKeywords ?? this.transcriptionKeywords,
+      photosPaths: photosPaths ?? this.photosPaths,
+      consentementEnregistrement: consentementEnregistrement ?? this.consentementEnregistrement,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      actions: actions ?? this.actions,
+    );
+  }
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
     return Ticket(
@@ -57,10 +109,12 @@ class Ticket {
       operateurId: json['operateurId'],
       operateurName: json['operateurName'],
       agenceId: json['agenceId'],
+      agenceName: json['agenceName'],
       audioPath: json['audioPath'],
       transcription: json['transcription'],
       transcriptionKeywords: json['transcriptionKeywords'],
       photosPaths: json['photosPaths'],
+      consentementEnregistrement: json['consentementEnregistrement'] ?? false,
       createdAt: json['createdAt'] ?? '',
       updatedAt: json['updatedAt'],
       actions: (json['actions'] as List?)?.map((a) => TicketAction.fromJson(a)).toList() ?? [],

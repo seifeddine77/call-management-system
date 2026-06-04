@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -22,6 +23,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _myAgenceName = '—';
   bool _saving = false;
+
+  // Granular notification preferences
+  bool _notifTicketEntrant = true;
+  bool _notifDecisionIa = true;
+  bool _notifSlaAlert = true;
+  bool _notifEmailRapport = false;
 
   // Profile form controllers
   late TextEditingController _prenomC;
@@ -44,6 +51,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _phoneC = TextEditingController();
     _resolveAgence();
     _loadUserProfile();
+    _loadNotifs();
+  }
+
+  Future<void> _loadNotifs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notifTicketEntrant = prefs.getBool('notif_ticket_entrant') ?? true;
+      _notifDecisionIa = prefs.getBool('notif_decision_ia') ?? true;
+      _notifSlaAlert = prefs.getBool('notif_sla_alert') ?? true;
+      _notifEmailRapport = prefs.getBool('notif_email_rapport') ?? false;
+    });
+  }
+
+  Future<void> _saveNotif(String key, bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, val);
   }
 
   @override
@@ -305,9 +328,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
 
           // ── Preferences ──
-          _sectionTitle(c, 'PRÉFÉRENCES'),
-          _settingsTile(c, Icons.notifications_outlined, 'Notifications',
-            trailing: Icon(Icons.toggle_on, color: c.primary, size: 28)),
+          _sectionTitle(c, 'PRÉFÉRENCES (NOTIFICATIONS)'),
+          _notifSwitchTile(
+            c,
+            Icons.notification_important_outlined,
+            'Nouveau ticket incident entrant',
+            'Alerte sonore immédiate + signal visuel dans la file',
+            _notifTicketEntrant,
+            (val) => setState(() {
+              _notifTicketEntrant = val;
+              _saveNotif('notif_ticket_entrant', val);
+            }),
+          ),
+          _notifSwitchTile(
+            c,
+            Icons.auto_awesome_outlined,
+            'Décision IA & analyse terminée',
+            "Signalement dès que la jauge de confiance s'illumine",
+            _notifDecisionIa,
+            (val) => setState(() {
+              _notifDecisionIa = val;
+              _saveNotif('notif_decision_ia', val);
+            }),
+          ),
+          _notifSwitchTile(
+            c,
+            Icons.alarm_on_outlined,
+            "Alerte d'embouteillage (SLA)",
+            "Déclencher si un dossier attend en file depuis plus de 5 mins",
+            _notifSlaAlert,
+            (val) => setState(() {
+              _notifSlaAlert = val;
+              _saveNotif('notif_sla_alert', val);
+            }),
+          ),
+          _notifSwitchTile(
+            c,
+            Icons.mail_outline_rounded,
+            "Rapport d'activité par courriel",
+            "Synthèse des KPIs envoyée à votre adresse à 18h00",
+            _notifEmailRapport,
+            (val) => setState(() {
+              _notifEmailRapport = val;
+              _saveNotif('notif_email_rapport', val);
+            }),
+          ),
 
           // ── Theme Toggle ──
           _settingsTile(c, themeProvider.isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
@@ -397,6 +462,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: c.text)),
         trailing: trailing ?? Icon(Icons.chevron_right, size: 16, color: c.text3),
         onTap: onTap,
+        dense: true,
+      ),
+    );
+  }
+
+  Widget _notifSwitchTile(AppColorScheme c, IconData icon, String label, String sub, bool val, ValueChanged<bool> onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.border),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Icon(icon, size: 18, color: c.text2),
+        title: Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: c.text)),
+        subtitle: Text(sub, style: GoogleFonts.inter(fontSize: 10, color: c.text3)),
+        trailing: Switch(
+          value: val,
+          onChanged: onChanged,
+          activeColor: c.primary,
+        ),
         dense: true,
       ),
     );

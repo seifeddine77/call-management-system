@@ -519,7 +519,7 @@ class _AuditScreenState extends State<AuditScreen> {
           ? Center(child: CircularProgressIndicator(color: c.primary))
           : _error != null
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('❌', style: TextStyle(fontSize: 40)),
+                  Icon(Icons.error_outline, size: 40, color: c.danger),
                   const SizedBox(height: 8),
                   Text(_error!, style: GoogleFonts.inter(color: c.danger, fontSize: 12)),
                   TextButton(onPressed: _fetchData, child: const Text('Réessayer')),
@@ -553,8 +553,6 @@ class _AuditScreenState extends State<AuditScreen> {
     final t = _ticket!;
     final perf = _perf;
     final canalColor = c.canalColor(t.canal);
-    final canalEmoji = t.canal == 'CALL' ? '📞' : t.canal == 'EMAIL' ? '📧' : '🌐';
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -582,7 +580,17 @@ class _AuditScreenState extends State<AuditScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: canalColor.withOpacity(0.2)),
             ),
-            child: Center(child: Text(canalEmoji, style: const TextStyle(fontSize: 20))),
+            child: Center(
+              child: Icon(
+                t.canal == 'CALL'
+                    ? Icons.phone_outlined
+                    : t.canal == 'EMAIL'
+                        ? Icons.mail_outlined
+                        : Icons.language_outlined,
+                size: 20,
+                color: canalColor,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

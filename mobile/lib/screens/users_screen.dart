@@ -111,12 +111,20 @@ class _UsersScreenState extends State<UsersScreen> {
     String selectedAgence = form.agenceId ?? '';
     bool saving = false;
 
+    // Inline validation error states
+    String? prenomErr;
+    String? nomErr;
+    String? emailErr;
+    String? passwordErr;
+    String? agenceIdErr;
+
     final planningPresets = [
       {'label': 'Temps plein', 'value': 'Lundi-Vendredi 08:00-17:00'},
       {'label': 'Matin', 'value': 'Lundi-Vendredi 06:00-14:00'},
       {'label': 'Après-midi', 'value': 'Lundi-Vendredi 14:00-22:00'},
       {'label': 'Nuit', 'value': 'Lundi-Vendredi 22:00-06:00'},
       {'label': 'Week-end', 'value': 'Samedi-Dimanche 08:00-18:00'},
+      {'label': 'Temps plein +', 'value': 'Lundi-Vendredi 08:00-17:00, Samedi 09:00-13:00'},
     ];
 
     showModalBottomSheet(
@@ -140,23 +148,31 @@ class _UsersScreenState extends State<UsersScreen> {
               const SizedBox(height: 16),
 
               // Prénom + Nom
-              Row(children: [
-                Expanded(child: _formTextField(c, 'Prénom *', prenomC)),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: _formTextField(c, 'Prénom *', prenomC, errorText: prenomErr, onChanged: (_) {
+                  if (prenomErr != null) setBS(() => prenomErr = null);
+                })),
                 const SizedBox(width: 10),
-                Expanded(child: _formTextField(c, 'Nom *', nomC)),
+                Expanded(child: _formTextField(c, 'Nom *', nomC, errorText: nomErr, onChanged: (_) {
+                  if (nomErr != null) setBS(() => nomErr = null);
+                })),
               ]),
               const SizedBox(height: 10),
 
               // Email
-              _formTextField(c, 'Email *', emailC, keyboardType: TextInputType.emailAddress),
+              _formTextField(c, 'Email *', emailC, keyboardType: TextInputType.emailAddress, errorText: emailErr, onChanged: (_) {
+                if (emailErr != null) setBS(() => emailErr = null);
+              }),
               const SizedBox(height: 10),
 
               // Password
-              _formTextField(c, isCreate ? 'Mot de passe *' : 'Nouveau mot de passe (optionnel)', passwordC, obscure: true),
+              _formTextField(c, isCreate ? 'Mot de passe *' : 'Nouveau mot de passe (optionnel)', passwordC, obscure: true, errorText: passwordErr, onChanged: (_) {
+                if (passwordErr != null) setBS(() => passwordErr = null);
+              }),
               const SizedBox(height: 10),
 
               // Rôle + Téléphone
-              Row(children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Rôle', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: c.text3)),
                   const SizedBox(height: 4),
@@ -170,7 +186,12 @@ class _UsersScreenState extends State<UsersScreen> {
                       style: GoogleFonts.inter(fontSize: 12, color: c.text),
                       items: ['OPERATEUR', 'SUPERVISEUR', 'ADMIN'].map((r) =>
                         DropdownMenuItem(value: r, child: Text(r))).toList(),
-                      onChanged: (v) => setBS(() => selectedRole = v!),
+                      onChanged: (v) => setBS(() {
+                        selectedRole = v!;
+                        if ((selectedRole != 'OPERATEUR' && selectedRole != 'SUPERVISEUR') || selectedAgence.isNotEmpty) {
+                          agenceIdErr = null;
+                        }
+                      }),
                     )),
                   ),
                 ])),
@@ -186,7 +207,11 @@ class _UsersScreenState extends State<UsersScreen> {
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(color: c.elevated, borderRadius: BorderRadius.circular(10), border: Border.all(color: c.border)),
+                  decoration: BoxDecoration(
+                    color: c.elevated,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: agenceIdErr != null ? c.danger : c.border),
+                  ),
                   child: DropdownButtonHideUnderline(child: DropdownButton<String>(
                     value: selectedAgence.isEmpty ? null : selectedAgence,
                     hint: Text('-- Aucune agence --', style: GoogleFonts.inter(fontSize: 12, color: c.text3)),
@@ -197,9 +222,18 @@ class _UsersScreenState extends State<UsersScreen> {
                       const DropdownMenuItem(value: '', child: Text('-- Aucune agence --')),
                       ..._agences.map((a) => DropdownMenuItem(value: a.id, child: Text(a.nom, overflow: TextOverflow.ellipsis))),
                     ],
-                    onChanged: (v) => setBS(() => selectedAgence = v ?? ''),
+                    onChanged: (v) => setBS(() {
+                      selectedAgence = v ?? '';
+                      if (selectedAgence.isNotEmpty) {
+                        agenceIdErr = null;
+                      }
+                    }),
                   )),
                 ),
+                if (agenceIdErr != null) ...[
+                  const SizedBox(height: 4),
+                  Text('⚠️ $agenceIdErr', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: c.danger)),
+                ],
               ]),
               const SizedBox(height: 10),
 
@@ -241,21 +275,55 @@ class _UsersScreenState extends State<UsersScreen> {
                   decoration: BoxDecoration(gradient: c.gradientCta, borderRadius: BorderRadius.circular(12)),
                   child: ElevatedButton(
                     onPressed: saving ? null : () async {
-                      // Validation
-                      if (prenomC.text.trim().isEmpty || nomC.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Prénom et Nom obligatoires'), backgroundColor: c.danger));
-                        return;
+                      // Inline Validation
+                      bool hasError = false;
+                      String? pErr;
+                      String? nErr;
+                      String? eErr;
+                      String? pwErr;
+                      String? aErr;
+
+                      if (prenomC.text.trim().isEmpty) {
+                        pErr = 'Le prénom est obligatoire';
+                        hasError = true;
                       }
-                      if (emailC.text.trim().isEmpty || !emailC.text.contains('@')) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Email invalide'), backgroundColor: c.danger));
-                        return;
+                      if (nomC.text.trim().isEmpty) {
+                        nErr = 'Le nom est obligatoire';
+                        hasError = true;
                       }
-                      if (isCreate && passwordC.text.length < 6) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Mot de passe min 6 caractères'), backgroundColor: c.danger));
-                        return;
+                      if (emailC.text.trim().isEmpty) {
+                        eErr = "L'email est obligatoire";
+                        hasError = true;
+                      } else if (!RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").hasMatch(emailC.text.trim())) {
+                        eErr = "Format d'email invalide";
+                        hasError = true;
+                      }
+                      if (isCreate) {
+                        if (passwordC.text.isEmpty) {
+                          pwErr = 'Le mot de passe est obligatoire';
+                          hasError = true;
+                        } else if (passwordC.text.length < 6) {
+                          pwErr = 'Minimum 6 caractères';
+                          hasError = true;
+                        }
+                      } else if (passwordC.text.isNotEmpty && passwordC.text.length < 6) {
+                        pwErr = 'Minimum 6 caractères';
+                        hasError = true;
                       }
                       if ((selectedRole == 'OPERATEUR' || selectedRole == 'SUPERVISEUR') && selectedAgence.isEmpty) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Agence obligatoire pour ce rôle'), backgroundColor: c.danger));
+                        final label = selectedRole == 'OPERATEUR' ? 'opérateur' : 'superviseur';
+                        aErr = 'Un $label doit être rattaché à une agence';
+                        hasError = true;
+                      }
+
+                      if (hasError) {
+                        setBS(() {
+                          prenomErr = pErr;
+                          nomErr = nErr;
+                          emailErr = eErr;
+                          passwordErr = pwErr;
+                          agenceIdErr = aErr;
+                        });
                         return;
                       }
 
@@ -307,7 +375,7 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Widget _formTextField(AppColorScheme c, String label, TextEditingController ctrl,
-      {bool obscure = false, TextInputType? keyboardType}) {
+      {bool obscure = false, TextInputType? keyboardType, String? errorText, ValueChanged<String>? onChanged}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: c.text3)),
       const SizedBox(height: 4),
@@ -315,17 +383,22 @@ class _UsersScreenState extends State<UsersScreen> {
         controller: ctrl,
         obscureText: obscure,
         keyboardType: keyboardType,
+        onChanged: onChanged,
         style: GoogleFonts.inter(fontSize: 12, color: c.text),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           filled: true,
           fillColor: c.elevated,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.border)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.primary)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: errorText != null ? c.danger : c.border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: errorText != null ? c.danger : c.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: errorText != null ? c.danger : c.primary)),
         ),
       ),
+      if (errorText != null) ...[
+        const SizedBox(height: 4),
+        Text('⚠️ $errorText', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w600, color: c.danger)),
+      ],
     ]);
   }
 
@@ -508,15 +581,67 @@ class _UsersScreenState extends State<UsersScreen> {
             ]),
             if (u.planning != null && u.planning!.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: c.elevated, borderRadius: BorderRadius.circular(8)),
-                child: Text('📅 ${u.planning}', style: GoogleFonts.inter(fontSize: 10, color: c.text2)),
-              ),
+              _buildPlanningViewer(c, u.planning!),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlanningViewer(AppColorScheme c, String planningStr) {
+    final segments = planningStr.split(',');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: c.elevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today_outlined, size: 12, color: c.primary),
+              const SizedBox(width: 6),
+              Text('PLANNING HEBDOMADAIRE', style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.w700, color: c.text3, letterSpacing: 0.5)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...segments.map((seg) {
+            final trimmed = seg.trim();
+            if (trimmed.isEmpty) return const SizedBox();
+            final parts = trimmed.split(' ');
+            final days = parts.first;
+            final hours = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: c.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: c.primary.withOpacity(0.15)),
+                    ),
+                    child: Text(
+                      days,
+                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: c.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    hours,
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: c.text),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }

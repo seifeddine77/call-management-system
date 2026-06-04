@@ -25,22 +25,8 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Config Nginx pour SPA (React Router)
-RUN echo 'server { \
-    listen 3000; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /api { \
-        proxy_pass http://api-gateway:8080; \
-    } \
-    location /nginx_status { \
-        stub_status on; \
-        access_log off; \
-        allow all; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# resolver 127.0.0.11 = DNS interne Docker, évite le cache d'IP stale après recreation de containers
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 
 EXPOSE 3000

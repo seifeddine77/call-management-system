@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../models/ticket.dart';
 import 'api_client.dart';
@@ -61,6 +62,24 @@ class TicketService {
       'newStatut': statut,
       if (notes != null) 'notes': notes,
     });
+    return Ticket.fromJson(res.data);
+  }
+
+  Future<Ticket> uploadPhotos(String ticketId, List<dynamic> files) async {
+    final formData = FormData();
+    for (final file in files) {
+      final path = file.path as String;
+      final multipartFile = await MultipartFile.fromFile(
+        path,
+        filename: path.split('/').last,
+      );
+      formData.files.add(MapEntry('files', multipartFile));
+    }
+    final res = await _api.dio.post(
+      '${ApiConfig.ticketsPath}/$ticketId/photos',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
     return Ticket.fromJson(res.data);
   }
 }

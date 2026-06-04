@@ -1059,11 +1059,12 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
               style: GoogleFonts.inter(fontSize: 10, color: c.text),
               dropdownColor: c.elevated,
             )
-          : TextField(
+          : TextFormField(
+              key: Key('cond-val-$index-${cond['field']}'),
+              initialValue: cond['value'] ?? '',
               keyboardType: fieldDef?.type == 'number' ? TextInputType.number : TextInputType.text,
               decoration: InputDecoration(hintText: fieldDef?.type == 'number' ? 'Ex: 5' : 'Valeur', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6)),
               style: GoogleFonts.inter(fontSize: 10, color: c.text),
-              controller: TextEditingController(text: cond['value'] ?? ''),
               onChanged: (v) => cond['value'] = v,
             ),
         ),
@@ -1087,6 +1088,27 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
     if (_nomCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Nom et description obligatoires'), backgroundColor: context.colors.warning),
+      );
+      return;
+    }
+    final motif = _motifCtrl.text.trim();
+    if (motif.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Le motif de l\'action est obligatoire'), backgroundColor: context.colors.warning),
+      );
+      return;
+    }
+    final prio = int.tryParse(_prioCtrl.text) ?? 5;
+    if (prio < 1 || prio > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('La priorité doit être comprise entre 1 et 10'), backgroundColor: context.colors.warning),
+      );
+      return;
+    }
+    final score = int.tryParse(_scoreImpactCtrl.text) ?? 0;
+    if (score < -50 || score > 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('L\'impact de score doit être compris entre -50 et +50'), backgroundColor: context.colors.warning),
       );
       return;
     }
