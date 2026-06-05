@@ -258,16 +258,28 @@ async function createUserProfile(
   }
 }
 
-async function updateUserProfile(
-  selectedUserId: string,
-  form: UserRequest,
-  setSaving: (v: boolean) => void,
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>,
-  setSelectedUser: (u: User) => void,
-  setShowEdit: (v: boolean) => void,
-  setFormErrors: (e: FormErrors) => void,
-  validateForm: (isCreate: boolean) => boolean
-) {
+interface UpdateUserProfileParams {
+  selectedUserId: string;
+  form: UserRequest;
+  setSaving: (v: boolean) => void;
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  setSelectedUser: (u: User) => void;
+  setShowEdit: (v: boolean) => void;
+  setFormErrors: (e: FormErrors) => void;
+  validateForm: (isCreate: boolean) => boolean;
+}
+
+async function updateUserProfile(params: UpdateUserProfileParams) {
+  const {
+    selectedUserId,
+    form,
+    setSaving,
+    setUsers,
+    setSelectedUser,
+    setShowEdit,
+    setFormErrors,
+    validateForm
+  } = params;
   if (!validateForm(false)) return;
   setSaving(true);
   try {
@@ -353,7 +365,16 @@ function useUsersState() {
 
   const handleUpdate = async () => {
     if (!selectedUser) return;
-    await updateUserProfile(selectedUser.id, form, setSaving, setUsers, setSelectedUser, setShowEdit, setFormErrors, validateForm);
+    await updateUserProfile({
+      selectedUserId: selectedUser.id,
+      form,
+      setSaving,
+      setUsers,
+      setSelectedUser,
+      setShowEdit,
+      setFormErrors,
+      validateForm
+    });
   };
 
   const handleDeleteConfirm = async () => {

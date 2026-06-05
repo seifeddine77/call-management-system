@@ -207,24 +207,27 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
 
   const highlightText = useCallback((t: string) => {
     if (keywords.length === 0) return <span>{t}</span>;
-    const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\/]/g, String.raw`\\$&`)).join('|')})`, 'gi');
+    const escaped = keywords.map(k => k.replace(/[.*+?^${}()|[\]\\/]/g, String.raw`\\$&`)).join('|');
+    const pattern = new RegExp('(' + escaped + ')', 'gi');
     const frags = t.split(pattern);
-    const lowercasedKeywords = keywords.map(k => k.toLowerCase());
-    return frags.map((frag, i) =>
-      lowercasedKeywords.includes(frag.toLowerCase()) ? (
-        <mark key={`frag-${i}`} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">
+    const lowercasedKeywordsSet = new Set(keywords.map(k => k.toLowerCase()));
+    let idx = 0;
+    return frags.map((frag) => {
+      const key = 'frag-' + (idx++);
+      return lowercasedKeywordsSet.has(frag.toLowerCase()) ? (
+        <mark key={key} className="bg-indigo-500/25 text-indigo-300 rounded px-1 py-0.5 font-bold border border-indigo-500/30">
           {frag}
         </mark>
       ) : (
-        <span key={`frag-${i}`}>{frag}</span>
-      )
-    );
+        <span key={key}>{frag}</span>
+      );
+    });
   }, [keywords]);
 
   return (
     <div className="p-4 bg-[var(--elevated)] border border-border rounded-xl max-h-[280px] overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
-      {segments.map((seg, i) => (
-        <div key={`part-${i}`} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
+      {segments.map((seg) => (
+        <div key={'part-' + seg.time} className="flex gap-3 group border-b border-border/20 pb-2.5 last:border-0 last:pb-0 hover:bg-[var(--surface)]/30 p-1.5 rounded-lg transition-colors">
           <span className="font-mono text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-md px-2 py-0.5 h-fit mt-0.5 flex-shrink-0 cursor-default">
             {seg.time}
           </span>
@@ -237,16 +240,28 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
 
 /* ───── Live Transcription Component (Streaming STT) ───── */
 
-function _startMediaRecorder(
-  ws: WebSocket,
-  stream: MediaStream,
-  recorderRef: { current: MediaRecorder | null },
-  timerRef: { current: ReturnType<typeof setInterval> | null },
-  setIsRecording: (v: boolean) => void,
-  setElapsed: (fn: (p: number) => number) => void,
-  setLiveText: (v: string) => void,
-  setChunks: (v: number) => void,
-) {
+interface StartMediaRecorderParams {
+  ws: WebSocket;
+  stream: MediaStream;
+  recorderRef: { current: MediaRecorder | null };
+  timerRef: { current: ReturnType<typeof setInterval> | null };
+  setIsRecording: (v: boolean) => void;
+  setElapsed: (fn: (p: number) => number) => void;
+  setLiveText: (v: string) => void;
+  setChunks: (v: number) => void;
+}
+
+function _startMediaRecorder(params: StartMediaRecorderParams) {
+  const {
+    ws,
+    stream,
+    recorderRef,
+    timerRef,
+    setIsRecording,
+    setElapsed,
+    setLiveText,
+    setChunks
+  } = params;
   const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
   recorderRef.current = recorder;
   recorder.ondataavailable = (event) => {
@@ -331,7 +346,16 @@ function LiveTranscription({ ticketId, onTranscriptionUpdate }: Readonly<{ ticke
       wsRef.current = ws;
 
       ws.onopen = () => {
-        _startMediaRecorder(ws, stream, recorderRef, timerRef, setIsRecording, (fn) => setElapsed(fn), setLiveText, setChunks);
+        _startMediaRecorder({
+          ws,
+          stream,
+          recorderRef,
+          timerRef,
+          setIsRecording,
+          setElapsed: (fn) => setElapsed(fn),
+          setLiveText,
+          setChunks
+        });
       };
 
       ws.onmessage = (e) => _processWsMessage(e, setLiveText, setChunks, onTranscriptionUpdate);
@@ -588,7 +612,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
   const handleWaveformKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(audio.duration)) return;
-    let newTime = audio.currentTime;
+    let newTime: number;
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
       e.preventDefault();
       newTime = Math.min(audio.duration, audio.currentTime + 5);
@@ -613,6 +637,13 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
     ? waveformData
     : [30, 45, 60, 40, 25, 35, 55, 70, 80, 50, 40, 65, 90, 75, 45, 30, 40, 55, 75, 60, 45, 35, 50, 60, 70, 85, 95, 65, 40, 30, 20, 15];
 
+  let playButtonClass = 'btn-cta text-white hover:shadow-[0_0_15px_rgba(99,91,255,0.4)]';
+  if (error && !audioBlobUrl) {
+    playButtonClass = 'bg-[var(--muted)] text-[var(--text-3)] cursor-not-allowed opacity-50';
+  } else if (isPlaying) {
+    playButtonClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.25)]';
+  }
+
   return (
     <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-md backdrop-blur-md relative overflow-hidden">
       {/* Hidden <audio> element */}
@@ -630,13 +661,7 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
             type="button"
             onClick={handlePlayPause}
             disabled={!!error && !audioBlobUrl}
-            className={`w-12 h-12 rounded-full flex items-center justify-center border-none transition-all duration-300 cursor-pointer shadow-md flex-shrink-0 ${
-              error && !audioBlobUrl
-                ? 'bg-[var(--muted)] text-[var(--text-3)] cursor-not-allowed opacity-50'
-                : isPlaying 
-                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_15px_rgba(239,68,68,0.25)]'
-                  : 'btn-cta text-white hover:shadow-[0_0_15px_rgba(99,91,255,0.4)]'
-            }`}
+            className={`w-12 h-12 rounded-full flex items-center justify-center border-none transition-all duration-300 cursor-pointer shadow-md flex-shrink-0 ${playButtonClass}`}
           >
             {isPlaying ? (
               <Pause size={18} className="fill-current text-rose-400 animate-pulse" />
@@ -658,17 +683,25 @@ function PremiumAudioPlayer({ ticketId }: Readonly<PremiumAudioPlayerProps>) {
               aria-valuemin={0}
               aria-valuemax={100}
             >
-              {barHeights.map((h, i) => (
-                <div
-                  key={i}
-                  className={`w-1 rounded-full transition-colors duration-300 ${
-                    (i / barHeights.length) * 100 <= progress 
-                      ? 'bg-[var(--primary)]' 
-                      : 'bg-[var(--border)]'
-                  }`}
-                  style={{ height: `${h}%` }}
-                />
-              ))}
+              {(() => {
+                let idx = 0;
+                return barHeights.map((h) => {
+                  const barKey = 'wb-bar-' + idx;
+                  const percent = (idx / barHeights.length) * 100;
+                  idx++;
+                  return (
+                    <div
+                      key={barKey}
+                      className={`w-1 rounded-full transition-colors duration-300 ${
+                        percent <= progress 
+                          ? 'bg-[var(--primary)]' 
+                          : 'bg-[var(--border)]'
+                      }`}
+                      style={{ height: `${h}%` }}
+                    />
+                  );
+                });
+              })()}
             </div>
 
             {/* Progress Slider / Scrubber */}
@@ -1780,16 +1813,20 @@ export default function TicketDetailPage() {
                       : 'btn-cta text-white shadow-md shadow-indigo-500/20'
                   }`}
                 >
-                  {analyzing ? (
-                    <>
-                      <RefreshCw size={11} className="animate-spin" />
-                      Calcul...
-                    </>
-                  ) : decision ? (
-                    <>🔄 Ré-évaluer</>
-                  ) : (
-                    <>🚀 Analyser</>
-                  )}
+                  {(() => {
+                    if (analyzing) {
+                      return (
+                        <>
+                          <RefreshCw size={11} className="animate-spin" />
+                          Calcul...
+                        </>
+                      );
+                    }
+                    if (decision) {
+                      return <>🔄 Ré-évaluer</>;
+                    }
+                    return <>🚀 Analyser</>;
+                  })()}
                 </button>
               </div>
 

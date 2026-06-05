@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import axios from 'axios';
 import { Car, Zap, Wrench, Phone, Sun, Moon, AlertTriangle, Camera, ArrowLeft, ArrowRight, Check, ShieldAlert, Sparkles, User, Info, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ const MAX_SIZE_MB = 10;
 interface Agence { id: string; nom: string; ville: string; }
 
 type Theme = 'light' | 'dark';
+type SinistreType = 'accident' | 'bris' | 'panne' | 'autre';
 const getSystemTheme = (): Theme =>
   globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
@@ -212,13 +213,13 @@ function StepCoordonnees({
 }
 
 interface StepNatureSinistreProps {
-  selectedType: 'accident' | 'bris' | 'panne' | 'autre' | null;
+  selectedType: SinistreType | null;
   form: { agenceId: string };
   setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
   touched: Record<string, boolean>;
   setTouched: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   agences: Agence[];
-  handleTypeSelect: (type: 'accident' | 'bris' | 'panne' | 'autre') => void;
+  handleTypeSelect: (type: SinistreType) => void;
 }
 
 function StepNatureSinistre({
@@ -391,7 +392,7 @@ function StepDescriptionPhotos({
 interface StepRecapitulatifProps {
   form: { nom: string; telephone: string; email: string; agenceId: string; consentementTraitement: boolean };
   setForm: React.Dispatch<React.SetStateAction<{ nom: string; telephone: string; email: string; description: string; agenceId: string; consentementTraitement: boolean }>>;
-  selectedType: 'accident' | 'bris' | 'panne' | 'autre' | null;
+  selectedType: SinistreType | null;
   agences: Agence[];
   photoFiles: File[];
 }
@@ -464,7 +465,7 @@ function StepRecapitulatif({
 export default function PublicFormPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState({ nom: '', telephone: '', email: '', description: '', agenceId: '', consentementTraitement: false });
-  const [selectedType, setSelectedType] = useState<'accident' | 'bris' | 'panne' | 'autre' | null>(null);
+  const [selectedType, setSelectedType] = useState<SinistreType | null>(null);
   const [agences, setAgences] = useState<Agence[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -528,7 +529,7 @@ export default function PublicFormPage() {
 
   const t = theme === 'dark' ? dk : lt;
 
-  const handleTypeSelect = (type: 'accident' | 'bris' | 'panne' | 'autre') => {
+  const handleTypeSelect = (type: SinistreType) => {
     setSelectedType(type);
     setForm(f => ({ ...f, description: TYPE_TEMPLATES[type] ?? '' }));
     setTouched(p => ({ ...p, description: true }));
@@ -557,7 +558,7 @@ export default function PublicFormPage() {
   };
 
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     if (!form.consentementTraitement) {

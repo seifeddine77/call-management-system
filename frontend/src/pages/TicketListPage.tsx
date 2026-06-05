@@ -190,7 +190,7 @@ export default function TicketListPage() {
                   <X size={12} />
                   <span>Reset</span>
                   <span className="flex items-center justify-center bg-[var(--danger)] text-white w-4.5 h-4.5 rounded-full text-[9px] font-bold">
-                    {[statut, canal, priorite, search, recommandationFilter !== 'ALL' ? 'REC' : ''].filter(Boolean).length}
+                    {[statut, canal, priorite, search, recommandationFilter === 'ALL' ? '' : 'REC'].filter(Boolean).length}
                   </span>
                 </motion.button>
               )}
@@ -212,7 +212,7 @@ export default function TicketListPage() {
                 ] as const).map(s => (
                   <button 
                     key={s.value} 
-                    onClick={() => { setStatut(s.value as Statut | ''); setPage(0); }} 
+                    onClick={() => { setStatut(s.value); setPage(0); }} 
                     className="relative cursor-pointer px-3.5 py-1.5 rounded-lg text-[10.5px] font-semibold transition-all duration-300 flex items-center gap-1.5 border-none bg-transparent"
                     style={{
                       color: statut === s.value ? (s.color || 'var(--primary)') : 'var(--text-2)',
@@ -248,7 +248,7 @@ export default function TicketListPage() {
                   return (
                     <button 
                       key={c.value} 
-                      onClick={() => { setCanal(c.value as Canal | ''); setPage(0); }} 
+                      onClick={() => { setCanal(c.value); setPage(0); }} 
                       className="relative cursor-pointer px-3.5 py-1.5 rounded-lg text-[10.5px] font-semibold transition-all duration-300 flex items-center gap-1.5 border-none bg-transparent"
                       style={{
                         color: active ? (c.color || 'var(--primary)') : 'var(--text-2)',
@@ -285,7 +285,7 @@ export default function TicketListPage() {
                   return (
                     <button 
                       key={p.value} 
-                      onClick={() => { setPriorite(p.value as '' | '1' | '2' | '3'); setPage(0); }} 
+                      onClick={() => { setPriorite(p.value); setPage(0); }} 
                       className="relative cursor-pointer px-3.5 py-1.5 rounded-lg text-[10.5px] font-semibold transition-all duration-300 flex items-center gap-1.5 border-none bg-transparent"
                       style={{
                         color: active ? p.dot : 'var(--text-2)',
@@ -382,13 +382,17 @@ export default function TicketListPage() {
                 {filteredTickets.map(t => (
                   <tr 
                     key={t.id} 
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/tickets/${t.id}`)} 
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/tickets/${t.id}`); } }}
-                    className="cursor-pointer"
+                    className="relative hover:bg-[var(--muted)]/10 transition-colors"
                   >
-                    <td className="font-mono text-xs font-semibold text-[var(--primary)]">{t.numero}</td>
+                    <td className="font-mono text-xs font-semibold relative">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/tickets/${t.id}`)}
+                        className="text-[var(--primary)] hover:underline bg-transparent border-none p-0 cursor-pointer text-left focus:outline-none after:absolute after:inset-0 after:z-10"
+                      >
+                        {t.numero}
+                      </button>
+                    </td>
                     <td>
                       <div className="text-xs font-medium">{t.clientNom}</div>
                       {t.clientTel && <div className="font-mono text-[9px] text-txt-3">{t.clientTel}</div>}
@@ -461,7 +465,7 @@ export default function TicketListPage() {
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/audit/${t.id}`); }}
                         title="Auditer ce ticket"
-                        className="cursor-pointer transition-all hover:scale-110"
+                        className="cursor-pointer transition-all hover:scale-110 relative z-20"
                         style={{
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                           width: '28px', height: '28px', borderRadius: '8px',

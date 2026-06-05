@@ -683,18 +683,21 @@ function DecisionFlowTree({ rule, testForm }: Readonly<DecisionFlowTreeProps>) {
     andLastFilter = 'url(#glow-red)';
   }
 
+  let statusBadge;
+  if (ruleStatus === true) {
+    statusBadge = <span className="text-emerald-400 font-bold">✓ VALIDÉ</span>;
+  } else if (ruleStatus === false) {
+    statusBadge = <span className="text-rose-400 font-bold">✕ ÉCHOUÉ</span>;
+  } else {
+    statusBadge = <span className="text-txt-3">EN ATTENTE</span>;
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <div className="text-[10px] text-txt-3 font-mono flex items-center justify-between">
         <span>Simulateur Interactif</span>
         <span className="flex items-center gap-1">
-          Statut : {ruleStatus === true ? (
-            <span className="text-emerald-400 font-bold">✓ VALIDÉ</span>
-          ) : ruleStatus === false ? (
-            <span className="text-rose-400 font-bold">✕ ÉCHOUÉ</span>
-          ) : (
-            <span className="text-txt-3">EN ATTENTE</span>
-          )}
+          Statut : {statusBadge}
         </span>
       </div>
 
@@ -817,18 +820,32 @@ async function fetchRefItemsData(
   }
 }
 
-async function addRefItem(
-  category: string,
-  newRefCode: string,
-  newRefLabel: string,
-  newRefDesc: string,
-  setAddingRef: (cat: string | null) => void,
-  setNewRefCode: (v: string) => void,
-  setNewRefLabel: (v: string) => void,
-  setNewRefDesc: (v: string) => void,
-  fetchRefItems: () => void,
-  fetchRules: () => void
-) {
+interface AddRefItemParams {
+  category: string;
+  newRefCode: string;
+  newRefLabel: string;
+  newRefDesc: string;
+  setAddingRef: (cat: string | null) => void;
+  setNewRefCode: (v: string) => void;
+  setNewRefLabel: (v: string) => void;
+  setNewRefDesc: (v: string) => void;
+  fetchRefItems: () => void;
+  fetchRules: () => void;
+}
+
+async function addRefItem(params: AddRefItemParams) {
+  const {
+    category,
+    newRefCode,
+    newRefLabel,
+    newRefDesc,
+    setAddingRef,
+    setNewRefCode,
+    setNewRefLabel,
+    setNewRefDesc,
+    fetchRefItems,
+    fetchRules
+  } = params;
   if (!newRefCode.trim() || !newRefLabel.trim()) {
     toast.error('Code et libellé obligatoires');
     return;
@@ -971,17 +988,30 @@ async function createRuleSubmit(
   }
 }
 
-async function updateRuleSubmit(
-  editingRule: Rule,
-  editForm: CreateRuleRequest,
-  setSaving: (v: boolean) => void,
-  setRules: React.Dispatch<React.SetStateAction<Rule[]>>,
-  setSelectedRule: (r: Rule) => void,
-  setHistory: (h: RuleVersion[]) => void,
-  setShowEdit: (v: boolean) => void,
-  setEditingRule: (r: Rule | null) => void,
-  validateForm: (f: CreateRuleRequest) => boolean
-) {
+interface UpdateRuleSubmitParams {
+  editingRule: Rule;
+  editForm: CreateRuleRequest;
+  setSaving: (v: boolean) => void;
+  setRules: React.Dispatch<React.SetStateAction<Rule[]>>;
+  setSelectedRule: (r: Rule) => void;
+  setHistory: (h: RuleVersion[]) => void;
+  setShowEdit: (v: boolean) => void;
+  setEditingRule: (r: Rule | null) => void;
+  validateForm: (f: CreateRuleRequest) => boolean;
+}
+
+async function updateRuleSubmit(params: UpdateRuleSubmitParams) {
+  const {
+    editingRule,
+    editForm,
+    setSaving,
+    setRules,
+    setSelectedRule,
+    setHistory,
+    setShowEdit,
+    setEditingRule,
+    validateForm
+  } = params;
   if (!validateForm(editForm)) return;
   setSaving(true);
   try {
@@ -1088,9 +1118,19 @@ function useRulesState() {
   useEffect(() => { fetchRules(); }, [fetchRules]);
   useEffect(() => { if (activeTab === 'params') fetchRefItems(); }, [activeTab, fetchRefItems]);
 
-  // ── Ref item handlers ──
   const handleAddRef = async (category: string) => {
-    await addRefItem(category, newRefCode, newRefLabel, newRefDesc, setAddingRef, setNewRefCode, setNewRefLabel, setNewRefDesc, fetchRefItems, fetchRules);
+    await addRefItem({
+      category,
+      newRefCode,
+      newRefLabel,
+      newRefDesc,
+      setAddingRef,
+      setNewRefCode,
+      setNewRefLabel,
+      setNewRefDesc,
+      fetchRefItems,
+      fetchRules
+    });
   };
 
   const handleToggleRef = async (id: string) => {
@@ -1150,7 +1190,17 @@ function useRulesState() {
 
   const handleUpdate = async () => {
     if (!editingRule) return;
-    await updateRuleSubmit(editingRule, editForm, setSaving, setRules, setSelectedRule, setHistory, setShowEdit, setEditingRule, validateForm);
+    await updateRuleSubmit({
+      editingRule,
+      editForm,
+      setSaving,
+      setRules,
+      setSelectedRule,
+      setHistory,
+      setShowEdit,
+      setEditingRule,
+      validateForm
+    });
   };
 
   const handleSelectRule = async (rule: Rule) => {
@@ -1264,7 +1314,7 @@ function RulesListTabContent({
       <div className="flex flex-col gap-3">
         {loading ? (
           <div className="space-y-3 animate-pulse">
-            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-2xl" />)}
+            {['rule-skel-1', 'rule-skel-2', 'rule-skel-3', 'rule-skel-4'].map(key => <div key={key} className="h-20 bg-[var(--muted)] rounded-2xl" />)}
           </div>
         ) : rules.length === 0 ? (
           <EmptyState
@@ -1279,16 +1329,16 @@ function RulesListTabContent({
           rules.map((rule) => (
             <div
               key={rule.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleSelectRule(rule)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectRule(rule); } }}
-              className={`card-aurora rounded-2xl p-4 cursor-pointer transition-all hover:border-indigo-500/30 ${
+              className={`card-aurora rounded-2xl p-4 transition-all hover:border-indigo-500/30 ${
                 selectedRule?.id === rule.id ? 'border border-indigo-500/40 bg-indigo-500/[0.03]' : ''
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => handleSelectRule(rule)}
+                  className="flex-1 min-w-0 text-left bg-transparent border-none p-0 cursor-pointer focus:outline-none"
+                >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-bold">{rule.nom}</span>
                     <span className="font-mono text-[9px] text-txt-3 bg-[var(--overlay)] px-2 py-0.5 rounded border border-border-subtle">v{rule.version}</span>
@@ -1304,7 +1354,7 @@ function RulesListTabContent({
                     <span className="font-mono text-[9px] text-txt-3">P{rule.priorite}</span>
                     <span className="font-mono text-[9px] text-txt-3">{rule.conditions.conditions.length} cond.</span>
                   </div>
-                </div>
+                </button>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <div
                     role="switch"
@@ -1498,7 +1548,7 @@ function ParamsTabContent({
   if (refLoading) {
     return (
       <div className="space-y-3 animate-pulse">
-        {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 bg-[var(--muted)] rounded-2xl" />)}
+        {['param-skel-1', 'param-skel-2', 'param-skel-3'].map(key => <div key={key} className="h-32 bg-[var(--muted)] rounded-2xl" />)}
       </div>
     );
   }

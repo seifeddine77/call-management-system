@@ -1004,7 +1004,7 @@ async def _fetch_live_decision_for_ticket(client, ticket_id: str, ticket_ref: st
         pass
 
 
-async def _fetch_live_ticket(lower: str, question: str, live_parts: list):
+async def _fetch_live_ticket(question: str, live_parts: list):
     import re as _re
     ticket_match = _re.search(r'T-\d{8}-\d+', question, _re.IGNORECASE)
     if not ticket_match:
@@ -1193,7 +1193,7 @@ async def _fetch_live_context(question: str) -> str:
     live_parts = []
 
     await _fetch_live_stats(lower, live_parts)
-    await _fetch_live_ticket(lower, question, live_parts)
+    await _fetch_live_ticket(question, live_parts)
     await _fetch_live_rules(lower, live_parts)
     await _fetch_live_reference_items(lower, live_parts)
     await _fetch_live_agences(lower, live_parts)
