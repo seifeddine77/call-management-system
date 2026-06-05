@@ -30,6 +30,7 @@ import java.util.Properties;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings({"java:S2143", "java:S3440"})
 public class EmailListenerService {
 
     private final TicketService ticketService;

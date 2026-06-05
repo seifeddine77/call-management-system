@@ -15,6 +15,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@SuppressWarnings({"java:S2143", "java:S3440"})
 public class JwtUtils {
 
     private static final String CLAIM_EMAIL = "email";
