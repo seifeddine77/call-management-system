@@ -688,6 +688,70 @@ interface QueueTableSectionProps {
   navigate: (path: string) => void;
 }
 
+interface IncidentListProps {
+  loading: boolean;
+  filteredItems: DisplayItem[];
+  filter: FilterKey;
+  assigning: string | null;
+  handleAssign: (ticketId: string) => void;
+  navigate: (path: string) => void;
+}
+
+function IncidentList({
+  loading,
+  filteredItems,
+  filter,
+  assigning,
+  handleAssign,
+  navigate,
+}: Readonly<IncidentListProps>) {
+  if (loading && filteredItems.length === 0) {
+    return (
+      <div className="p-5 space-y-3">
+        {Array.from({ length: 5 }, (_, idx) => `skel-queue-row-${idx}`).map((key) => (
+          <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredItems.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="py-12"
+      >
+        <EmptyState
+          icon={filter === 'QUEUE' ? 'check' : 'search'}
+          title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
+          subtitle={filter === 'QUEUE'
+            ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
+            : 'Aucun ticket ne correspond à vos critères de recherche ou filtres avancés.'
+          }
+        />
+      </motion.div>
+    );
+  }
+
+  return (
+    <>
+      {filteredItems.map((t, idx) => (
+        <TicketRow
+          key={t.ticketId}
+          t={t}
+          idx={idx}
+          filter={filter}
+          assigning={assigning}
+          onAssign={handleAssign}
+          onNavigate={(id) => navigate(`/tickets/${id}`)}
+        />
+      ))}
+    </>
+  );
+}
+
 function QueueTableSection({
   filter,
   items,
@@ -751,41 +815,14 @@ function QueueTableSection({
 
       <div className="divide-y divide-border/60">
         <AnimatePresence mode="popLayout">
-          {loading && filteredItems.length === 0 ? (
-            <div className="p-5 space-y-3">
-              {Array.from({ length: 5 }, (_, idx) => `skel-queue-row-${idx}`).map((key) => (
-                <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
-              ))}
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="py-12"
-            >
-              <EmptyState
-                icon={filter === 'QUEUE' ? 'check' : 'search'}
-                title={filter === 'QUEUE' ? 'File d\'attente vide' : 'Aucun résultat'}
-                subtitle={filter === 'QUEUE'
-                  ? 'Incroyable ! Tous les tickets en attente ont été pris en charge.'
-                  : 'Aucun ticket ne correspond à vos critères de recherche ou filtres avancés.'
-                }
-              />
-            </motion.div>
-          ) : (
-            filteredItems.map((t, idx) => (
-              <TicketRow
-                key={t.ticketId}
-                t={t}
-                idx={idx}
-                filter={filter}
-                assigning={assigning}
-                onAssign={handleAssign}
-                onNavigate={(id) => navigate(`/tickets/${id}`)}
-              />
-            ))
-          )}
+          <IncidentList
+            loading={loading}
+            filteredItems={filteredItems}
+            filter={filter}
+            assigning={assigning}
+            handleAssign={handleAssign}
+            navigate={navigate}
+          />
         </AnimatePresence>
       </div>
     </div>

@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
         body.put("status", 400);
         body.put("error", "Erreur de validation");
         body.put("fields", errors);
-        body.put("timestamp", LocalDateTime.now());
+        body.put("timestamp", LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", status.value());
         body.put("error", message);
-        body.put("timestamp", LocalDateTime.now());
+        body.put("timestamp", LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         return ResponseEntity.status(status).body(body);
     }
 

@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
         log.error("Erreur: {}", ex.getMessage(), ex);
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, 404);
         body.put(KEY_ERROR, "Not Found");
         body.put(KEY_MESSAGE, ex.getMessage());
@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, "Validation Error");
 
@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, "Bad Request");
         body.put(KEY_MESSAGE, ex.getMessage());
@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleEntityNotFound(EntityNotFoundException ex) {
         log.error("Ressource non trouvée: {}", ex.getMessage(), ex);
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, 404);
         body.put(KEY_ERROR, "Not Found");
         body.put(KEY_MESSAGE, ex.getMessage());

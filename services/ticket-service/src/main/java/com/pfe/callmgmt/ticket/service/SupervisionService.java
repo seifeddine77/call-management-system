@@ -82,7 +82,7 @@ public class SupervisionService {
      */
     public List<SupervisionAlert> getAlerts() {
         List<SupervisionAlert> alerts = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Europe/Paris"));
 
         // 1. Tickets bloqués — EN_COURS depuis > 24h
         long blocked24h = ticketRepository.countBlockedTickets(now.minusHours(24));
@@ -155,7 +155,7 @@ public class SupervisionService {
     }
 
     private LocalDateTime resolveDateFrom(String period) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Europe/Paris"));
         return switch (period != null ? period : "7d") {
             case "today" -> now.toLocalDate().atStartOfDay();
             case "7d", "week" -> now.minusDays(7);

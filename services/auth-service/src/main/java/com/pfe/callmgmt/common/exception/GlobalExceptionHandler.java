@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         }
 
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, "Erreur de validation");
         body.put("fieldErrors", fieldErrors);
@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(EntityNotFoundException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 404);
         body.put(KEY_ERROR, ex.getMessage());
 
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 409);
         body.put(KEY_ERROR, ex.getMessage());
 
@@ -60,7 +60,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 401);
         body.put(KEY_ERROR, ex.getMessage());
 
@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 403);
         body.put(KEY_ERROR, "Accès refusé");
 
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidTransitionException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidTransition(InvalidTransitionException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, ex.getMessage());
 
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler {
         log.error("Erreur inattendue: ", ex);
 
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now().toString());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")).toString());
         body.put(KEY_STATUS, 500);
         body.put(KEY_ERROR, "Erreur interne du serveur");
 

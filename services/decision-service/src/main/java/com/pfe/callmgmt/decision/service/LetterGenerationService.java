@@ -86,7 +86,7 @@ public class LetterGenerationService {
                                 .setBorder(com.itextpdf.layout.borders.Border.NO_BORDER);
 
                 com.itextpdf.layout.element.Cell dateCell = new com.itextpdf.layout.element.Cell()
-                                .add(new Paragraph("Le " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                                .add(new Paragraph("Le " + java.time.LocalDate.now(java.time.ZoneId.of("Europe/Paris")).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
                                                 .setTextAlignment(TextAlignment.RIGHT)
                                                 .setFontSize(10f)
                                                 .setBold())

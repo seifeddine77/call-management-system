@@ -231,6 +231,18 @@ def rewrite_query(question: str) -> str:
 
 # Amélioration #6 : CHUNKING — Découper les documents longs
 
+def _compute_overlap(last_sentences: list[str]) -> str:
+    """Calculate overlap text from the end of the previous chunk sentences."""
+    overlap_text = ""
+    for prev in reversed(last_sentences):
+        candidate = prev + " " + overlap_text
+        if len(candidate) <= CHUNK_OVERLAP_CHARS:
+            overlap_text = candidate.strip()
+        else:
+            break
+    return overlap_text
+
+
 def _chunk_document(doc: dict) -> list[dict]:
     """
     Split a long document into smaller chunks for better retrieval precision.
@@ -260,13 +272,7 @@ def _chunk_document(doc: dict) -> list[dict]:
             chunk_idx += 1
 
             # ✨ Amélioration #9: start next chunk with overlap from end of previous
-            overlap_text = ""
-            for prev in reversed(last_sentences):
-                candidate = prev + " " + overlap_text
-                if len(candidate) <= CHUNK_OVERLAP_CHARS:
-                    overlap_text = candidate.strip()
-                else:
-                    break
+            overlap_text = _compute_overlap(last_sentences)
             current_chunk = overlap_text + " " + sentence if overlap_text else sentence
         else:
             current_chunk += " " + sentence

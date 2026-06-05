@@ -35,7 +35,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, 400);
         body.put(KEY_ERROR, "Erreur de validation");
         Map<String, String> fieldErrors = new HashMap<>();
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
-        body.put(KEY_TIMESTAMP, LocalDateTime.now());
+        body.put(KEY_TIMESTAMP, LocalDateTime.now(java.time.ZoneId.of("Europe/Paris")));
         body.put(KEY_STATUS, status.value());
         body.put(KEY_ERROR, status.getReasonPhrase());
         body.put("message", message);
