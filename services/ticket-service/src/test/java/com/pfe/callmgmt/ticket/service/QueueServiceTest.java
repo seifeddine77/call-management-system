@@ -20,6 +20,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class QueueServiceTest {
 
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, java.time.Month.JUNE, 5, 12, 0, 0);
+
     @Mock
     private TicketRepository ticketRepository;
 
@@ -35,7 +37,7 @@ class QueueServiceTest {
                 .clientNom("Client A")
                 .canal(Ticket.Canal.CALL)
                 .priorite((short) 1)
-                .createdAt(LocalDateTime.now())
+                .createdAt(FIXED_NOW)
                 .build();
         Ticket t2 = Ticket.builder()
                 .id(UUID.randomUUID())
@@ -43,7 +45,7 @@ class QueueServiceTest {
                 .clientNom("Client B")
                 .canal(Ticket.Canal.EMAIL)
                 .priorite((short) 3)
-                .createdAt(LocalDateTime.now())
+                .createdAt(FIXED_NOW)
                 .build();
 
         when(ticketRepository.findByStatutAndOperateurIdIsNullOrderByPrioriteAscCreatedAtAsc(Ticket.Statut.NOUVEAU))

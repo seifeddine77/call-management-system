@@ -78,7 +78,7 @@ class RuleServiceTest {
                     .version((short) 1)
                     .createdBy(userId)
                     .createdByName("Admin")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.of(2026, java.time.Month.JUNE, 5, 12, 0, 0))
                     .build();
 
             when(ruleRepository.save(any(Rule.class))).thenReturn(savedRule);

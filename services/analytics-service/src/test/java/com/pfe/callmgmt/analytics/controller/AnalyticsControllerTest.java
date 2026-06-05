@@ -22,6 +22,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsControllerTest {
 
+    private static final LocalDate FIXED_DATE = LocalDate.of(2026, java.time.Month.JUNE, 5);
+
     // --- SonarCloud: extracted string constants ---
     private static final String PERIOD_7D = "7d";
 
@@ -81,7 +83,7 @@ class AnalyticsControllerTest {
     @DisplayName("GET /daily-stats — retourne stats brutes")
     void getDailyStats_returnsList() {
         DailyStat stat = DailyStat.builder()
-                .date(LocalDate.now()).totalTickets(55)
+                .date(FIXED_DATE).totalTickets(55)
                 .ticketsResolus(30).build();
         when(analyticsService.getDailyStats(PERIOD_7D)).thenReturn(List.of(stat));
 
@@ -126,7 +128,7 @@ class AnalyticsControllerTest {
     @Test
     @DisplayName("GET /export/csv — retourne CSV avec en-têtes pour données présentes")
     void exportCsv_withData_returnsCsvBytes() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = FIXED_DATE;
         DailyStat stat = DailyStat.builder()
                 .date(today)
                 .totalTickets(10)
@@ -165,7 +167,7 @@ class AnalyticsControllerTest {
     @Test
     @DisplayName("GET /export/csv — tempsMoyenMinutes null est remplacé par chaîne vide")
     void exportCsv_nullTempsMoyen_writesEmptyField() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = FIXED_DATE;
         DailyStat stat = DailyStat.builder()
                 .date(today).totalTickets(5)
                 .ticketsNouveau(1).ticketsEnCours(1).ticketsResolus(1)

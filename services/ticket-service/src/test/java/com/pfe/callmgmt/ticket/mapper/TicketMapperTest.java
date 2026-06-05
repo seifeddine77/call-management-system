@@ -19,6 +19,8 @@ import static org.assertj.core.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class TicketMapperTest {
 
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, java.time.Month.JUNE, 5, 12, 0, 0);
+
     @InjectMocks
     private TicketMapper ticketMapper;
 
@@ -28,7 +30,7 @@ class TicketMapperTest {
         UUID ticketId = UUID.randomUUID();
         UUID operateurId = UUID.randomUUID();
         UUID agenceId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = FIXED_NOW;
 
         Ticket ticket = Ticket.builder()
                 .id(ticketId)
@@ -78,7 +80,7 @@ class TicketMapperTest {
                 .userName("Admin")
                 .action("CREATION")
                 .notes("Ticket créé via web")
-                .createdAt(LocalDateTime.now())
+                .createdAt(FIXED_NOW)
                 .build();
 
         TicketResponse response = ticketMapper.toResponse(ticket, List.of(action));
@@ -99,7 +101,7 @@ class TicketMapperTest {
     void toActionResponse_mapsAllFields() {
         UUID actionId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = FIXED_NOW;
 
         TicketAction action = TicketAction.builder()
                 .id(actionId)

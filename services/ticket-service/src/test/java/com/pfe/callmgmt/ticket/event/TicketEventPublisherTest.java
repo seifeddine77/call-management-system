@@ -16,6 +16,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TicketEventPublisherTest {
 
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, java.time.Month.JUNE, 5, 12, 0, 0);
+
     @Mock
     private RabbitTemplate rabbitTemplate;
 
@@ -42,7 +44,7 @@ class TicketEventPublisherTest {
         TicketResolvedEvent event = TicketResolvedEvent.builder()
                 .ticketId(UUID.randomUUID())
                 .numero("TK-002")
-                .ticketCreatedAt(LocalDateTime.now().minusHours(2))
+                .ticketCreatedAt(FIXED_NOW.minusHours(2))
                 .build();
 
         ticketEventPublisher.publishTicketResolved(event);

@@ -21,6 +21,8 @@ import static org.mockito.Mockito.*;
 @DisplayName("EmailListenerService — tests unitaires")
 class EmailListenerServiceTest {
 
+    private static final java.time.Instant FIXED_START_TIME = java.time.Instant.parse("2026-06-05T12:00:00Z");
+
     @Mock
     private TicketService ticketService;
 
@@ -262,8 +264,8 @@ class EmailListenerServiceTest {
     @Test
     @DisplayName("processSingleEmail — email ancien (avant serviceStartTime) → ignoré (status=0)")
     void processSingleEmail_oldEmail_skipped() throws Exception {
-        Date pastDate = new Date(System.currentTimeMillis() - 3600_000); // 1 heure avant
-        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", new Date());
+        Date pastDate = Date.from(FIXED_START_TIME.minus(java.time.Duration.ofHours(1))); // 1 heure avant
+        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", FIXED_START_TIME);
 
         Message msg = mock(Message.class);
         when(msg.getReceivedDate()).thenReturn(pastDate);
@@ -280,10 +282,10 @@ class EmailListenerServiceTest {
     @Test
     @DisplayName("processSingleEmail — notification système → ignoré (status=0)")
     void processSingleEmail_systemNotification_skipped() throws Exception {
-        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", new Date(0)); // epoch
+        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", java.time.Instant.EPOCH); // epoch
 
         Message msg = mock(Message.class);
-        when(msg.getReceivedDate()).thenReturn(new Date()); // now — not old
+        when(msg.getReceivedDate()).thenReturn(Date.from(FIXED_START_TIME)); // now — not old
         when(msg.getSubject()).thenReturn("Votre demande T-20240601-123 a été traitée");
 
         Method m = EmailListenerService.class.getDeclaredMethod("processSingleEmail", Message.class);
@@ -546,7 +548,7 @@ class EmailListenerServiceTest {
         ReflectionTestUtils.setField(emailListenerService, "enabled", true);
         ReflectionTestUtils.setField(emailListenerService, "username", "user@test.com");
         ReflectionTestUtils.setField(emailListenerService, "password", "secret");
-        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", new Date());
+        ReflectionTestUtils.setField(emailListenerService, "serviceStartTime", FIXED_START_TIME);
         ReflectionTestUtils.setField(emailListenerService, "skipOldEmails", true);
 
         try (MockedStatic<Session> sessionMock = mockStatic(Session.class)) {

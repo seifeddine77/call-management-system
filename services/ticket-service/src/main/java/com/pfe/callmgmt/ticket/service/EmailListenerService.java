@@ -71,7 +71,7 @@ public class EmailListenerService {
     @Value("${email.listener.skip-old-emails:true}")
     private boolean skipOldEmails;
 
-    private Date serviceStartTime;
+    private java.time.Instant serviceStartTime;
 
     /**
      * Tâche planifiée qui surveille la boîte mail.
@@ -85,7 +85,7 @@ public class EmailListenerService {
 
         // Initialiser le timestamp de démarrage au premier poll
         if (serviceStartTime == null) {
-            serviceStartTime = new Date();
+            serviceStartTime = java.time.Instant.now();
             log.info("📧 [IMAP] Listener démarré — filtrage actif : {}",
                     filterKeywords != null && !filterKeywords.isEmpty()
                             ? "mots-clés: " + filterKeywords
@@ -115,7 +115,7 @@ public class EmailListenerService {
                     searchTerm = new jakarta.mail.search.AndTerm(
                             new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false),
                             new jakarta.mail.search.ReceivedDateTerm(jakarta.mail.search.ComparisonTerm.GE,
-                                    serviceStartTime));
+                                    java.util.Date.from(serviceStartTime)));
                 } else {
                     searchTerm = new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false);
                 }
@@ -161,7 +161,7 @@ public class EmailListenerService {
         try {
             // Ignorer les emails reçus avant le démarrage du service (en renfort du filtre IMAP)
             if (skipOldEmails && message.getReceivedDate() != null
-                    && message.getReceivedDate().before(serviceStartTime)) {
+                    && message.getReceivedDate().toInstant().isBefore(serviceStartTime)) {
                 message.setFlag(Flags.Flag.SEEN, true); // Marquer comme lu
                 return 0;
             }

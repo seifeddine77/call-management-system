@@ -30,7 +30,7 @@ class AnalyticsServiceTest {
     private static final String STATUT_NOUVEAU = "NOUVEAU";
     private static final String STATUT_EN_COURS = "EN_COURS";
     private static final String STATUT_FERME = "FERME";
-    private static final LocalDate FIXED_DATE = LocalDate.of(2026, 6, 5);
+    private static final LocalDate FIXED_DATE = LocalDate.of(2026, java.time.Month.JUNE, 5);
 
     @Mock
     private DailyStatRepository dailyStatRepository;
