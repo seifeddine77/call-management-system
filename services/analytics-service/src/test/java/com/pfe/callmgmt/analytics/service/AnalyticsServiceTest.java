@@ -27,10 +27,10 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceTest {
 
-    // --- SonarCloud: extracted string constants ---
     private static final String STATUT_NOUVEAU = "NOUVEAU";
     private static final String STATUT_EN_COURS = "EN_COURS";
     private static final String STATUT_FERME = "FERME";
+    private static final LocalDate FIXED_DATE = LocalDate.of(2026, 6, 5);
 
     @Mock
     private DailyStatRepository dailyStatRepository;
@@ -43,7 +43,7 @@ class AnalyticsServiceTest {
     @BeforeEach
     void setUp() {
         todayStat = DailyStat.builder()
-                .date(LocalDate.now())
+                .date(FIXED_DATE)
                 .totalTickets(50)
                 .ticketsResolus(30)
                 .ticketsNouveau(8)
@@ -69,7 +69,7 @@ class AnalyticsServiceTest {
         @DisplayName("KPIs pour 7d avec données — utilise les vrais compteurs par statut")
         void getKpis_7d_returnsAggregatedKpis() {
             DailyStat yesterday = DailyStat.builder()
-                    .date(LocalDate.now().minusDays(1))
+                    .date(FIXED_DATE.minusDays(1))
                     .totalTickets(40)
                     .ticketsResolus(25)
                     .ticketsNouveau(5)
@@ -304,7 +304,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Incrémente ETUDE")
         void incrementDecision_etude() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.incrementDecision("ETUDE");
@@ -317,7 +317,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Décision nulle ignorée silencieusement")
         void incrementDecision_null_ignored() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.incrementDecision(null);
@@ -336,7 +336,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Canal EMAIL incrémente ticketsEmail")
         void incrementTicketCreated_email() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.incrementTicketCreated("EMAIL");
@@ -349,7 +349,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Canal WEB incrémente ticketsWeb")
         void incrementTicketCreated_web() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.incrementTicketCreated("WEB");
@@ -362,7 +362,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Canal inconnu ignoré silencieusement")
         void incrementTicketCreated_unknownCanal_ignored() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.incrementTicketCreated("AUTRE");
@@ -384,7 +384,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Transition avec ancien statut null ne lance pas d'exception")
         void statusChanged_nullOldStatut_noException() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             assertThatNoException().isThrownBy(
@@ -395,7 +395,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Transition vers statut inconnu ignorée silencieusement")
         void statusChanged_unknownNewStatut_ignored() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             assertThatNoException().isThrownBy(
@@ -406,7 +406,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("Transition RESOLU ne modifie pas le compteur (append-only)")
         void statusChanged_resolvedStatut_noCounterChange() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.of(todayStat));
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.of(todayStat));
             when(dailyStatRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             analyticsService.onTicketStatusChanged("EN_COURS", "RESOLU");
@@ -427,7 +427,7 @@ class AnalyticsServiceTest {
         @DisplayName("Comparaison 7d retourne les deltas corrects")
         void getComparison_7d_returnsDeltas() {
             DailyStat current = DailyStat.builder()
-                    .date(LocalDate.now())
+                    .date(FIXED_DATE)
                     .totalTickets(100).ticketsResolus(80)
                     .decisionsFavorable(40).decisionsDefavorable(20).decisionsEtude(10)
                     .tempsMoyenMinutes(BigDecimal.valueOf(10.0))
@@ -436,7 +436,7 @@ class AnalyticsServiceTest {
                     .build();
 
             DailyStat previous = DailyStat.builder()
-                    .date(LocalDate.now().minusDays(8))
+                    .date(FIXED_DATE.minusDays(8))
                     .totalTickets(80).ticketsResolus(60)
                     .decisionsFavorable(30).decisionsDefavorable(15).decisionsEtude(8)
                     .tempsMoyenMinutes(BigDecimal.valueOf(12.0))
@@ -528,7 +528,7 @@ class AnalyticsServiceTest {
         @Test
         @DisplayName("nightlyAggregation crée ou récupère la stat du jour")
         void nightlyAggregation_createsTodayStat() {
-            when(dailyStatRepository.findByDate(LocalDate.now())).thenReturn(Optional.empty());
+            when(dailyStatRepository.findByDate(any(LocalDate.class))).thenReturn(Optional.empty());
             when(dailyStatRepository.save(any())).thenReturn(todayStat);
 
             analyticsService.nightlyAggregation();

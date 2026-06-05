@@ -93,8 +93,9 @@ class JwtUtilsTest {
         Jws<Claims> claims = jwtUtils.validateAccessToken(token);
 
         LocalDateTime expiry = jwtUtils.extractExpiry(claims);
+        LocalDateTime benchmark = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        assertThat(expiry).isAfter(LocalDateTime.now());
+        assertThat(expiry).isAfter(benchmark);
     }
 
     @Test

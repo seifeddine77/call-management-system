@@ -36,6 +36,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
+        private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 6, 5, 12, 0, 0);
+
         // ── Test constants ────────────────────────────────────────
         private static final String OPERATOR_EMAIL    = "operator@test.com";
         private static final String PASSWORD_RAW      = "password123";
@@ -384,7 +386,7 @@ class AuthServiceImplTest {
                                         .id(UUID.randomUUID())
                                         .userId(testUserId)
                                         .token(oldRefreshToken)
-                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .expiresAt(FIXED_NOW.plusDays(7))
                                         .revoked(false)
                                         .build();
                         when(refreshTokenRepository.findByToken(oldRefreshToken))
@@ -436,7 +438,7 @@ class AuthServiceImplTest {
                         RefreshToken storedToken = RefreshToken.builder()
                                         .token(revokedToken)
                                         .revoked(true) // revoked
-                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .expiresAt(FIXED_NOW.plusDays(7))
                                         .build();
                         when(refreshTokenRepository.findByToken(revokedToken))
                                         .thenReturn(Optional.of(storedToken));
@@ -460,7 +462,7 @@ class AuthServiceImplTest {
                         RefreshToken storedToken = RefreshToken.builder()
                                         .token(expiredToken)
                                         .revoked(false)
-                                        .expiresAt(LocalDateTime.now().minusDays(1)) // expired
+                                        .expiresAt(FIXED_NOW.minusDays(1)) // expired
                                         .build();
                         when(refreshTokenRepository.findByToken(expiredToken))
                                         .thenReturn(Optional.of(storedToken));
@@ -502,7 +504,7 @@ class AuthServiceImplTest {
                         RefreshToken storedToken = RefreshToken.builder()
                                         .userId(testUserId)
                                         .token(tokenStr)
-                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .expiresAt(FIXED_NOW.plusDays(7))
                                         .revoked(false)
                                         .build();
                         when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));
@@ -541,7 +543,7 @@ class AuthServiceImplTest {
                         RefreshToken storedToken = RefreshToken.builder()
                                         .userId(testUserId)
                                         .token(tokenStr)
-                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .expiresAt(FIXED_NOW.plusDays(7))
                                         .revoked(false)
                                         .build();
                         when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));
@@ -574,7 +576,7 @@ class AuthServiceImplTest {
                         RefreshToken storedToken = RefreshToken.builder()
                                         .userId(testUserId)
                                         .token(tokenStr)
-                                        .expiresAt(LocalDateTime.now().plusDays(7))
+                                        .expiresAt(FIXED_NOW.plusDays(7))
                                         .revoked(false)
                                         .build();
                         when(refreshTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(storedToken));

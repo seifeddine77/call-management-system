@@ -44,8 +44,8 @@ public class JwtUtils {
                 .claim("role", role)
                 .claim("agenceId", agenceId != null ? agenceId.toString() : null)
                 .claim("type", "ACCESS")
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessExpirationMs))
+                .issuedAt(java.util.Date.from(java.time.Instant.now()))
+                .expiration(java.util.Date.from(java.time.Instant.now().plusMillis(accessExpirationMs)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
@@ -63,8 +63,8 @@ public class JwtUtils {
                 .claim("role", role)
                 .claim("agenceId", agenceId != null ? agenceId.toString() : null)
                 .claim("type", "REFRESH")
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshExpirationMs))
+                .issuedAt(java.util.Date.from(java.time.Instant.now()))
+                .expiration(java.util.Date.from(java.time.Instant.now().plusMillis(refreshExpirationMs)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
