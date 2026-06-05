@@ -38,7 +38,7 @@ function validateTel(tel: string, touched: boolean): string {
 }
 
 // Safe email regex: specific character classes with bounded quantifiers — avoids ReDoS
-const SAFE_EMAIL_RE = /^[a-zA-Z0-9._%+\-]{1,64}@[a-zA-Z0-9.\-]{1,253}\.[a-zA-Z]{2,}$/;
+const SAFE_EMAIL_RE = /^[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-zA-Z]{2,}$/;
 
 function validateEmail(email: string, touched: boolean): string {
   if (!touched) return '';

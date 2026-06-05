@@ -26,7 +26,7 @@ export const userService = {
       : params;
     const res = await api.get<User[] | { content: User[] }>('/api/users', { params: backendParams });
     const data = res.data;
-    const users = Array.isArray(data) ? data : (data as { content: User[] }).content;
+    const users = Array.isArray(data) ? data : data.content;
     return users.map(mapUserResponse);
   },
 

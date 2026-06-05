@@ -188,14 +188,12 @@ const getRgpdChecks = (
     checks.push(getPhotosCheck(ticket));
   }
 
-  // 4. Traçabilité décisionnelle
-  checks.push(getDecisionCheck(!!decision));
-
-  // 5. Notifications
-  checks.push(getNotificationCheck(notifications.length > 0));
-
-  // 6. Minimisation des données
-  checks.push(getDataMinimizationCheck(ticket));
+  // 4. Traçabilité décisionnelle, 5. Notifications, 6. Minimisation des données
+  checks.push(
+    getDecisionCheck(!!decision),
+    getNotificationCheck(notifications.length > 0),
+    getDataMinimizationCheck(ticket)
+  );
 
   // 7. Droit à l'effacement (if isClosed)
   if (isClosed) {

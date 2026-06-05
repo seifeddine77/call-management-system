@@ -278,7 +278,7 @@ public class TicketController {
         String sanitizedName = Paths.get(rawName).getFileName().toString();
         sanitizedName = sanitizedName.replaceAll("[^a-zA-Z0-9._-]", "_");
         String fileName = System.currentTimeMillis() + "_" + sanitizedName;
-        String photoPath = "/photos/" + ticketId + "/" + fileName;
+        String photoPath = String.format("/photos/%s/%s", ticketId, fileName);
 
         try {
             Path dirPath = Paths.get(photosStoragePath, ticketId.toString());

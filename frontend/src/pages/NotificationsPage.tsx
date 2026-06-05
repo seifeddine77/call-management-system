@@ -60,6 +60,110 @@ export default function NotificationsPage() {
     };
   }, [logs]);
 
+  const renderTableContent = () => {
+    if (loading && filtered.length === 0) {
+      return (
+        <div className="p-5 space-y-3">
+          {Array.from({ length: 5 }, (_, idx) => `skel-notif-${idx}`).map((key) => (
+            <div key={key} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      );
+    }
+    if (filtered.length === 0) {
+      return (
+        <div className="py-12">
+          <EmptyState 
+            icon="mail" 
+            title="Aucune notification" 
+            subtitle={filter === 'ALL' ? 'Aucune notification envoyée' : 'Aucune notification avec ce filtre'} 
+          />
+        </div>
+      );
+    }
+    return (
+      <table className="aurora-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Destinataire</th>
+            <th>Sujet & Message</th>
+            <th>Statut</th>
+            <th>Date d'envoi</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <AnimatePresence mode="popLayout">
+            {filtered.map((n, idx) => (
+              <motion.tr 
+                key={n.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -15 }}
+                transition={{ duration: 0.15, delay: Math.min(idx * 0.02, 0.3) }}
+                className="group"
+              >
+                <td>
+                  <span className={`badge border ${n.type === 'EMAIL' ? 'bg-blue-400/10 text-blue-400 border-blue-400/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
+                    {n.type === 'EMAIL' ? <Mail size={11} /> : <MessageSquare size={11} />}
+                    <span className="font-mono text-[9px] uppercase tracking-wider font-extrabold">{n.type}</span>
+                  </span>
+                </td>
+                <td className="font-mono text-[11px] text-txt font-semibold">{n.destinataire}</td>
+                <td className="max-w-[280px]">
+                  <div className="text-[12.5px] font-semibold text-txt tracking-wide truncate">{n.sujet}</div>
+                  {n.metadata && typeof n.metadata === 'object' && Object.keys(n.metadata).length > 0 && (
+                    <div className="font-mono text-[9px] text-txt-3 mt-0.5 truncate tracking-wider">
+                      ID: {(() => {
+                        const meta = n.metadata as { ticketId?: string | number; ticketNumero?: string | number } | null | undefined;
+                        return String(meta?.ticketId || meta?.ticketNumero || '');
+                      })()}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <span className={`badge border ${n.statut === 'SENT' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                    <span className={`w-1 h-1 rounded-full ${n.statut === 'SENT' ? 'bg-emerald-400' : 'bg-rose-400 animate-pulse'}`} />
+                    <span className="font-mono text-[9px] uppercase tracking-widest font-extrabold">
+                      {n.statut === 'SENT' ? 'Délivré' : 'Échoué'}
+                    </span>
+                  </span>
+                </td>
+                <td className="font-mono text-[10px] text-txt-3">
+                  {new Date(n.createdAt).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </td>
+                <td>
+                  {n.statut === 'SENT' ? (
+                    <span className="font-mono text-[9px] text-txt-3 select-none">—</span>
+                  ) : (
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleRetry(n.id)} 
+                      disabled={retrying === n.id} 
+                      className="font-mono text-[9px] font-extrabold uppercase tracking-widest rounded-xl px-3 h-7 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-500 dark:hover:text-indigo-300 hover:border-indigo-400/40 transition-all flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      <RefreshCcw size={10} className={retrying === n.id ? 'animate-spin' : ''} />
+                      Renvoyer
+                    </motion.button>
+                  )}
+                </td>
+              </motion.tr>
+            ))}
+          </AnimatePresence>
+        </tbody>
+      </table>
+    );
+  };
+
   if (error) return <ErrorState message={error} onRetry={fetchLogs} />;
 
   return (
@@ -168,101 +272,7 @@ export default function NotificationsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          {loading && filtered.length === 0 ? (
-            <div className="p-5 space-y-3">
-              {Array.from({ length: 5 }, (_, idx) => `skel-notif-${idx}`).map((key) => (
-                <div key={key} className="h-12 bg-[var(--muted)]/40 border border-border/40 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12">
-              <EmptyState 
-                icon="mail" 
-                title="Aucune notification" 
-                subtitle={filter === 'ALL' ? 'Aucune notification envoyée' : 'Aucune notification avec ce filtre'} 
-              />
-            </div>
-          ) : (
-            <table className="aurora-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Destinataire</th>
-                  <th>Sujet & Message</th>
-                  <th>Statut</th>
-                  <th>Date d'envoi</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <AnimatePresence mode="popLayout">
-                  {filtered.map((n, idx) => (
-                    <motion.tr 
-                      key={n.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -15 }}
-                      transition={{ duration: 0.15, delay: Math.min(idx * 0.02, 0.3) }}
-                      className="group"
-                    >
-                      <td>
-                        <span className={`badge border ${n.type === 'EMAIL' ? 'bg-blue-400/10 text-blue-400 border-blue-400/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
-                          {n.type === 'EMAIL' ? <Mail size={11} /> : <MessageSquare size={11} />}
-                          <span className="font-mono text-[9px] uppercase tracking-wider font-extrabold">{n.type}</span>
-                        </span>
-                      </td>
-                      <td className="font-mono text-[11px] text-txt font-semibold">{n.destinataire}</td>
-                      <td className="max-w-[280px]">
-                        <div className="text-[12.5px] font-semibold text-txt tracking-wide truncate">{n.sujet}</div>
-                        {n.metadata && typeof n.metadata === 'object' && Object.keys(n.metadata).length > 0 && (
-                          <div className="font-mono text-[9px] text-txt-3 mt-0.5 truncate tracking-wider">
-                            ID: {(() => {
-                              const meta = n.metadata as { ticketId?: string | number; ticketNumero?: string | number } | null | undefined;
-                              return String(meta?.ticketId || meta?.ticketNumero || '');
-                            })()}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge border ${n.statut === 'SENT' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                          <span className={`w-1 h-1 rounded-full ${n.statut === 'SENT' ? 'bg-emerald-400' : 'bg-rose-400 animate-pulse'}`} />
-                          <span className="font-mono text-[9px] uppercase tracking-widest font-extrabold">
-                            {n.statut === 'SENT' ? 'Délivré' : 'Échoué'}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="font-mono text-[10px] text-txt-3">
-                        {new Date(n.createdAt).toLocaleString('fr-FR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit'
-                        })}
-                      </td>
-                      <td>
-                        {n.statut === 'SENT' ? (
-                          <span className="font-mono text-[9px] text-txt-3 select-none">—</span>
-                        ) : (
-                          <motion.button 
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleRetry(n.id)} 
-                            disabled={retrying === n.id} 
-                            className="font-mono text-[9px] font-extrabold uppercase tracking-widest rounded-xl px-3 h-7 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-500 dark:hover:text-indigo-300 hover:border-indigo-400/40 transition-all flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
-                          >
-                            <RefreshCcw size={10} className={retrying === n.id ? 'animate-spin' : ''} />
-                            Renvoyer
-                          </motion.button>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </tbody>
-            </table>
-          )}
+          {renderTableContent()}
         </div>
       </div>
     </div>

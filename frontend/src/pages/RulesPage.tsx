@@ -11,6 +11,16 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 
 // ─── CSS Badge/Text Styling Utility Helpers to eliminate nested ternaries ───
+const getStrokeColor = (status: boolean | null): string => {
+  if (status === null) return 'var(--border)';
+  return status ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+};
+
+const getFilterGlow = (status: boolean | null): string | undefined => {
+  if (status === null) return undefined;
+  return status ? 'url(#glow-green)' : 'url(#glow-red)';
+};
+
 const getActionBadgeClass = (action: string) => {
   if (action === 'FAVORABLE') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
   if (action === 'DEFAVORABLE') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
@@ -360,7 +370,7 @@ function OrLayoutSvg({
   return (
     <>
       {/* Connections START -> Conds & Conds -> ACTION */}
-      {conditions.map((_, i) => {
+      {conditions.map((cond, i) => {
         const startX = 50;
         const startY = canvasHeight / 2;
         const condX = 85;
@@ -387,7 +397,7 @@ function OrLayoutSvg({
         }
 
         return (
-          <g key={`path-or-${i}`}>
+          <g key={cond._id || `path-or-${i}`}>
             {/* Path Start -> Cond */}
             <path
               d={getBezierPath(startX, startY, condX, condY)}
@@ -435,7 +445,7 @@ function OrLayoutSvg({
 
         return (
           <foreignObject
-            key={`cond-node-${i}`}
+            key={cond._id || `cond-node-${i}`}
             x={85}
             y={condY}
             width={140}
@@ -502,16 +512,16 @@ function AndLayoutSvg({
         y1={46}
         x2={170}
         y2={85}
-        stroke={evaluatedConds[0] !== null ? (evaluatedConds[0] ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)') : 'var(--border)'}
+        stroke={getStrokeColor(evaluatedConds[0])}
         strokeWidth={evaluatedConds[0] === true ? 2.5 : 1.5}
-        filter={evaluatedConds[0] !== null ? (evaluatedConds[0] ? 'url(#glow-green)' : 'url(#glow-red)') : undefined}
+        filter={getFilterGlow(evaluatedConds[0])}
         className={evaluatedConds[0] === true ? 'animate-dash' : ''}
         strokeDasharray={evaluatedConds[0] === true ? '4,4' : undefined}
         style={{ transition: 'stroke 0.3s, stroke-width 0.3s' }}
       />
 
       {/* Connections between Conds */}
-      {conditions.map((_, i) => {
+      {conditions.map((cond, i) => {
         if (i === numConds - 1) return null; // last one connects to ACTION
 
         const statusNext = evaluatedConds[i + 1];
@@ -537,7 +547,7 @@ function AndLayoutSvg({
 
         return (
           <line
-            key={`path-and-${i}`}
+            key={cond._id || `path-and-${i}`}
             x1={170}
             y1={(i + 1) * 85 + 60}
             x2={170}
@@ -586,7 +596,7 @@ function AndLayoutSvg({
 
         return (
           <foreignObject
-            key={`cond-node-${i}`}
+            key={cond._id || `cond-node-${i}`}
             x={80}
             y={condY}
             width={180}

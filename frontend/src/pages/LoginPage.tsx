@@ -14,8 +14,23 @@ function useTyping(texts: string[], speed = 50, pause = 3000) {
     let i = 0, del = false, t: ReturnType<typeof setTimeout>;
     const tick = () => {
       const full = texts[idx];
-      if (!del) { setDisplay(full.slice(0, ++i)); if (i === full.length) { t = setTimeout(() => { del = true; tick(); }, pause); return; } }
-      else { setDisplay(full.slice(0, --i)); if (i === 0) { del = false; setIdx(p => (p + 1) % texts.length); return; } }
+      if (del) {
+        setDisplay(full.slice(0, --i));
+        if (i === 0) {
+          del = false;
+          setIdx(p => (p + 1) % texts.length);
+          return;
+        }
+      } else {
+        setDisplay(full.slice(0, ++i));
+        if (i === full.length) {
+          t = setTimeout(() => {
+            del = true;
+            tick();
+          }, pause);
+          return;
+        }
+      }
       t = setTimeout(tick, del ? 20 : speed);
     };
     t = setTimeout(tick, 500);

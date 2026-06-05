@@ -37,12 +37,12 @@ public class SupervisionService {
 
         List<OperatorPerformanceResponse> result = new ArrayList<>();
         for (Object[] row : raw) {
-            UUID opId = row[0] instanceof UUID ? (UUID) row[0] : UUID.fromString(row[0].toString());
+            UUID opId = row[0] instanceof UUID uuid ? uuid : UUID.fromString(row[0].toString());
             int total = ((Number) row[1]).intValue();
             int enCours = ((Number) row[2]).intValue();
             int resolu = ((Number) row[3]).intValue();
-            double tempsMoyen = row[4] instanceof BigDecimal
-                    ? ((BigDecimal) row[4]).doubleValue()
+            double tempsMoyen = row[4] instanceof BigDecimal bd
+                    ? bd.doubleValue()
                     : ((Number) row[4]).doubleValue();
             int call = ((Number) row[5]).intValue();
             int email = ((Number) row[6]).intValue();

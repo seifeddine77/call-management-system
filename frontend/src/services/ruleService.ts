@@ -79,7 +79,12 @@ export const ruleService = {
         }
         const obj = x as { field?: string; label?: string; type?: string; values?: string[] } || {};
         const rawType = obj.type || 'string';
-        const type = (rawType === 'number' || rawType === 'enum' ? rawType : 'string') as 'string' | 'number' | 'enum';
+        let type: 'string' | 'number' | 'enum' = 'string';
+        if (rawType === 'number') {
+          type = 'number';
+        } else if (rawType === 'enum') {
+          type = 'enum';
+        }
         return {
           field: obj.field || '',
           label: obj.label || obj.field || '',

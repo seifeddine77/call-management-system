@@ -240,8 +240,8 @@ function TranscriptionViewer({ transcription, keywords }: Readonly<Transcription
 function _startMediaRecorder(
   ws: WebSocket,
   stream: MediaStream,
-  recorderRef: React.MutableRefObject<MediaRecorder | null>,
-  timerRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>,
+  recorderRef: { current: MediaRecorder | null },
+  timerRef: { current: ReturnType<typeof setInterval> | null },
   setIsRecording: (v: boolean) => void,
   setElapsed: (fn: (p: number) => number) => void,
   setLiveText: (v: string) => void,
@@ -1283,8 +1283,8 @@ export default function TicketDetailPage() {
         setLightboxIndex(null);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
+    return () => globalThis.removeEventListener('keydown', handleKeyDown);
   }, [lightboxIndex, setLightboxIndex]);
 
   if (loading) {

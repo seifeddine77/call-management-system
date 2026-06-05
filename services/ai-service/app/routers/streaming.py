@@ -126,7 +126,7 @@ def _save_transcription_to_db(ticket_id: str, full_text: str, duration: float):
             logger.info("💾 [STREAM] Transcription saved for ticket %s", sanitize_log(ticket_id))
         finally:
             db.close()
-    except Exception as e:
+    except Exception:
         logger.exception("❌ [STREAM] DB save failed for ticket %s", sanitize_log(ticket_id))
 
 
