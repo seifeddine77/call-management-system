@@ -120,13 +120,10 @@ spring:
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
-              - "http://localhost:5173"
-              - "http://localhost:5000"
-              - "http://localhost:5555"
-              - "http://localhost:8080"
-              - "http://localhost:8888"
+            # Origines autorisees externalisees : en production, definir
+            # CORS_ALLOWED_ORIGINS (liste separee par des virgules). Par defaut,
+            # les origines de developpement (localhost) restent inchangees.
+            allowedOrigins: "${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:5000,http://localhost:5555,http://localhost:8080,http://localhost:8888}"
             allowedMethods:
               - "*"
             allowedHeaders:

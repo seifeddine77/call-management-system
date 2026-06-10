@@ -361,6 +361,11 @@ services:
     networks:
       - callmgmt-net
     restart: unless-stopped
+    # Limites de ressources (Docker Desktop) — evite l'epuisement memoire
+    # du aux modeles ML (torch/whisper/spaCy). Ajuster selon la machine.
+    mem_limit: 4g
+    mem_reservation: 2g
+    cpus: 2.0
 
   # ============================================
   # LLM — Docker Model Runner (Gemma 4 via llama.cpp)
@@ -454,6 +459,10 @@ services:
     networks:
       - callmgmt-net
     restart: unless-stopped
+    # Limites de ressources (Docker Desktop) — Chromium/Puppeteer est gourmand.
+    mem_limit: 1500m
+    mem_reservation: 512m
+    cpus: 1.0
 
 # ============================================
 # NETWORKS & VOLUMES

@@ -7,6 +7,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Non-root cache locations: ML models are cached HERE at build time and read
+# from the SAME paths at runtime (whisper honours XDG_CACHE_HOME, sentence-transformers
+# honours HF_HOME). This lets the container run as a non-root user without any
+# runtime re-download. (Security hardening — CIS Docker / OWASP)
+ENV HOME=/home/app \
+    XDG_CACHE_HOME=/home/app/.cache \
+    HF_HOME=/home/app/.cache/huggingface
+RUN mkdir -p /home/app/.cache
+
 # System deps — ffmpeg for whisper, gcc for psycopg2, git for pip git installs
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -58,6 +67,12 @@ RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt # NOSONAR
 # App code
 COPY . .
 RUN mkdir -p /var/audio
+
+# Create a non-root user and hand over the app code, cache and audio dirs.
+# uvicorn and the mounted "audio_files" volume must be writable by it.
+RUN addgroup --system app && adduser --system --ingroup app --home /home/app app \
+    && chown -R app:app /app /home/app /var/audio
+USER app
 
 EXPOSE 8000
 

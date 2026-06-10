@@ -20,7 +20,12 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY index.js .
 
-# Créer le dossier pour la session WhatsApp persistée
-RUN mkdir -p /app/.wwebjs_auth
+# Créer le dossier pour la session WhatsApp persistée + utilisateur non-root.
+# Chromium est déjà lancé avec --no-sandbox --disable-setuid-sandbox (index.js),
+# l'exécution en non-root est donc supportée. (Durcissement CIS Docker / OWASP)
+RUN addgroup -S app && adduser -S app -G app \
+    && mkdir -p /app/.wwebjs_auth \
+    && chown -R app:app /app
+USER app
 
 CMD ["node", "index.js"]

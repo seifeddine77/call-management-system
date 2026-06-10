@@ -1,0 +1,105 @@
+@startuml UC_Admin_Classic
+skinparam shadowing false
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam backgroundColor white
+skinparam actorStyle stick
+
+' Classic UML styling (white fill, thin black border)
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor     #000000
+    ArrowColor      #000000
+    FontColor       #000000
+    FontSize        12
+}
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor     #000000
+    FontColor       #000000
+    FontSize        12
+    FontStyle       bold
+}
+skinparam rectangle {
+    BorderColor     #000000
+    BorderThickness 1.5
+    FontColor       #000000
+    FontSize        14
+    FontStyle       bold
+    BackgroundColor #FFFFFF
+}
+
+left to right direction
+
+actor "Administrateur" as Admin
+
+rectangle "Système AutoAssist (Module d'Administration)" {
+    
+    ' Main Use Cases (Stacked vertically on the left)
+    usecase "Gérer les utilisateurs" as UC_User
+    usecase "Gérer les agences" as UC_Agence
+    usecase "Gérer les référentiels" as UC_Ref
+    usecase "Consulter les statistiques globales" as UC_Stats
+    usecase "Consulter l'audit trail" as UC_Audit
+    usecase "Gérer les notifications" as UC_Notif
+    
+    ' Common included usecase on the far right
+    usecase "S'authentifier" as UC_Auth
+    
+    ' Inherited Use Cases for UC_User
+    usecase "Créer un utilisateur" as UC_User_Create
+    usecase "Modifier un utilisateur" as UC_User_Update
+    usecase "Désactiver un utilisateur" as UC_User_Delete
+    
+    ' Inherited Use Cases for UC_Agence
+    usecase "Créer une agence" as UC_Agence_Create
+    usecase "Modifier une agence" as UC_Agence_Update
+    
+    ' Inherited Use Cases for UC_Audit
+    usecase "Consulter l'historique des actions (TicketAction)" as UC_Audit_Actions
+    usecase "Tracer les connexions utilisateurs" as UC_Audit_Conn
+    
+    ' Inherited Use Cases for UC_Notif
+    usecase "Consulter l'historique des emails (NotificationLog)" as UC_Notif_Logs
+    usecase "Relancer manuellement les envois échoués" as UC_Notif_Retry
+    
+    ' Vertical layout alignment
+    UC_User -[hidden]right-> UC_Agence
+    UC_Agence -[hidden]right-> UC_Ref
+    UC_Ref -[hidden]right-> UC_Stats
+    UC_Stats -[hidden]right-> UC_Audit
+    UC_Audit -[hidden]right-> UC_Notif
+
+    ' Generalisations (Inheritance pointing to parent)
+    UC_User <|-- UC_User_Create
+    UC_User <|-- UC_User_Update
+    UC_User <|-- UC_User_Delete
+    
+    UC_Agence <|-- UC_Agence_Create
+    UC_Agence <|-- UC_Agence_Update
+    
+    UC_Audit <|-- UC_Audit_Actions
+    UC_Audit <|-- UC_Audit_Conn
+    
+    UC_Notif <|-- UC_Notif_Logs
+    UC_Notif <|-- UC_Notif_Retry
+    
+    ' Connections from Admin
+    Admin --> UC_User
+    Admin --> UC_Agence
+    Admin --> UC_Ref
+    Admin --> UC_Stats
+    Admin --> UC_Audit
+    Admin --> UC_Notif
+    
+    ' Includes pointing to S'authentifier on the right
+    UC_User ..> UC_Auth : <<include>>
+    UC_Agence ..> UC_Auth : <<include>>
+    UC_Ref ..> UC_Auth : <<include>>
+    UC_Stats ..> UC_Auth : <<include>>
+    UC_Audit ..> UC_Auth : <<include>>
+    UC_Notif ..> UC_Auth : <<include>>
+}
+
+@enduml
