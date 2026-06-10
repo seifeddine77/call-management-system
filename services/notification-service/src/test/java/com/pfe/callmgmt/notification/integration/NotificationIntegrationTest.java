@@ -192,11 +192,13 @@ class NotificationIntegrationTest {
         }
 
         @Test
-        @DisplayName("POST /retry/{id} — notification inexistante → exception propagée")
-        void retry_notFound_throwsException() {
+        @DisplayName("POST /retry/{id} — notification inexistante → 404 Not Found")
+        void retry_notFound_returns404() throws Exception {
                 UUID fakeId = UUID.randomUUID();
-                assertThrows(Exception.class, () -> mockMvc.perform(post(API_NOTIF_RETRY + fakeId))
-                                .andReturn());
+                mockMvc.perform(post(API_NOTIF_RETRY + fakeId))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.error").value("Not Found"))
+                                .andExpect(jsonPath("$.message").value(containsString("Notification introuvable")));
         }
 
         @Test

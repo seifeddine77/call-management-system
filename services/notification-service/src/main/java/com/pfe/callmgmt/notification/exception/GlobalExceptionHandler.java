@@ -48,6 +48,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    public ResponseEntity<Map<String, Object>> handleNoSuchElement(java.util.NoSuchElementException ex) {
+        log.warn("Ressource introuvable: {}", ex.getMessage());
+        Map<String, Object> body = baseBody(HttpStatus.NOT_FOUND, "Not Found");
+        body.put(KEY_MESSAGE, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         log.error("Erreur interne: {}", ex.getMessage(), ex);
