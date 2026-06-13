@@ -66,7 +66,7 @@ async def chat_endpoint(request: ChatRequest):
     1. User question → Hybrid search (semantic + keyword) in ChromaDB
     2. Re-ranking of retrieved documents
     3. Conversation memory context added
-    4. Context + question → Gemma 4 (→ OpenAI fallback) → contextual answer
+    4. Context + question → Gemma 4 (local) → contextual answer
     5. Answer + metadata sent back
     """
     logger.info("💬 Chat question: '%.80s...' group='%s'", sanitize_log(request.question), sanitize_log(request.group_name))
@@ -155,7 +155,7 @@ def chat_health():
         "documents_count": rag_service._collection.count() if rag_service._collection else 0,
         "embedding_model": "paraphrase-multilingual-MiniLM-L12-v2",
         "primary_llm": settings.LLM_MODEL,
-        "fallback_llm": settings.OPENAI_MODEL if settings.OPENAI_API_KEY else "none",
+        "fallback_llm": "none",
         "improvements_active": 9,
     }
 

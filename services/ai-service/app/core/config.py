@@ -25,11 +25,8 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "ai/gemma4"
     LLM_TIMEOUT: int = 180  # Gemma 4 on CPU can take 60-120s for RAG prompts
 
-    # Fallback LLM (OpenAI) — used when local Gemma 4 is too slow or unavailable
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o-mini"
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_TIMEOUT: int = 30
+    # Pas de fallback LLM cloud : seul le LLM local est autorisé (exigence sécurité —
+    # aucune donnée ne doit sortir de l'infrastructure locale).
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

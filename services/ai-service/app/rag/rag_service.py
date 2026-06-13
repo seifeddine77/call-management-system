@@ -775,7 +775,16 @@ def _resolve_followup(question: str, group_name: str) -> str:
         r'^(et|aussi|également)\s+(pour|avec|dans|sur)\b',
     ]
 
-    is_followup = any(re.search(p, lower) for p in followup_patterns) or len(lower.split()) <= 4
+    # A short question is a follow-up only if it actually refers to the previous
+    # exchange (pronoun or bare interrogative) — otherwise "statuts ticket ?"
+    # would inherit an unrelated context and pollute the retrieval.
+    referential = re.search(
+        r"\b(son|sa|ses|leur|leurs|il|elle|ça|cela|celui|celle|lui|aussi|encore|ensuite)\b"
+        r"|^(pourquoi|comment|et après|c'est-à-dire)\s*\??$",
+        lower,
+    )
+    short_followup = len(lower.split()) <= 4 and referential is not None
+    is_followup = any(re.search(p, lower) for p in followup_patterns) or short_followup
 
     if is_followup and len(lower) < 60:
         # Get the last topic discussed
@@ -806,9 +815,8 @@ _llm_lock = asyncio.Lock()
 
 async def _call_llm(messages: list[dict]) -> tuple[str, str]:
     """
-    Call LLM with automatic fallback:
-      1. Try local Gemma 4 (free, CPU, ~7-30s)
-      2. If timeout/error AND OpenAI key configured → fallback to GPT-4o-mini (~2s)
+    Call the local Gemma 4 LLM (Docker Model Runner). No cloud fallback —
+    data must never leave the local infrastructure (security requirement).
 
     Uses asyncio.Lock to prevent concurrent Gemma requests which cause empty responses.
     """
@@ -852,35 +860,6 @@ async def _call_llm(messages: list[dict]) -> tuple[str, str]:
             except Exception as e:
                 logger.warning("⚠️ Gemma 4 error: %s", sanitize_log(str(e)))
                 break
-
-    # ── Attempt 2: OpenAI Fallback (outside lock) ──
-    if settings.OPENAI_API_KEY:
-        try:
-            logger.info("🔄 Fallback → OpenAI GPT-4o-mini...")
-            async with httpx.AsyncClient(timeout=settings.OPENAI_TIMEOUT) as client:
-                response = await client.post(
-                    f"{settings.OPENAI_BASE_URL}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-                        "Content-Type": _CONTENT_TYPE_JSON,
-                    },
-                    json={
-                        "model": settings.OPENAI_MODEL,
-                        "max_tokens": 1024,
-                        "temperature": 0.3,
-                        "messages": messages,
-                    },
-                )
-                response.raise_for_status()
-                data = response.json()
-                raw = data["choices"][0]["message"]["content"]
-                text = re.sub(r'```\w*\n?', '', raw).strip() or raw.strip()
-                if text:
-                    logger.info("✅ OpenAI fallback responded (%d chars)", len(text))
-                    return text, "gpt-4o-mini"
-
-        except Exception as e:
-            logger.exception("❌ OpenAI fallback also failed")
 
     return "", "none"
 
@@ -1307,7 +1286,7 @@ async def chat(question: str, group_name: str = "") -> dict:
     6. Feedback tracking
     7. Dynamic knowledge
     8. Auto-refreshable
-    9. LLM fallback (Gemma 4 → OpenAI)
+    9. LLM 100% local (Gemma 4 — aucun appel cloud)
     10. ✨ Smart Data Router (live API data)
 
     Args:
@@ -1373,18 +1352,21 @@ async def chat(question: str, group_name: str = "") -> dict:
     lang = detect_language(question)
     instructions = _build_prompt_instructions(lang)
 
-    user_prompt = f"{instructions}\n\n"
+    prompt_head = f"{instructions}\n\n"
 
     if conversation_context:
-        user_prompt += f"{conversation_context}\n\n"
+        prompt_head += f"{conversation_context}\n\n"
 
-    user_prompt += f"CONTEXTE :\n{context}\n\nQUESTION : {question}"
+    # Final safety cap on total prompt — shrink the CONTEXT block only,
+    # never the instructions or the user's QUESTION (they must stay intact).
+    question_block = f"\n\nQUESTION : {question}"
+    context_budget = 4500 - len(prompt_head) - len("CONTEXTE :\n") - len(question_block)
+    if len(context) > context_budget:
+        context = context[:max(context_budget, 0)]
 
-    # Final safety cap on total prompt
-    if len(user_prompt) > 4500:
-        user_prompt = user_prompt[:4500]
+    user_prompt = f"{prompt_head}CONTEXTE :\n{context}{question_block}"
 
-    # ── Step 4: Call LLM (Gemma 4 → OpenAI fallback) ──
+    # ── Step 4: Call LLM (Gemma 4 local uniquement) ──
     messages = [
         {"role": "user", "content": user_prompt},
     ]

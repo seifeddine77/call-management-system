@@ -41,6 +41,8 @@ const HELP_MESSAGE = `🤖 *AutoAssist Bot — Commandes disponibles*\n\n` +
     `📋 */queue* — File d'attente\n` +
     `⚖️ */decision* T-xxx — Décision IA d'un ticket\n` +
     `🏢 */agence* — Infos de l'agence\n` +
+    `🔓 */unlock* — Déverrouiller le groupe (Admins)\n` +
+    `🔒 */lock* — Verrouiller le groupe (Admins)\n` +
     `❓ */aide* — Cette aide\n\n` +
     `💬 Vous pouvez aussi poser des questions en langage naturel !\n` +
     `_Propulsé par RAG + Gemma 4 IA_`;
@@ -123,6 +125,10 @@ client.on('qr', (qr) => {
     console.log('║  📱 SCANNEZ CE QR CODE AVEC VOTRE WHATSAPP          ║');
     console.log('╚══════════════════════════════════════════════════════╝\n');
     qrcode.generate(qr, { small: true });
+
+    const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qr)}`;
+    console.log(`\n🔗 Si le QR code ci-dessus est déformé ou impossible à scanner, ouvrez ce lien dans votre navigateur :`);
+    console.log(`   ${qrLink}\n`);
 });
 
 client.on('ready', () => { whatsappReady = true; console.log('✅ WhatsApp connecté !'); });
@@ -431,7 +437,7 @@ function shouldSkipMessage(msg, body) {
     return false;
 }
 
-async function handleSlashCommand(chat, body, lower) {
+async function handleSlashCommand(chat, body, lower, msg) {
     if (lower === '/stats' || lower === '/stat') {
         await chat.sendStateTyping();
         await handleStats(chat);
@@ -455,6 +461,38 @@ async function handleSlashCommand(chat, body, lower) {
     if (lower === '/agence') {
         await chat.sendStateTyping();
         await handleAgence(chat, chat.name);
+        return true;
+    }
+    if (lower === '/unlock' || lower === '/ouvrir') {
+        await chat.sendStateTyping();
+        const senderId = msg.author || msg.from;
+        const participant = chat.participants?.find(p => p.id._serialized === senderId);
+        if (participant && participant.isAdmin) {
+            try {
+                await chat.setMessagesAdminsOnly(false);
+                await chat.sendMessage(`🔓 *Groupe déverrouillé* : Tous les participants peuvent maintenant envoyer des messages.`);
+            } catch (err) {
+                await chat.sendMessage(`❌ Impossible de déverrouiller le groupe : ${err.message}`);
+            }
+        } else {
+            await chat.sendMessage(`⚠️ Seuls les administrateurs du groupe peuvent utiliser cette commande.`);
+        }
+        return true;
+    }
+    if (lower === '/lock' || lower === '/fermer') {
+        await chat.sendStateTyping();
+        const senderId = msg.author || msg.from;
+        const participant = chat.participants?.find(p => p.id._serialized === senderId);
+        if (participant && participant.isAdmin) {
+            try {
+                await chat.setMessagesAdminsOnly(true);
+                await chat.sendMessage(`🔒 *Groupe verrouillé* : Seuls les administrateurs peuvent désormais envoyer des messages.`);
+            } catch (err) {
+                await chat.sendMessage(`❌ Impossible de verrouiller le groupe : ${err.message}`);
+            }
+        } else {
+            await chat.sendMessage(`⚠️ Seuls les administrateurs du groupe peuvent utiliser cette commande.`);
+        }
         return true;
     }
     if (lower === '/aide' || lower === '/help') {
@@ -517,7 +555,7 @@ client.on('message_create', async (msg) => {
         
         // ── Slash commands ──
         try {
-            const isCommand = await handleSlashCommand(chat, body, lower);
+            const isCommand = await handleSlashCommand(chat, body, lower, msg);
             if (isCommand) return;
         } catch (cmdErr) {
             console.error(`❌ Command error (${lower}):`, cmdErr.message);
@@ -609,6 +647,14 @@ async function createWhatsAppGroup(agenceData, retryCount = 0) {
         console.log(`✅ Groupe "${groupName}" créé (${groupId})`);
 
         const groupChat = await client.getChatById(groupId);
+        
+        try {
+            await groupChat.setMessagesAdminsOnly(false);
+            console.log(`🔓 Paramètres du groupe mis à jour : tous les membres peuvent envoyer des messages.`);
+        } catch (setPermError) {
+            console.warn(`⚠️ Impossible de modifier les permissions du groupe : ${setPermError.message}`);
+        }
+
         await groupChat.sendMessage(
             `🏢 *Bienvenue — ${agenceData.nom}*\n\n` +
             `📍 ${agenceData.adresse || ''}\n📱 ${agenceData.telephone}\n📧 ${agenceData.email || ''}\n\n` +

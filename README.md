@@ -38,7 +38,7 @@ cd call-management-system
 
 # 2. Configurer les variables d'environnement
 cp .env.example .env
-# Éditer .env avec vos secrets (JWT, OpenAI, SMTP, Twilio...)
+# Éditer .env avec vos secrets (JWT, SMTP, Twilio...)
 
 # 3. Lancer tous les services backend
 docker compose up -d
@@ -68,8 +68,8 @@ docker ps
 |-----------|-------------|
 | Backend | Spring Boot 3.3 · Java 17 · Maven |
 | Frontend | React 18 · TypeScript · Vite |
-| IA Audio | Python FastAPI · OpenAI Whisper |
-| IA Décision | Moteur de règles JSONB + GPT-4o-mini (OpenAI) |
+| IA Audio | Python FastAPI · Whisper (open-source, exécuté **en local**) |
+| IA Décision | Moteur de règles JSONB + **Gemma 4 (LLM local, Docker Model Runner)** |
 | Base de données | PostgreSQL 15 (1 DB par service) |
 | Cache | Redis 7 |
 | Messaging | RabbitMQ 3 (événements inter-services) |
@@ -123,7 +123,7 @@ call-management-system/
 2. **Acquisition Multicanale** — 3 canaux (CALL, EMAIL, WEB) + file d'attente temps réel
 3. **Transcription Audio IA** — Whisper STT + NLP (sentiment, mots-clés, type sinistre)
 4. **Moteur de Règles** — Éditeur visuel, versioning, évaluation JSONB
-5. **Aide à la Décision** — Scoring IA (Rules → Cache Redis → GPT-4o-mini) + courrier PDF
+5. **Aide à la Décision** — Scoring IA (Rules → Cache Redis → **Gemma 4 local**) + courrier PDF
 
 ## 📄 Licence
 
