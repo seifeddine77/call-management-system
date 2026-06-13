@@ -36,7 +36,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
-        private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, java.time.Month.JUNE, 5, 12, 0, 0);
+        private static final LocalDateTime FIXED_NOW = LocalDateTime.now();
 
         // ── Test constants ────────────────────────────────────────
         private static final String OPERATOR_EMAIL    = "operator@test.com";
