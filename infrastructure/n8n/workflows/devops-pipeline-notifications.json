@@ -100,13 +100,15 @@
     },
     {
       "parameters": {
-        "url": "http://ticket-service:8083/api/tickets",
-        "method": "POST",
-        "jsonParameters": true,
-        "body": "{\n  \"title\": \"[AUTO] Incident — {{ $json.alerts[0].labels.job }}\",\n  \"description\": \"{{ $json.alerts[0].annotations.description }}\",\n  \"priority\": \"URGENTE\",\n  \"source\": \"MONITORING\",\n  \"status\": \"NOUVEAU\"\n}"
+        "url": "http://callmgmt-ticket:8083/api/channels/web",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ nom: 'Monitoring', description: '[AUTO] ' + ($json.alerts[0].labels.job || 'service') + ' - ' + ($json.alerts[0].annotations.description || ''), agenceId: $env.MONITORING_AGENCE_ID, priorite: 1 }) }}",
+        "options": { "timeout": 10000 }
       },
       "name": "Auto-Create Ticket",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [950, 450]
     }
   ],

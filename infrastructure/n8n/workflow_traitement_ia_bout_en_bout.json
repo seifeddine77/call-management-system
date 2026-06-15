@@ -1,0 +1,152 @@
+{
+  "name": "AutoAssist — Traitement IA bout-en-bout (décision + lettre)",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Déclencher manuellement",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 220],
+      "id": "trg-manual"
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+      },
+      "name": "Polling 15min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 400],
+      "id": "trg-cron"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-ticket:8083/api/tickets?size=100&sort=createdAt,desc",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [430, 300],
+      "id": "get-tickets"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Garde les tickets NOUVEAU et extrait le type de pièce/sinistre depuis la description.\nconst data = $input.first().json;\nconst tickets = (data.content || data || []).filter(t => t.statut === 'NOUVEAU');\nconst MAX = 3; // limite pour une démo rapide ; augmenter en production\n\nconst PIECES = { moteur:'MOTEUR', frein:'FREINAGE', embrayage:'EMBRAYAGE', 'pare-choc':'CARROSSERIE', carrosserie:'CARROSSERIE', alternateur:'ELECTRICITE', batterie:'ELECTRICITE', pneu:'PNEUMATIQUE', boite:'TRANSMISSION' };\nconst SINISTRES = { accident:'COLLISION', collision:'COLLISION', choc:'COLLISION', vol:'VOL', incendie:'INCENDIE', feu:'INCENDIE', panne:'PANNE_MECANIQUE' };\n\nfunction detect(desc, map) {\n  const d = (desc || '').toLowerCase();\n  for (const k in map) { if (d.includes(k)) return map[k]; }\n  return '';\n}\n\nreturn tickets.slice(0, MAX).map(t => ({ json: {\n  ticketId: t.id,\n  numero: t.numero || 'N/A',\n  clientNom: t.clientNom || 'Client',\n  clientEmail: t.clientEmail || '',\n  description: t.description || t.transcription || '',\n  typePiece: detect(t.description, PIECES),\n  typeSinistre: detect(t.description, SINISTRES)\n}}));"
+      },
+      "name": "Filtrer NOUVEAU + extraire",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "filter-extract"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-decision:8085/api/decisions/analyze",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ticketId: $json.ticketId, typePiece: $json.typePiece, typeSinistre: $json.typeSinistre, transcriptionText: $json.description }) }}",
+        "options": { "timeout": 180000 }
+      },
+      "name": "Analyse IA (Rules + Gemma)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [880, 300],
+      "id": "analyze",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Combine chaque ticket avec sa décision et détermine la route.\nconst tickets = $('Filtrer NOUVEAU + extraire').all();\nconst decisions = $input.all();\n\nreturn tickets.map((t, i) => {\n  const tj = t.json;\n  const dj = (decisions[i] || {}).json || {};\n  const decision = dj.decision || dj.finalDecision || 'ETUDE';\n  const tranchee = (decision === 'FAVORABLE' || decision === 'DEFAVORABLE') && !!dj.decisionId;\n  return { json: {\n    ticketId: tj.ticketId,\n    numero: tj.numero,\n    clientNom: tj.clientNom,\n    clientEmail: tj.clientEmail,\n    decisionId: dj.decisionId || '',\n    decision: decision,\n    score: (dj.score != null ? dj.score : null),\n    source: dj.source || '',\n    motif: dj.motif || dj.overrideMotif || '',\n    route: tranchee ? 'tranchee' : 'etude'\n  }};\n});"
+      },
+      "name": "Combiner & Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1110, 300],
+      "id": "combine-route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "tranchee",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "name": "Décision tranchée ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300],
+      "id": "if-route"
+    },
+    {
+      "parameters": {
+        "url": "=http://callmgmt-decision:8085/api/decisions/{{ $json.decisionId }}/letter",
+        "options": {
+          "timeout": 30000,
+          "response": { "response": { "responseFormat": "file", "outputPropertyName": "data" } }
+        }
+      },
+      "name": "GET Lettre PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1570, 200],
+      "id": "get-letter",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "={{ $env.SUPERVISOR_EMAIL || 'saifrezgui77@gmail.com' }}",
+        "subject": "=📄 Lettre de décision {{ $('Combiner & Router').item.json.decision }} — {{ $('Combiner & Router').item.json.numero }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;\"><div style=\"background:linear-gradient(135deg,#1565C0,#1976D2);color:white;padding:22px;border-radius:12px 12px 0 0;text-align:center;\"><h2 style=\"margin:0;\">📄 Décision automatique AutoAssist</h2></div><div style=\"background:white;padding:22px;border:1px solid #e0e0e0;\"><p>Bonjour,</p><p>La réclamation <strong>{{ $('Combiner & Router').item.json.numero }}</strong> du client <strong>{{ $('Combiner & Router').item.json.clientNom }}</strong> a été traitée automatiquement.</p><table style=\"width:100%;border-collapse:collapse;\"><tr style=\"background:#f5f5f5;\"><td style=\"padding:10px;\"><strong>Décision</strong></td><td style=\"padding:10px;text-align:right;font-weight:700;\">{{ $('Combiner & Router').item.json.decision }}</td></tr><tr><td style=\"padding:10px;\"><strong>Score</strong></td><td style=\"padding:10px;text-align:right;\">{{ $('Combiner & Router').item.json.score }}/100</td></tr><tr style=\"background:#f5f5f5;\"><td style=\"padding:10px;\"><strong>Source</strong></td><td style=\"padding:10px;text-align:right;\">{{ $('Combiner & Router').item.json.source }}</td></tr></table><p style=\"margin-top:15px;\">La lettre officielle est jointe en PDF. <em>(En production, envoyer à : {{ $('Combiner & Router').item.json.clientEmail }})</em></p></div><div style=\"background:#f8f9fa;padding:12px;border-radius:0 0 12px 12px;text-align:center;color:#888;font-size:11px;\">© 2026 AutoAssist — n8n + Gemma 4</div></div>",
+        "options": { "attachments": "data" }
+      },
+      "name": "Email Client + Lettre PDF",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1800, 200],
+      "id": "email-client"
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@autoassist.com",
+        "toEmail": "={{ $env.SUPERVISOR_EMAIL || 'saifrezgui77@gmail.com' }}",
+        "subject": "=🔍 Réclamation à étudier (manuel) — {{ $json.numero }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;\"><div style=\"background:linear-gradient(135deg,#E65100,#F57C00);color:white;padding:22px;border-radius:12px 12px 0 0;text-align:center;\"><h2 style=\"margin:0;\">🔍 Étude manuelle requise</h2></div><div style=\"background:white;padding:22px;border:1px solid #e0e0e0;\"><p>L'IA n'a pas pu trancher automatiquement cette réclamation. Une revue par un opérateur est nécessaire.</p><table style=\"width:100%;border-collapse:collapse;\"><tr style=\"background:#f5f5f5;\"><td style=\"padding:10px;\"><strong>Ticket</strong></td><td style=\"padding:10px;text-align:right;\">{{ $json.numero }}</td></tr><tr><td style=\"padding:10px;\"><strong>Client</strong></td><td style=\"padding:10px;text-align:right;\">{{ $json.clientNom }}</td></tr><tr style=\"background:#f5f5f5;\"><td style=\"padding:10px;\"><strong>Décision IA</strong></td><td style=\"padding:10px;text-align:right;font-weight:700;\">{{ $json.decision }}</td></tr><tr><td style=\"padding:10px;\"><strong>Motif</strong></td><td style=\"padding:10px;text-align:right;font-size:12px;\">{{ $json.motif }}</td></tr></table><p style=\"margin-top:15px;\"><a href=\"http://localhost:3000/tickets\" style=\"color:#F57C00;font-weight:700;\">→ Ouvrir le dossier</a></p></div><div style=\"background:#f8f9fa;padding:12px;border-radius:0 0 12px 12px;text-align:center;color:#888;font-size:11px;\">© 2026 AutoAssist — n8n + Gemma 4</div></div>"
+      },
+      "name": "Email Escalade Superviseur",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1570, 440],
+      "id": "email-escalade"
+    }
+  ],
+  "connections": {
+    "Déclencher manuellement": { "main": [[{ "node": "GET Tickets", "type": "main", "index": 0 }]] },
+    "Polling 15min": { "main": [[{ "node": "GET Tickets", "type": "main", "index": 0 }]] },
+    "GET Tickets": { "main": [[{ "node": "Filtrer NOUVEAU + extraire", "type": "main", "index": 0 }]] },
+    "Filtrer NOUVEAU + extraire": { "main": [[{ "node": "Analyse IA (Rules + Gemma)", "type": "main", "index": 0 }]] },
+    "Analyse IA (Rules + Gemma)": { "main": [[{ "node": "Combiner & Router", "type": "main", "index": 0 }]] },
+    "Combiner & Router": { "main": [[{ "node": "Décision tranchée ?", "type": "main", "index": 0 }]] },
+    "Décision tranchée ?": {
+      "main": [
+        [{ "node": "GET Lettre PDF", "type": "main", "index": 0 }],
+        [{ "node": "Email Escalade Superviseur", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET Lettre PDF": { "main": [[{ "node": "Email Client + Lettre PDF", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "IA" }, { "name": "Gemma4" }, { "name": "Automatisation" }]
+}

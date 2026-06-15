@@ -101,17 +101,9 @@
     }
   ],
   "connections": {
-    "Chaque jour à 18h": {
-      "main": [
-        [
-          { "node": "GET Stats Tickets", "type": "main", "index": 0 },
-          { "node": "GET KPIs Aujourd'hui", "type": "main", "index": 0 },
-          { "node": "GET Comparaison 7j", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "GET Stats Tickets": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
-    "GET KPIs Aujourd'hui": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
+    "Chaque jour à 18h": { "main": [[{ "node": "GET Stats Tickets", "type": "main", "index": 0 }]] },
+    "GET Stats Tickets": { "main": [[{ "node": "GET KPIs Aujourd'hui", "type": "main", "index": 0 }]] },
+    "GET KPIs Aujourd'hui": { "main": [[{ "node": "GET Comparaison 7j", "type": "main", "index": 0 }]] },
     "GET Comparaison 7j": { "main": [[{ "node": "Construire Question IA", "type": "main", "index": 0 }]] },
     "Construire Question IA": { "main": [[{ "node": "Appel Gemma 4 (RAG)", "type": "main", "index": 0 }]] },
     "Appel Gemma 4 (RAG)": { "main": [[{ "node": "Formater Email IA", "type": "main", "index": 0 }]] },

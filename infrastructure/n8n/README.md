@@ -18,6 +18,8 @@
 | 6 | **🚀 DevOps Pipeline** | `workflows/devops-pipeline-notifications.json` | Webhook GitHub/Prometheus | ticket |
 | 7 | **🤖 Auto-Analyse IA** | `workflow_auto_analyse_ia.json` | Cron 10min | ticket, decision, ai (Gemma 4) |
 | 8 | **🧠 Résumé IA Quotidien** | `workflow_resume_ia_quotidien.json` | Cron 18h | ticket, analytics, ai (Gemma 4 RAG) |
+| 9 | **⚙️ Traitement IA bout-en-bout** | `workflow_traitement_ia_bout_en_bout.json` | Manuel + Cron 15min | ticket, decision (Rules+Gemma), lettre PDF, email |
+| 10 | **🚨 Détection de pic d'activité** | `workflow_detection_pic.json` | Cron 1h | analytics (comparison) |
 
 ## Import des workflows
 
@@ -88,3 +90,30 @@ Le workflow détecte automatiquement le type de pièce et sinistre depuis la des
 ```
 **Utilise le chatbot RAG** pour générer un résumé en langage naturel avec recommandations.
 Au lieu de chiffres bruts, le superviseur reçoit une analyse intelligente rédigée par Gemma 4.
+
+### 9. ⚙️ Traitement IA bout-en-bout (décision + lettre)
+```
+[Manuel / Cron 15min] → [GET tickets NOUVEAU] → [Filtrer + extraire type pièce/sinistre]
+   → [POST /api/decisions/analyze (Rules + Gemma 4)] → [Combiner & router]
+   → IF décision tranchée ?
+        ├─ OUI → [GET lettre PDF /decisions/{id}/letter] → [Email client + PDF joint]
+        └─ NON (ETUDE) → [Email escalade au superviseur]
+```
+**Automatisation métier complète** : de l'arrivée d'une réclamation jusqu'à l'envoi de la
+lettre de décision officielle (PDF) au client — ou l'escalade humaine si l'IA ne tranche pas.
+Chaîne **ticket → decision (Rules + Gemma 4) → lettre PDF → email**.
+
+- Déclencheur **manuel** inclus pour la démo live ; **Cron 15 min** pour la production.
+- Limité à 3 tickets par exécution (constante `MAX` dans le nœud « Filtrer ») — augmenter en prod.
+- Destinataire configurable via la variable d'environnement `SUPERVISOR_EMAIL`
+  (par sécurité, la lettre client est envoyée au superviseur ; en production, router vers `clientEmail`).
+- Variable `MONITORING_AGENCE_ID` requise pour le workflow DevOps (auto-création de ticket sur alerte critique).
+
+### 10. 🚨 Détection de pic d'activité (supervision proactive)
+```
+[Cron 1h] → [GET /api/analytics/kpis/comparison?period=7d]
+   → [Évaluer le pic : deltaTickets > +50% et volume >= 10] → [Alerte surcharge superviseur]
+```
+**Supervision proactive** : prévient une montée en charge / un incident *avant* dégradation,
+en comparant le volume courant à la période précédente. Seuils ajustables dans le nœud
+« Évaluer le pic » (`SEUIL_PCT`, `MIN_TICKETS`). N'envoie un email que si le seuil est franchi.

@@ -17,13 +17,33 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Validation — champs obligatoires du DTO WebFormRequest\nif (!body.nom || !body.description || !body.agenceId) {\n  return [{ json: { error: 'nom, description et agenceId sont obligatoires', status: 400 } }];\n}\n\n// Mapper exactement vers WebFormRequest.java\nconst ticketPayload = {\n  nom: body.nom,\n  telephone: body.telephone || '',\n  email: body.email || '',\n  description: body.description,\n  agenceId: body.agenceId,\n  priorite: body.priorite || 3\n};\n\nreturn [{ json: ticketPayload }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Validation — champs obligatoires du DTO WebFormRequest\nif (!body.nom || !body.description || !body.agenceId) {\n  return [{ json: { error: 'nom, description et agenceId sont obligatoires' } }];\n}\n\n// Mapper exactement vers WebFormRequest.java\nconst ticketPayload = {\n  nom: body.nom,\n  telephone: body.telephone || '',\n  email: body.email || '',\n  description: body.description,\n  agenceId: body.agenceId,\n  priorite: body.priorite || 3\n};\n\nreturn [{ json: ticketPayload }];"
       },
       "name": "Valider & Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [470, 300],
       "id": "validate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "empty", "singleValue": true }
+            }
+          ]
+        }
+      },
+      "name": "Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300],
+      "id": "validate-if"
     },
     {
       "parameters": {
@@ -38,7 +58,7 @@
       "name": "Créer Ticket WEB",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [700, 300],
+      "position": [920, 220],
       "id": "create-ticket"
     },
     {
@@ -49,13 +69,31 @@
       "name": "Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [920, 300],
+      "position": [1140, 220],
       "id": "respond-success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "name": "Réponse Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [920, 420],
+      "id": "respond-error"
     }
   ],
   "connections": {
     "Webhook Formulaire Web": { "main": [[{ "node": "Valider & Formater", "type": "main", "index": 0 }]] },
-    "Valider & Formater": { "main": [[{ "node": "Créer Ticket WEB", "type": "main", "index": 0 }]] },
+    "Valider & Formater": { "main": [[{ "node": "Valide ?", "type": "main", "index": 0 }]] },
+    "Valide ?": {
+      "main": [
+        [{ "node": "Créer Ticket WEB", "type": "main", "index": 0 }],
+        [{ "node": "Réponse Erreur", "type": "main", "index": 0 }]
+      ]
+    },
     "Créer Ticket WEB": { "main": [[{ "node": "Réponse Succès", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
