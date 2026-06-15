@@ -46,6 +46,27 @@ docker run --rm -i \
 - Critères de sortie (thresholds) définis dans le script : `p95 < 500ms` sur les
   stats, `< 5%` d'erreurs.
 
+## 3. Temps de décision par voie (cache / règles / IA)
+
+Mesure reproductible du routage du `decision-service` : Cache (Redis) → Moteur de
+règles → IA (Gemma). Chaque appel est étiqueté par les champs `source`/`cached`
+renvoyés par le service. **Non destructif** : les enregistrements de test sont
+supprimés automatiquement à la fin.
+
+```powershell
+pwsh ./tests/performance/decision-latency.ps1
+# ou en ajustant le nombre d'appels par voie :
+pwsh ./tests/performance/decision-latency.ps1 -AiRuns 5 -RulesRuns 8 -CacheRuns 8
+```
+
+Résultat type (p95) : **Cache ~10-20 ms**, **Règles ~30-40 ms**, **IA ~10 s** —
+soit un routage à 3 niveaux où le LLM coûteux n'est sollicité qu'en dernier recours
+(~250× plus lent que les règles, ~750× plus lent que le cache).
+
+> Pourquoi un script séparé et non k6/Locust : `POST /api/decisions/analyze` crée un
+> enregistrement par appel. On le mesure donc de façon contrôlée + auto-nettoyée,
+> plutôt qu'en charge massive.
+
 ---
 
 ## Interprétation attendue (architecture)
