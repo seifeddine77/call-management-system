@@ -44,6 +44,7 @@
     {
       "parameters": {
         "url": "http://callmgmt-decision:8085/api/decisions/analyze",
+        "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ ticketId: $json.ticketId, typePiece: $json.typePiece, typeSinistre: $json.typeSinistre, ageVehiculeAns: $json.ageVehiculeAns, kilometrage: $json.kilometrage, categorieClient: $json.categorieClient, transcriptionText: $json.description }) }}",

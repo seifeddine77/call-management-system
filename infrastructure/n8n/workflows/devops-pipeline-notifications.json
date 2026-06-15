@@ -101,6 +101,7 @@
     {
       "parameters": {
         "url": "http://callmgmt-ticket:8083/api/channels/web",
+        "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ nom: 'Monitoring', description: '[AUTO] ' + ($json.alerts[0].labels.job || 'service') + ' - ' + ($json.alerts[0].annotations.description || ''), agenceId: $env.MONITORING_AGENCE_ID, priorite: 1 }) }}",

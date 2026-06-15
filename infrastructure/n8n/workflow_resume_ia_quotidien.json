@@ -62,6 +62,7 @@
     {
       "parameters": {
         "url": "http://callmgmt-ai:8000/chat/",
+        "method": "POST",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ question: $json.question, group_name: $json.group_name }) }}",

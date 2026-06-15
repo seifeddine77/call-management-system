@@ -37,6 +37,7 @@
     {
       "parameters": {
         "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "method": "POST",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "specifyBody": "keypair",
