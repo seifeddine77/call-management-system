@@ -20,6 +20,8 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
+      # Récepteur remote-write : permet à k6 d'envoyer ses métriques de charge
+      - '--web.enable-remote-write-receiver'
     networks:
       - callmgmt-net
     restart: unless-stopped
@@ -122,6 +124,20 @@ services:
       - -nginx.scrape-uri=http://frontend:3000/nginx_status
     depends_on:
       - frontend
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
+  # Docker Stats Exporter — métriques PAR CONTENEUR avec leurs NOMS (via l'API Docker).
+  # Fonctionne sur Docker Desktop Windows, là où cAdvisor ne peut pas résoudre
+  # les noms de conteneurs (cgroups WSL2). Lit le socket Docker en lecture seule.
+  docker-stats-exporter:
+    image: wywywywy/docker_stats_exporter:latest
+    container_name: callmgmt-docker-stats-exporter
+    ports:
+      - "9487:9487"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - callmgmt-net
     restart: unless-stopped

@@ -1,17 +1,13 @@
 {
   "title": "AutoAssist — Docker Compose Status",
   "uid": "autoassist-docker-status",
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-1h", "to": "now" },
   "refresh": "10s",
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": true,
-          "value": "Prometheus",
-          "text": "Prometheus"
-        },
+        "current": { "selected": true, "value": "Prometheus", "text": "Prometheus" },
         "hide": 0,
         "includeAll": false,
         "label": "Datasource",
@@ -40,7 +36,7 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "count(container_last_seen{name=~\"callmgmt-.*\"})",
+          "expr": "count(dockerstats_memory_usage_bytes{name=~\"callmgmt-.*\"})",
           "legendFormat": "Active Containers"
         }
       ],
@@ -58,20 +54,20 @@
       }
     },
     {
-      "title": "Total CPU Usage (Cores)",
+      "title": "Total CPU Usage (%)",
       "type": "stat",
       "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"callmgmt-.*\"}[5m]))",
-          "legendFormat": "Cores"
+          "expr": "sum(dockerstats_cpu_usage_ratio{name=~\"callmgmt-.*\"})",
+          "legendFormat": "CPU %"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 2,
+          "unit": "percent",
+          "decimals": 1,
           "color": { "mode": "continuous-GrYlRd" }
         }
       }
@@ -83,7 +79,7 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "sum(container_memory_usage_bytes{name=~\"callmgmt-.*\"})",
+          "expr": "sum(dockerstats_memory_usage_bytes{name=~\"callmgmt-.*\"})",
           "legendFormat": "RAM"
         }
       ],
@@ -95,7 +91,7 @@
       }
     },
     {
-      "title": "🚀 CONTAINERS CPU & MEMORY LIMITS",
+      "title": "🚀 CONTAINERS CPU & MEMORY",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
       "collapsed": false
@@ -107,7 +103,7 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"callmgmt-.*\"}",
+          "expr": "dockerstats_memory_usage_bytes{name=~\"callmgmt-.*\"}",
           "legendFormat": "{{name}}"
         }
       ],
@@ -117,10 +113,7 @@
           "color": { "mode": "palette-classic" }
         }
       },
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "lcd"
-      }
+      "options": { "orientation": "horizontal", "displayMode": "lcd" }
     },
     {
       "title": "CPU Usage per Container (%)",
@@ -129,7 +122,7 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"callmgmt-.*\"}[5m]) * 100",
+          "expr": "dockerstats_cpu_usage_ratio{name=~\"callmgmt-.*\"}",
           "legendFormat": "{{name}}"
         }
       ],
@@ -139,10 +132,7 @@
           "color": { "mode": "palette-classic" }
         }
       },
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "lcd"
-      }
+      "options": { "orientation": "horizontal", "displayMode": "lcd" }
     },
     {
       "title": "📈 RESOURCES HISTORICAL TRENDS",
@@ -157,17 +147,14 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"callmgmt-(api-gateway|auth-service|ticket-service|decision-service|rules-service|ai-service|notification-service|analytics-service|organisation-service|eureka-server).*\"}[5m]) * 100",
+          "expr": "dockerstats_cpu_usage_ratio{name=~\"callmgmt-(api-gateway|auth|ticket|decision|rules|ai|notification|analytics|organisation|eureka).*\"}",
           "legendFormat": "{{name}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 5
-          }
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
         }
       }
     },
@@ -178,46 +165,43 @@
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"callmgmt-(api-gateway|auth-service|ticket-service|decision-service|rules-service|ai-service|notification-service|analytics-service|organisation-service|eureka-server).*\"}",
+          "expr": "dockerstats_memory_usage_bytes{name=~\"callmgmt-(api-gateway|auth|ticket|decision|rules|ai|notification|analytics|organisation|eureka).*\"}",
           "legendFormat": "{{name}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 5
-          }
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
         }
       }
     },
     {
-      "title": "🔄 UPTIME & STABILITY",
+      "title": "🔄 MEMORY PRESSURE",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
       "collapsed": false
     },
     {
-      "title": "Container Uptime (Time since last start)",
+      "title": "Memory Usage vs Limit per Container (%)",
       "type": "stat",
       "gridPos": { "h": 7, "w": 24, "x": 0, "y": 25 },
       "datasource": "${datasource}",
       "targets": [
         {
-          "expr": "time() - container_start_time_seconds{name=~\"callmgmt-.*\"}",
+          "expr": "dockerstats_memory_usage_ratio{name=~\"callmgmt-.*\"}",
           "legendFormat": "{{name}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "percent",
           "color": { "mode": "thresholds" },
           "thresholds": {
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 300 },
-              { "color": "green", "value": 1800 }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
             ]
           }
         }

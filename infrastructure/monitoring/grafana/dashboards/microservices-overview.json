@@ -60,11 +60,11 @@
       "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true } } }]
     },
     {
-      "title": "Eureka Registered Instances",
+      "title": "Microservices actifs (registre de services)",
       "type": "stat",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
       "datasource": "${datasource}",
-      "targets": [{ "expr": "eureka_server_registered_count", "legendFormat": "instances" }]
+      "targets": [{ "expr": "count(up{job=~\"auth-service|organisation-service|ticket-service|rules-service|decision-service|notification-service|analytics-service|api-gateway|ai-service|eureka-server\"} == 1)", "legendFormat": "services actifs" }]
     },
     {
       "title": "API Gateway Routes",

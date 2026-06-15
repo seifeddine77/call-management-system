@@ -105,6 +105,13 @@ scrape_configs:
       - targets: ['cadvisor:8080']
     scrape_interval: 30s
 
+  # ── Docker Stats Exporter (métriques par conteneur nommé — API Docker) ──
+  # Source fiable sous Docker Desktop Windows (cAdvisor ne nomme pas les conteneurs).
+  - job_name: 'docker-stats'
+    static_configs:
+      - targets: ['docker-stats-exporter:9487']
+    scrape_interval: 15s
+
   # ── Jenkins CI/CD metrics ──
   - job_name: 'jenkins'
     metrics_path: /prometheus/
