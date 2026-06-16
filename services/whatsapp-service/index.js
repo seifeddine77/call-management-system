@@ -802,6 +802,11 @@ async function findGroupByName(groupName) {
     return chats.find((c) => c.isGroup && c.name === groupName) || null;
 }
 
+async function listGroupNames() {
+    const chats = await client.getChats();
+    return chats.filter((c) => c.isGroup).map((c) => c.name);
+}
+
 async function handleNotifyGroup(req, res) {
     const body = await readJsonBody(req);
     const groupName = resolveGroupName(body);
@@ -830,6 +835,16 @@ async function handleNotifyGroup(req, res) {
 const notifyServer = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
         sendJson(res, 200, { status: 'UP', whatsappReady });
+        return;
+    }
+    if (req.method === 'GET' && req.url === '/groups') {
+        if (!whatsappReady) {
+            sendJson(res, 503, { error: 'Client WhatsApp non disponible' });
+            return;
+        }
+        listGroupNames()
+            .then((groups) => sendJson(res, 200, { count: groups.length, groups }))
+            .catch((err) => sendJson(res, 500, { error: err.message }));
         return;
     }
     if (req.method === 'POST' && req.url === '/notify-group') {
