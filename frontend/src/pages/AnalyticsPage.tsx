@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { analyticsService } from '../services/analyticsService';
+import { chatbotService } from '../services/chatbotService';
+import type { ChatbotStats } from '../services/chatbotService';
 import { KpiSkeleton, ErrorState } from '../components/ui/States';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import type { KpiResponse, KpiComparison, DailyStat, OperatorPerformance, SupervisionAlert } from '../types/analytics';
@@ -359,6 +361,99 @@ function SupervisionAlerts({ alerts }: Readonly<SupervisionAlertsProps>) {
   );
 }
 
+interface ChatbotPerformanceProps {
+  stats: ChatbotStats | null;
+}
+
+function ChatbotPerformance({ stats }: Readonly<ChatbotPerformanceProps>) {
+  if (!stats) return null;
+
+  const satisfaction = parseInt(stats.satisfaction_rate.replace('%', '')) || 0;
+
+  return (
+    <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/[0.02] to-transparent pointer-events-none" />
+      
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Bot size={16} className="text-[var(--primary)]" />
+          <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Performance Chatbot RAG (WhatsApp)</span>
+        </div>
+        <span className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+          satisfaction >= 75 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+        }`}>
+          🤖 {satisfaction}% satisfaction
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: 'Total évaluations', value: stats.total_feedback, icon: <Bot size={14} className="text-[var(--text-3)]" /> },
+          { label: 'Retours positifs', value: stats.positive, icon: <ThumbsUp size={14} className="text-emerald-400" />, suffix: ' 👍' },
+          { label: 'Retours négatifs', value: stats.negative, icon: <ThumbsDown size={14} className="text-[var(--danger)]" />, suffix: ' 👎' },
+          { label: 'Persistés en base', value: stats.db_persisted, icon: <Shield size={14} className="text-blue-400" /> }
+        ].map(w => (
+          <div key={w.label} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-between">
+            <div>
+              <span className="font-mono text-[8px] text-[var(--text-3)] uppercase tracking-wider block">{w.label}</span>
+              <span className="text-md font-extrabold tracking-tight mt-0.5 inline-block">{w.value}{w.suffix}</span>
+            </div>
+            <span className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">{w.icon}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent feedbacks table */}
+      <div className="space-y-2">
+        <span className="font-mono text-[8px] text-[var(--text-3)] uppercase tracking-wider block">10 derniers retours reçus</span>
+        <div className="overflow-x-auto rounded-xl border border-border-subtle bg-white/[0.01]">
+          <table className="w-full text-left border-collapse text-[11px]">
+            <thead>
+              <tr className="border-b border-border-subtle bg-white/[0.02]">
+                <th className="p-2.5 font-mono text-[8px] text-[var(--text-3)] uppercase">Groupe / Agence</th>
+                <th className="p-2.5 font-mono text-[8px] text-[var(--text-3)] uppercase">Question de l'opérateur</th>
+                <th className="p-2.5 font-mono text-[8px] text-[var(--text-3)] uppercase">Réponse de l'IA (Aperçu)</th>
+                <th className="p-2.5 font-mono text-[8px] text-[var(--text-3)] uppercase text-center">Évaluation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {stats.recent_feedback && stats.recent_feedback.length > 0 ? (
+                stats.recent_feedback.map((fb, idx) => {
+                  const agencyName = fb.group_name.replace('@g.us', '').split('@')[0];
+                  return (
+                    <tr key={`chatbot-fb-${idx}`} className="hover:bg-white/[0.01] transition-colors">
+                      <td className="p-2.5 font-mono text-[10px] text-[var(--text-2)] whitespace-nowrap">{agencyName}</td>
+                      <td className="p-2.5 max-w-[200px] truncate text-[var(--text-2)]" title={fb.question}>{fb.question}</td>
+                      <td className="p-2.5 max-w-[300px] truncate text-[var(--text-3)]" title={fb.answer_preview}>{fb.answer_preview}</td>
+                      <td className="p-2.5 text-center whitespace-nowrap">
+                        {fb.rating === 'positive' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                            👍 POSITIF
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20">
+                            👎 NÉGATIF
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center font-mono text-[10px] text-[var(--text-3)]">
+                    Aucun retour enregistré pour le moment.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function AnalyticsPage() {
   const [kpis, setKpis] = useState<KpiResponse | null>(null);
   const [comparison, setComparison] = useState<KpiComparison | null>(null);
@@ -369,23 +464,26 @@ export default function AnalyticsPage() {
   const [exporting, setExporting] = useState(false);
   const [operators, setOperators] = useState<OperatorPerformance[]>([]);
   const [alerts, setAlerts] = useState<SupervisionAlert[]>([]);
+  const [chatbotStats, setChatbotStats] = useState<ChatbotStats | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const p = periodMap[period] || '30d';
-      const [compData, dailyData, opsData, alertsData] = await Promise.all([
+      const [compData, dailyData, opsData, alertsData, chatbotData] = await Promise.all([
         analyticsService.getComparison(p),
         analyticsService.getDailyStats(p),
         analyticsService.getOperatorPerformance(p).catch(() => [] as OperatorPerformance[]),
         analyticsService.getSupervisionAlerts().catch(() => [] as SupervisionAlert[]),
+        chatbotService.getStats().catch(() => null),
       ]);
       setComparison(compData);
       setKpis(compData.current);
       setDaily(dailyData);
       setOperators(opsData);
       setAlerts(alertsData);
+      setChatbotStats(chatbotData);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -495,6 +593,11 @@ export default function AnalyticsPage() {
       {/* Alerts Banner */}
       {alerts.length > 0 && (
         <SupervisionAlerts alerts={alerts} />
+      )}
+
+      {/* Chatbot RAG Performance */}
+      {!loading && chatbotStats && (
+        <ChatbotPerformance stats={chatbotStats} />
       )}
 
       {/* Operator Leaderboard */}
