@@ -1,0 +1,85 @@
+{
+  "name": "AutoAssist — Alerte SLA → Groupe WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] }
+      },
+      "name": "Vérification SLA 30min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 300],
+      "id": "cron-sla-wa"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-organisation:8082/api/agences?page=0&size=100",
+        "options": { "timeout": 10000 }
+      },
+      "name": "GET Agences",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 300],
+      "id": "get-agences"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Une sortie par agence (pour interroger la file de chacune).\nconst data = $input.first().json;\nconst agences = data.content || data || [];\nreturn agences.map(a => ({ json: { agenceId: a.id, agenceNom: a.nom } }));"
+      },
+      "name": "Extraire agences",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300],
+      "id": "extract-agences"
+    },
+    {
+      "parameters": {
+        "url": "=http://callmgmt-ticket:8083/api/tickets/queue?agenceId={{ $json.agenceId }}",
+        "options": { "timeout": 10000 }
+      },
+      "name": "File par agence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [880, 300],
+      "id": "get-queue-agence",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Pour chaque agence, détecte les tickets en dépassement SLA et construit le message.\n// Ne sort QUE les agences ayant au moins un ticket en retard.\nconst agences = $('Extraire agences').all();\nconst queues = $input.all();\nconst now = Date.now();\nconst SLA_MIN = 120;\n\nconst out = [];\nagences.forEach((a, i) => {\n  const aj = a.json;\n  const qj = (queues[i] || {}).json || {};\n  const tickets = qj.tickets || [];\n  const overdue = tickets.filter(t => t.createdAt && (now - new Date(t.createdAt).getTime()) / 60000 > SLA_MIN);\n  if (overdue.length === 0) return;\n  const lines = overdue.map(t => {\n    const mins = Math.round((now - new Date(t.createdAt).getTime()) / 60000);\n    return `• ${t.ticketNumero || 'N/A'} — ${t.clientNom || 'client'} (${t.canal || '?'}) — ${mins} min`;\n  }).join('\\n');\n  const message = `⚠️ *Alerte SLA — ${aj.agenceNom}*\\n${overdue.length} ticket(s) en attente depuis plus de ${SLA_MIN} min :\\n\\n${lines}\\n\\n👉 Merci de les prendre en charge rapidement.`;\n  out.push({ json: { agence: aj.agenceNom, message } });\n});\nreturn out;"
+      },
+      "name": "Détecter dépassement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "id": "detect-overdue"
+    },
+    {
+      "parameters": {
+        "url": "http://callmgmt-whatsapp:3000/notify-group",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ agence: $json.agence, message: $json.message }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "name": "Notifier Groupe WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1320, 300],
+      "id": "notify-group",
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Vérification SLA 30min": { "main": [[{ "node": "GET Agences", "type": "main", "index": 0 }]] },
+    "GET Agences": { "main": [[{ "node": "Extraire agences", "type": "main", "index": 0 }]] },
+    "Extraire agences": { "main": [[{ "node": "File par agence", "type": "main", "index": 0 }]] },
+    "File par agence": { "main": [[{ "node": "Détecter dépassement", "type": "main", "index": 0 }]] },
+    "Détecter dépassement": { "main": [[{ "node": "Notifier Groupe WhatsApp", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "AutoAssist" }, { "name": "SLA" }, { "name": "WhatsApp" }]
+}

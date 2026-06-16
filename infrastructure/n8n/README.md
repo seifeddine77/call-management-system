@@ -20,6 +20,7 @@
 | 8 | **🧠 Résumé IA Quotidien** | `workflow_resume_ia_quotidien.json` | Cron 18h | ticket, analytics, ai (Gemma 4 RAG) |
 | 9 | **⚙️ Traitement IA bout-en-bout** | `workflow_traitement_ia_bout_en_bout.json` | Manuel + Cron 15min | ticket, decision (Rules+Gemma), lettre PDF, email |
 | 10 | **🚨 Détection de pic d'activité** | `workflow_detection_pic.json` | Cron 1h | analytics (comparison) |
+| 11 | **📲 Alerte SLA → Groupe WhatsApp** | `workflow_sla_whatsapp_groupe.json` | Cron 30min | organisation, ticket, whatsapp (notify-group) |
 
 ## Import des workflows
 
@@ -117,3 +118,14 @@ Chaîne **ticket → decision (Rules + Gemma 4) → lettre PDF → email**.
 **Supervision proactive** : prévient une montée en charge / un incident *avant* dégradation,
 en comparant le volume courant à la période précédente. Seuils ajustables dans le nœud
 « Évaluer le pic » (`SEUIL_PCT`, `MIN_TICKETS`). N'envoie un email que si le seuil est franchi.
+
+### 11. 📲 Alerte SLA → Groupe WhatsApp de l'agence
+```
+[Cron 30min] → [GET agences] → (par agence) [GET /api/tickets/queue?agenceId=X]
+   → [Détecter dépassement > 120 min] → [POST callmgmt-whatsapp:3000/notify-group]
+                                          → message dans le groupe "AutoAssist — <agence>"
+```
+**Alerte ciblée** : chaque agence reçoit, dans **son propre groupe WhatsApp**, la liste de ses
+tickets en dépassement SLA — bien plus actionnable qu'un email générique. Repose sur le nouvel
+endpoint `POST /notify-group` du whatsapp-service (envoi via whatsapp-web.js). Seuil ajustable
+(`SLA_MIN`) dans le nœud « Détecter dépassement ».
