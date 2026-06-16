@@ -12,6 +12,7 @@ Protocol:
   ← Server sends: {"type":"final","text":"...","duration":45.1}
   ← Server sends: {"type":"error","detail":"..."}
 """
+import asyncio
 import io
 import json
 import logging
@@ -45,7 +46,9 @@ async def _transcribe_and_send(
 ) -> bytearray:
     """Transcribe the current audio buffer and send a partial result to the client."""
     capped = bytearray(audio_buffer[-MAX_BUFFER_BYTES:]) if len(audio_buffer) > MAX_BUFFER_BYTES else audio_buffer
-    partial_text = _transcribe_buffer(whisper_model, bytes(capped), ticket_id)
+    # Offload the CPU-bound Whisper call to a worker thread to keep the WebSocket
+    # event loop responsive (heartbeats, incoming chunks, other connections).
+    partial_text = await asyncio.to_thread(_transcribe_buffer, whisper_model, bytes(capped), ticket_id)
     if partial_text:
         elapsed = round(time.time() - session_start, 1)
         if websocket.client_state == WebSocketState.CONNECTED:
@@ -172,7 +175,7 @@ async def stream_transcribe(websocket: WebSocket, ticket_id: str):
     # ── Final transcription ──────────────────────────────────────
     # Transcribe any remaining buffer
     if len(audio_buffer) > 1000:
-        final_chunk = _transcribe_buffer(whisper_model, bytes(audio_buffer), ticket_id)
+        final_chunk = await asyncio.to_thread(_transcribe_buffer, whisper_model, bytes(audio_buffer), ticket_id)
         if final_chunk:
             full_transcription_parts.append(final_chunk)
 

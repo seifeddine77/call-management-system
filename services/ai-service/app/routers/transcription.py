@@ -4,6 +4,7 @@ Transcription router — Whisper STT.
 POST /transcribe       → upload audio → transcribe → return TranscribeResponse
 GET  /transcribe/{tid} → retrieve existing transcription
 """
+import asyncio
 import logging
 import os
 import re
@@ -133,7 +134,11 @@ async def _run_whisper_transcription(file_path: str, ticket_dir: str, whisper_mo
                 logger.warning("File %s could not be decrypted. Treating as plaintext. Error: %s", sanitize_log(file_path), sanitize_log(dec_err))
                 temp_transcribe_path = file_path
 
-        result = whisper_model.transcribe(temp_transcribe_path, language="fr", fp16=False)
+        # Run the CPU-bound Whisper call in a worker thread so it does not block
+        # the FastAPI event loop (otherwise concurrent chat/RAG/NLP requests serialize).
+        result = await asyncio.to_thread(
+            whisper_model.transcribe, temp_transcribe_path, language="fr", fp16=False
+        )
 
         text = result.get("text", "").strip()
         raw_segments = result.get("segments", [])
@@ -302,7 +307,9 @@ async def quick_transcribe(
 
 
     try:
-        result = whisper_model.transcribe(tmp_path, language="fr", fp16=False)
+        result = await asyncio.to_thread(
+            whisper_model.transcribe, tmp_path, language="fr", fp16=False
+        )
         text = result.get("text", "").strip()
         duration = round(result.get("segments", [{}])[-1].get("end", 0), 2) if result.get("segments") else 0
 
