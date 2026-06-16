@@ -121,11 +121,15 @@ en comparant le volume courant à la période précédente. Seuils ajustables da
 
 ### 11. 📲 Alerte SLA → Groupe WhatsApp de l'agence
 ```
-[Cron 30min] → [GET agences] → (par agence) [GET /api/tickets/queue?agenceId=X]
-   → [Détecter dépassement > 120 min] → [POST callmgmt-whatsapp:3000/notify-group]
-                                          → message dans le groupe "AutoAssist — <agence>"
+[Cron 30min] → [GET /api/tickets] → [Grouper par agence : NOUVEAU > 120 min]
+   → (par agence concernée) [POST callmgmt-whatsapp:3000/notify-group]
+                              → message dans le groupe "AutoAssist — <agence>"
 ```
 **Alerte ciblée** : chaque agence reçoit, dans **son propre groupe WhatsApp**, la liste de ses
 tickets en dépassement SLA — bien plus actionnable qu'un email générique. Repose sur le nouvel
-endpoint `POST /notify-group` du whatsapp-service (envoi via whatsapp-web.js). Seuil ajustable
-(`SLA_MIN`) dans le nœud « Détecter dépassement ».
+endpoint `POST /notify-group` du whatsapp-service (envoi via whatsapp-web.js).
+
+> ⚠️ On groupe via `/api/tickets` (qui porte `agenceName`) et non `/api/tickets/queue?agenceId=`,
+> car **ce filtre est ignoré côté ticket-service** (bug backend : la file renvoie la liste globale
+> quel que soit l'`agenceId`). Seuil ajustable (`SLA_MIN`) et nombre de lignes (`MAX_LINES`) dans
+> le nœud « Grouper par agence ».
