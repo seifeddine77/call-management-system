@@ -750,5 +750,100 @@ console.log('   👍 Feedback loop (réactions WhatsApp)');
 console.log('   🔄 Auto-refresh des règles métier');
 console.log('════════════════════════════════════════════\n');
 
+// ╔══════════════════════════════════════════════════╗
+// ║  API HTTP — Notifications vers les groupes WhatsApp ║
+// ║  POST /notify-group { agence | groupName, message } ║
+// ║  GET  /health                                      ║
+// ╚══════════════════════════════════════════════════╝
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || '3000', 10);
+const MAX_BODY_BYTES = 16 * 1024; // garde-fou anti-abus
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+function httpError(statusCode, message) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    return err;
+}
+
+function sendJson(res, statusCode, payload) {
+    res.writeHead(statusCode, JSON_HEADERS);
+    res.end(JSON.stringify(payload));
+}
+
+function readJsonBody(req) {
+    return new Promise((resolve, reject) => {
+        let raw = '';
+        req.on('data', (chunk) => {
+            raw += chunk;
+            if (raw.length > MAX_BODY_BYTES) {
+                reject(httpError(413, 'Corps de requête trop volumineux'));
+                req.destroy();
+            }
+        });
+        req.on('end', () => {
+            try {
+                resolve(raw ? JSON.parse(raw) : {});
+            } catch (e) {
+                reject(httpError(400, 'JSON invalide'));
+            }
+        });
+        req.on('error', reject);
+    });
+}
+
+function resolveGroupName(body) {
+    if (body.groupName) return String(body.groupName).trim();
+    if (body.agence) return `${GROUP_PREFIX} — ${String(body.agence).trim()}`;
+    return null;
+}
+
+async function findGroupByName(groupName) {
+    const chats = await client.getChats();
+    return chats.find((c) => c.isGroup && c.name === groupName) || null;
+}
+
+async function handleNotifyGroup(req, res) {
+    const body = await readJsonBody(req);
+    const groupName = resolveGroupName(body);
+    const message = body.message ? String(body.message) : '';
+
+    if (!groupName || !message) {
+        sendJson(res, 400, { error: "Champs requis : 'message' et ('agence' ou 'groupName')" });
+        return;
+    }
+    if (!whatsappReady) {
+        sendJson(res, 503, { error: 'Client WhatsApp non disponible' });
+        return;
+    }
+
+    const group = await findGroupByName(groupName);
+    if (!group) {
+        sendJson(res, 404, { error: `Groupe introuvable : ${groupName}` });
+        return;
+    }
+
+    await group.sendMessage(message);
+    console.log(`📣 Notification envoyée au groupe "${groupName}"`);
+    sendJson(res, 200, { sent: true, group: groupName });
+}
+
+const notifyServer = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/health') {
+        sendJson(res, 200, { status: 'UP', whatsappReady });
+        return;
+    }
+    if (req.method === 'POST' && req.url === '/notify-group') {
+        handleNotifyGroup(req, res).catch((err) =>
+            sendJson(res, err.statusCode || 500, { error: err.message })
+        );
+        return;
+    }
+    sendJson(res, 404, { error: 'Route inconnue' });
+});
+
+notifyServer.listen(HTTP_PORT, () =>
+    console.log(`🌐 API notifications WhatsApp à l'écoute sur le port ${HTTP_PORT}`)
+);
+
 client.initialize();
 startRabbitMQListener();
