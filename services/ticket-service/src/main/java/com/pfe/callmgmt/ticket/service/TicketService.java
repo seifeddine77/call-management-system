@@ -3,6 +3,8 @@ package com.pfe.callmgmt.ticket.service;
 import com.pfe.callmgmt.ticket.dto.*;
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public interface TicketService {
@@ -25,4 +27,10 @@ public interface TicketService {
     TicketResponse anonymizeTicket(UUID ticketId, UUID adminId, String adminName);
 
     TicketStats getTicketStats(UUID agenceId);
+
+    /**
+     * Comptage des tickets créés par jour et par canal sur une plage (bornes incluses).
+     * Source de vérité pour la réconciliation des KPIs analytics.
+     */
+    List<DailyTicketCount> getDailyTicketCounts(LocalDate from, LocalDate to);
 }

@@ -36,6 +36,11 @@
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    # Publisher confirms — le broker ACK/NACK chaque message publié ;
+    # un NACK (perte côté broker) ou un message non routable est désormais loggué
+    # au lieu d'être silencieux. Asynchrone : ne bloque pas convertAndSend.
+    publisher-confirm-type: correlated
+    publisher-returns: true
 
 server:
   port: ${SERVER_PORT:8083}

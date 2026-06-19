@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,7 @@ public class TicketController {
 
     // SonarCloud HIGH fix — centralize "ADMIN" literal (duplicated 7x) into a constant
     private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_OPERATOR = "OPERATOR";
 
     private final TicketService ticketService;
     private final QueueService queueService;
@@ -111,8 +114,21 @@ public class TicketController {
             @RequestParam(value = "agenceId", required = false) UUID agenceId,
             @RequestHeader(name = "X-User-Agence-Id", required = false) UUID userAgenceId,
             @RequestHeader(name = "X-User-Role", required = false, defaultValue = "OPERATOR") String userRole) {
-        UUID effectiveAgenceId = ROLE_ADMIN.equals(userRole) ? agenceId : userAgenceId;
+        // CDC 1.C — même résolution d'agence que /queue : un OPERATOR est verrouillé sur sa propre
+        // agence (header injecté par la gateway), tandis qu'ADMIN/SUPERVISOR et les appels internes
+        // (n8n/WhatsApp, sans header) honorent le param agenceId pour filtrer réellement les stats.
+        UUID effectiveAgenceId = resolveAgenceScope(agenceId, userAgenceId, userRole);
         return ResponseEntity.ok(ticketService.getTicketStats(effectiveAgenceId));
+    }
+
+    @GetMapping("/stats/daily-counts")
+    @Operation(summary = "Comptage des tickets créés par jour et par canal",
+               description = "Source de vérité (lecture seule) consommée par l'analytics-service pour réconcilier les KPIs. "
+                       + "Bornes 'from' et 'to' au format yyyy-MM-dd, incluses.")
+    public ResponseEntity<List<DailyTicketCount>> getDailyTicketCounts(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ticketService.getDailyTicketCounts(from, to));
     }
 
     @PostMapping("/{id}/audio")
@@ -223,8 +239,27 @@ public class TicketController {
             @RequestParam(value = "agenceId", required = false) UUID agenceId,
             @RequestHeader(name = "X-User-Agence-Id", required = false) UUID userAgenceId,
             @RequestHeader(name = "X-User-Role", required = false, defaultValue = "OPERATOR") String userRole) {
-        UUID effectiveAgenceId = ROLE_ADMIN.equals(userRole) ? agenceId : userAgenceId;
+        // CDC 1.C — un OPERATOR est verrouillé sur sa propre agence (header injecté par la gateway).
+        // ADMIN/SUPERVISOR et les appels internes (n8n/WhatsApp, sans header) honorent le param agenceId,
+        // de sorte que `?agenceId=<X>` filtre réellement la file au lieu de retourner la file globale.
+        UUID effectiveAgenceId = resolveAgenceScope(agenceId, userAgenceId, userRole);
         return ResponseEntity.ok(queueService.getQueue(effectiveAgenceId));
+    }
+
+    /**
+     * Détermine l'agence effective pour les lectures filtrables par agence (file, stats).
+     * <p>
+     * CDC 1.C — un OPERATOR ne peut consulter que sa propre agence : lorsqu'il est authentifié
+     * via la gateway (header {@code X-User-Agence-Id} présent), le paramètre {@code agenceId} est
+     * ignoré et son agence est forcée. Pour ADMIN/SUPERVISOR et les appels internes sans header
+     * (n8n/WhatsApp), le paramètre {@code agenceId} est honoré ; à défaut on retombe sur le header
+     * (potentiellement {@code null} → portée globale).
+     */
+    private UUID resolveAgenceScope(UUID agenceIdParam, UUID userAgenceId, String userRole) {
+        if (ROLE_OPERATOR.equals(userRole) && userAgenceId != null) {
+            return userAgenceId;
+        }
+        return agenceIdParam != null ? agenceIdParam : userAgenceId;
     }
 
     // ══════════════════════════════════════════════════════════════

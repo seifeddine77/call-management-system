@@ -8,7 +8,9 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Configuration
 @Profile("!test")
 public class RabbitMQConfig {
@@ -65,6 +67,28 @@ public class RabbitMQConfig {
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter jsonMessageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(jsonMessageConverter);
+
+        // ── Publisher confirms (B) — ferme le trou « perte silencieuse à l'émission » ──
+        // mandatory=true : un message routé vers aucune queue déclenche le returnsCallback
+        // au lieu d'être abandonné en silence.
+        template.setMandatory(true);
+
+        // ConfirmCallback : le broker confirme (ack) ou rejette (nack) la réception.
+        // Un nack ou un timeout signale une perte côté broker → loggué en ERROR.
+        template.setConfirmCallback((correlation, ack, cause) -> {
+            if (!ack) {
+                log.error("❌ RabbitMQ NACK — message NON confirmé par le broker (perte probable). cause={}", cause);
+            } else if (log.isDebugEnabled()) {
+                log.debug("✅ RabbitMQ ACK — message confirmé par le broker.");
+            }
+        });
+
+        // ReturnsCallback : message accepté par le broker mais non routable
+        // (exchange/binding manquant) → loggué au lieu d'être perdu silencieusement.
+        template.setReturnsCallback(returned -> log.error(
+                "❌ RabbitMQ RETURN — message non routable (exchange='{}', routingKey='{}', replyCode={}, replyText='{}')",
+                returned.getExchange(), returned.getRoutingKey(), returned.getReplyCode(), returned.getReplyText()));
+
         return template;
     }
 }

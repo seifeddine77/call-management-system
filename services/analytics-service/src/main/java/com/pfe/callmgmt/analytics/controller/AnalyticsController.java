@@ -3,8 +3,10 @@ package com.pfe.callmgmt.analytics.controller;
 import com.pfe.callmgmt.analytics.dto.HourlyData;
 import com.pfe.callmgmt.analytics.dto.KpiComparison;
 import com.pfe.callmgmt.analytics.dto.KpiResponse;
+import com.pfe.callmgmt.analytics.dto.ReconciliationDrift;
 import com.pfe.callmgmt.analytics.entity.DailyStat;
 import com.pfe.callmgmt.analytics.service.AnalyticsService;
+import com.pfe.callmgmt.analytics.service.ReconciliationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import java.util.List;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final ReconciliationService reconciliationService;
 
     @GetMapping("/kpis")
     @Operation(summary = "KPIs agrégés", description = "Retourne les KPIs pour la période spécifiée (today, 7d, 30d, 90d)")
@@ -91,6 +94,38 @@ public class AnalyticsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=autoassist_analytics_" + period + ".csv")
                 .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
                 .body(bytes);
+    }
+
+    @GetMapping("/reconcile")
+    @Operation(summary = "Audit de réconciliation (détection seule)",
+            description = "Compare la projection analytics à la source de vérité (ticket-service) et "
+                    + "retourne les écarts de comptage de création, sans rien modifier.")
+    public ResponseEntity<List<ReconciliationDrift>> reconcileDryRun(
+            @RequestParam(defaultValue = "30d") String period) {
+        LocalDate to = LocalDate.now();
+        LocalDate from = resolveReconcileFrom(period, to);
+        return ResponseEntity.ok(reconciliationService.reconcile(from, to, false));
+    }
+
+    @PostMapping("/reconcile")
+    @Operation(summary = "Réconciliation (correction appliquée)",
+            description = "Recalcule les compteurs de création (total + canaux) depuis la source de vérité. "
+                    + "Les champs de résolution / statut / décision ne sont pas touchés.")
+    public ResponseEntity<List<ReconciliationDrift>> reconcileApply(
+            @RequestParam(defaultValue = "30d") String period) {
+        LocalDate to = LocalDate.now();
+        LocalDate from = resolveReconcileFrom(period, to);
+        return ResponseEntity.ok(reconciliationService.reconcile(from, to, true));
+    }
+
+    private LocalDate resolveReconcileFrom(String period, LocalDate to) {
+        return switch (period) {
+            case "today" -> to;
+            case "7d", "week" -> to.minusDays(7);
+            case "30d", "month" -> to.minusDays(30);
+            case "90d", "year" -> to.minusDays(90);
+            default -> to.minusDays(30);
+        };
     }
 
     @GetMapping("/health")

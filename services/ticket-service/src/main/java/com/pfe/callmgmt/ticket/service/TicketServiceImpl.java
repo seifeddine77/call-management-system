@@ -22,7 +22,12 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 @Slf4j
@@ -339,6 +344,35 @@ public class TicketServiceImpl implements TicketService {
                 .ferme(ferme)
                 .total(nouveau + enCours + resolu + ferme)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DailyTicketCount> getDailyTicketCounts(LocalDate from, LocalDate to) {
+        // Borne haute exclusive : on inclut tout le jour `to`.
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt = to.plusDays(1).atStartOfDay();
+
+        List<Object[]> rows = ticketRepository.countCreatedPerDayByCanal(fromDt, toDt);
+
+        // Agrégation des lignes [jour, canal, count] en un DTO par jour (trié par date).
+        Map<LocalDate, DailyTicketCount> byDay = new TreeMap<>();
+        for (Object[] row : rows) {
+            LocalDate day = ((java.sql.Date) row[0]).toLocalDate();
+            String canal = row[1] != null ? row[1].toString() : "";
+            long cnt = ((Number) row[2]).longValue();
+
+            DailyTicketCount dc = byDay.computeIfAbsent(day, d -> DailyTicketCount.builder()
+                    .date(d).totalTickets(0).ticketsCall(0).ticketsEmail(0).ticketsWeb(0).build());
+            dc.setTotalTickets(dc.getTotalTickets() + cnt);
+            switch (canal.toUpperCase()) {
+                case "CALL" -> dc.setTicketsCall(dc.getTicketsCall() + cnt);
+                case "EMAIL" -> dc.setTicketsEmail(dc.getTicketsEmail() + cnt);
+                case "WEB" -> dc.setTicketsWeb(dc.getTicketsWeb() + cnt);
+                default -> log.debug("Canal inconnu compté dans le total uniquement: {}", canal);
+            }
+        }
+        return new ArrayList<>(byDay.values());
     }
 
     // ========== Helpers ==========

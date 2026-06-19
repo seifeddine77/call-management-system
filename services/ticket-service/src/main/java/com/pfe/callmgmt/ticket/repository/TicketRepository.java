@@ -124,4 +124,15 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
         /** Total tickets résolus/fermés depuis une date */
         @Query(value = "SELECT COUNT(*) FROM tickets t WHERE t.statut IN ('RESOLU','FERME') AND t.created_at >= CAST(:dateFrom AS TIMESTAMP)", nativeQuery = true)
         long countResolvedAfter(@Param("dateFrom") LocalDateTime dateFrom);
+
+        /**
+         * Réconciliation analytics — comptage des tickets créés par jour et par canal.
+         * Source de vérité (créations append-only) pour recalculer les KPIs en cas de dérive.
+         * Retourne des lignes [jour (DATE), canal (VARCHAR), count (BIGINT)].
+         */
+        @Query(value = "SELECT CAST(t.created_at AS DATE) AS day, t.canal AS canal, COUNT(*) AS cnt " +
+                        "FROM tickets t " +
+                        "WHERE t.created_at >= CAST(:from AS TIMESTAMP) AND t.created_at < CAST(:to AS TIMESTAMP) " +
+                        "GROUP BY CAST(t.created_at AS DATE), t.canal", nativeQuery = true)
+        List<Object[]> countCreatedPerDayByCanal(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

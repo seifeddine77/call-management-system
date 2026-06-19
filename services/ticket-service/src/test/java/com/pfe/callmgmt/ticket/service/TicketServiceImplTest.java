@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -402,6 +403,69 @@ class TicketServiceImplTest {
 
             assertThatThrownBy(() -> ticketService.updatePhotosPaths(TICKET_ID, "[\"photo.jpg\"]"))
                     .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    // ========================================
+    // RÉCONCILIATION — getDailyTicketCounts
+    // ========================================
+    @Nested
+    @DisplayName("getDailyTicketCounts")
+    class GetDailyTicketCounts {
+
+        @Test
+        @DisplayName("Agrège les lignes [jour, canal, count] en un DTO par jour")
+        void aggregatesRowsPerDay() {
+            LocalDate d1 = LocalDate.of(2026, java.time.Month.JUNE, 1);
+            LocalDate d2 = LocalDate.of(2026, java.time.Month.JUNE, 2);
+            // d1: 3 CALL + 2 EMAIL ; d2: 1 WEB
+            List<Object[]> rows = List.of(
+                    new Object[]{java.sql.Date.valueOf(d1), "CALL", 3L},
+                    new Object[]{java.sql.Date.valueOf(d1), "EMAIL", 2L},
+                    new Object[]{java.sql.Date.valueOf(d2), "WEB", 1L});
+            when(ticketRepository.countCreatedPerDayByCanal(any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .thenReturn(rows);
+
+            List<DailyTicketCount> result = ticketService.getDailyTicketCounts(d1, d2);
+
+            assertThat(result).hasSize(2);
+            DailyTicketCount first = result.get(0); // trié par date (TreeMap)
+            assertThat(first.getDate()).isEqualTo(d1);
+            assertThat(first.getTotalTickets()).isEqualTo(5);
+            assertThat(first.getTicketsCall()).isEqualTo(3);
+            assertThat(first.getTicketsEmail()).isEqualTo(2);
+            assertThat(first.getTicketsWeb()).isZero();
+            assertThat(result.get(1).getTicketsWeb()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("Canal inconnu compté dans le total uniquement")
+        void unknownCanal_countedInTotalOnly() {
+            LocalDate d1 = LocalDate.of(2026, java.time.Month.JUNE, 1);
+            List<Object[]> rows = List.of(
+                    new Object[]{java.sql.Date.valueOf(d1), "CALL", 2L},
+                    new Object[]{java.sql.Date.valueOf(d1), "AUTRE", 4L});
+            when(ticketRepository.countCreatedPerDayByCanal(any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .thenReturn(rows);
+
+            List<DailyTicketCount> result = ticketService.getDailyTicketCounts(d1, d1);
+
+            assertThat(result).singleElement().satisfies(dc -> {
+                assertThat(dc.getTotalTickets()).isEqualTo(6);
+                assertThat(dc.getTicketsCall()).isEqualTo(2);
+                assertThat(dc.getTicketsEmail()).isZero();
+                assertThat(dc.getTicketsWeb()).isZero();
+            });
+        }
+
+        @Test
+        @DisplayName("Aucun ticket — retourne une liste vide")
+        void noTickets_returnsEmpty() {
+            when(ticketRepository.countCreatedPerDayByCanal(any(LocalDateTime.class), any(LocalDateTime.class)))
+                    .thenReturn(List.of());
+
+            assertThat(ticketService.getDailyTicketCounts(
+                    LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30))).isEmpty();
         }
     }
 }
