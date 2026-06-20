@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -38,34 +39,53 @@ public class AgenceController {
     }
 
     @PostMapping
-    @Operation(summary = "Créer une agence (ADMIN)")
+    @Operation(summary = "Créer une agence (ADMIN uniquement)")
     public ResponseEntity<AgenceResponse> createAgence(
             @Valid @RequestBody AgenceRequest request,
-            @RequestHeader(name = "X-User-Id", required = false) UUID requesterId) {
+            @RequestHeader(name = "X-User-Id", required = false) UUID requesterId,
+            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+        requireAdmin(requesterRole);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(agenceService.createAgence(request, requesterId));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modifier une agence (ADMIN)")
+    @Operation(summary = "Modifier une agence (ADMIN uniquement)")
     public ResponseEntity<AgenceResponse> updateAgence(
             @PathVariable("id") UUID id,
-            @Valid @RequestBody AgenceRequest request) {
+            @Valid @RequestBody AgenceRequest request,
+            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+        requireAdmin(requesterRole);
         return ResponseEntity.ok(agenceService.updateAgence(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Désactiver une agence (soft delete)")
-    public ResponseEntity<Void> deactivateAgence(@PathVariable("id") UUID id) {
+    @Operation(summary = "Désactiver une agence (soft delete — ADMIN uniquement)")
+    public ResponseEntity<Void> deactivateAgence(
+            @PathVariable("id") UUID id,
+            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+        requireAdmin(requesterRole);
         agenceService.deactivateAgence(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Contrôle d'accès : réserve l'action aux administrateurs.
+     * Le rôle provient du JWT, injecté par l'API Gateway dans l'en-tête X-User-Role.
+     */
+    private static void requireAdmin(String requesterRole) {
+        if (!"ADMIN".equals(requesterRole)) {
+            throw new AccessDeniedException("Action réservée aux administrateurs");
+        }
     }
 
     @PatchMapping("/{id}/responsable")
     @Operation(summary = "Assigner un responsable à une agence")
     public ResponseEntity<AgenceResponse> assignResponsable(
             @PathVariable("id") UUID id,
-            @RequestBody Map<String, UUID> body) {
+            @RequestBody Map<String, UUID> body,
+            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+        requireAdmin(requesterRole);
         UUID userId = body.get("userId");
         return ResponseEntity.ok(agenceService.assignResponsable(id, userId));
     }

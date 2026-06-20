@@ -1,6 +1,7 @@
 package com.pfe.callmgmt.analytics.client;
 
 import com.pfe.callmgmt.analytics.dto.DailyTicketCount;
+import com.pfe.callmgmt.analytics.dto.TicketStatsDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,12 @@ public interface TicketServiceClient {
 
     @GetMapping("/api/tickets/stats/daily-counts")
     List<DailyTicketCount> getDailyTicketCounts(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to);
+
+    /** Ventilation par statut courant des tickets créés sur la plage — pour un KPI de statut cohérent. */
+    @GetMapping("/api/tickets/stats/by-period")
+    TicketStatsDto getStatsByPeriod(
             @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to);
 }

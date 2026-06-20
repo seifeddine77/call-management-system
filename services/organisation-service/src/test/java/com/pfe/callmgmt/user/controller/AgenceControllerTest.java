@@ -84,7 +84,7 @@ class AgenceControllerTest {
         UUID requesterId = UUID.randomUUID();
         when(agenceService.createAgence(agenceRequest, requesterId)).thenReturn(agenceResponse);
 
-        ResponseEntity<AgenceResponse> response = agenceController.createAgence(agenceRequest, requesterId);
+        ResponseEntity<AgenceResponse> response = agenceController.createAgence(agenceRequest, requesterId, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
@@ -97,10 +97,18 @@ class AgenceControllerTest {
     void createAgence_withNullRequesterId_returns201() {
         when(agenceService.createAgence(agenceRequest, null)).thenReturn(agenceResponse);
 
-        ResponseEntity<AgenceResponse> response = agenceController.createAgence(agenceRequest, null);
+        ResponseEntity<AgenceResponse> response = agenceController.createAgence(agenceRequest, null, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         verify(agenceService).createAgence(agenceRequest, null);
+    }
+
+    @Test
+    @DisplayName("POST /api/agences — refuse (403) si l'appelant n'est pas ADMIN")
+    void createAgence_nonAdmin_throwsForbidden() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> agenceController.createAgence(agenceRequest, UUID.randomUUID(), "SUPERVISOR"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     @Test
@@ -108,7 +116,7 @@ class AgenceControllerTest {
     void updateAgence_returns200() {
         when(agenceService.updateAgence(agenceId, agenceRequest)).thenReturn(agenceResponse);
 
-        ResponseEntity<AgenceResponse> response = agenceController.updateAgence(agenceId, agenceRequest);
+        ResponseEntity<AgenceResponse> response = agenceController.updateAgence(agenceId, agenceRequest, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -120,7 +128,7 @@ class AgenceControllerTest {
     void deactivateAgence_returns204() {
         doNothing().when(agenceService).deactivateAgence(agenceId);
 
-        ResponseEntity<Void> response = agenceController.deactivateAgence(agenceId);
+        ResponseEntity<Void> response = agenceController.deactivateAgence(agenceId, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(agenceService).deactivateAgence(agenceId);
@@ -133,7 +141,7 @@ class AgenceControllerTest {
         when(agenceService.assignResponsable(agenceId, userId)).thenReturn(agenceResponse);
 
         ResponseEntity<AgenceResponse> response = agenceController.assignResponsable(
-                agenceId, Map.of("userId", userId));
+                agenceId, Map.of("userId", userId), "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(agenceService).assignResponsable(agenceId, userId);

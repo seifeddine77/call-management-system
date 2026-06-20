@@ -19,7 +19,10 @@ interface RawNotification {
 
 export const notificationService = {
   getLogs: async (params?: { status?: string; page?: number; size?: number }): Promise<NotificationLog[]> => {
-    const res = await api.get<NotificationLog[] | { content: NotificationLog[] }>('/api/notifications/logs', { params });
+    // La page Notifications n'a pas de pagination : sans size, le backend renvoie 20 logs sur 721+.
+    // On demande une grande page pour tout afficher.
+    const merged = { size: 1000, ...params };
+    const res = await api.get<NotificationLog[] | { content: NotificationLog[] }>('/api/notifications/logs', { params: merged });
     // Handle both paginated and array responses
     const data = res.data;
     const raw = Array.isArray(data) ? data : data.content;

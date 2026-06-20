@@ -147,11 +147,19 @@ class UserControllerTest {
         UUID requesterId = UUID.randomUUID();
         when(userService.createUser(userRequest, requesterId)).thenReturn(userResponse);
 
-        ResponseEntity<UserResponse> response = userController.createUser(userRequest, requesterId);
+        ResponseEntity<UserResponse> response = userController.createUser(userRequest, requesterId, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         verify(userService).createUser(userRequest, requesterId);
+    }
+
+    @Test
+    @DisplayName("POST /api/users — refuse (403) si l'appelant n'est pas ADMIN")
+    void createUser_nonAdmin_throwsForbidden() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> userController.createUser(userRequest, UUID.randomUUID(), "SUPERVISOR"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     // ─── POST /api/users/internal ────────────────────────────────────────────
@@ -199,7 +207,7 @@ class UserControllerTest {
     void deactivateUser_returns204() {
         doNothing().when(userService).deactivateUser(userId);
 
-        ResponseEntity<Void> response = userController.deactivateUser(userId);
+        ResponseEntity<Void> response = userController.deactivateUser(userId, "ADMIN");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(userService).deactivateUser(userId);

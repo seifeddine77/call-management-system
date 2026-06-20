@@ -29,6 +29,12 @@ public interface TicketService {
     TicketStats getTicketStats(UUID agenceId);
 
     /**
+     * Statistiques par statut COURANT des tickets créés dans la plage [from, to] (bornes incluses).
+     * Garantit que la ventilation par statut se réconcilie avec le total de la période.
+     */
+    TicketStats getTicketStatsCreatedBetween(LocalDate from, LocalDate to);
+
+    /**
      * Comptage des tickets créés par jour et par canal sur une plage (bornes incluses).
      * Source de vérité pour la réconciliation des KPIs analytics.
      */

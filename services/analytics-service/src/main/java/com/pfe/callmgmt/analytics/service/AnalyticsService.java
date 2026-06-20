@@ -1,8 +1,10 @@
 package com.pfe.callmgmt.analytics.service;
 
+import com.pfe.callmgmt.analytics.client.TicketServiceClient;
 import com.pfe.callmgmt.analytics.dto.HourlyData;
 import com.pfe.callmgmt.analytics.dto.KpiComparison;
 import com.pfe.callmgmt.analytics.dto.KpiResponse;
+import com.pfe.callmgmt.analytics.dto.TicketStatsDto;
 import com.pfe.callmgmt.analytics.entity.DailyStat;
 import com.pfe.callmgmt.analytics.repository.DailyStatRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.List;
 public class AnalyticsService {
 
     private final DailyStatRepository dailyStatRepository;
+    private final TicketServiceClient ticketServiceClient;
 
     /**
      * Calcule les KPIs agrégés pour une période donnée.
@@ -71,11 +74,32 @@ public class AnalyticsService {
     private KpiResponse getKpisForRange(LocalDate from, LocalDate to, String period) {
         List<DailyStat> stats = dailyStatRepository.findByDateBetweenOrderByDateDesc(from, to);
 
-        int totalTickets = stats.stream().mapToInt(DailyStat::getTotalTickets).sum();
-        int ticketsResolus = stats.stream().mapToInt(DailyStat::getTicketsResolus).sum();
-        int ticketsNouveau = stats.stream().mapToInt(DailyStat::getTicketsNouveau).sum();
-        int ticketsEnCours = stats.stream().mapToInt(DailyStat::getTicketsEnCours).sum();
-        int ticketsFerme = stats.stream().mapToInt(DailyStat::getTicketsFerme).sum();
+        // Ventilation par statut COURANT des tickets créés dans la fenêtre (source de vérité : ticket-service).
+        // On n'additionne PLUS les colonnes-instantanés de daily_stats (tickets_en_cours, etc.) : ce sont des
+        // soldes d'état journaliers, et leur somme double-compte (la somme des statuts dépassait le total).
+        // Cette approche garantit que nouveau+en_cours+resolu+ferme == total de la période.
+        int totalTickets;
+        int ticketsNouveau;
+        int ticketsEnCours;
+        int ticketsResolus;
+        int ticketsFerme;
+        try {
+            TicketStatsDto ps = ticketServiceClient.getStatsByPeriod(from, to);
+            totalTickets = (int) ps.getTotal();
+            ticketsNouveau = (int) ps.getNouveau();
+            ticketsEnCours = (int) ps.getEnCours();
+            ticketsResolus = (int) ps.getResolu();
+            ticketsFerme = (int) ps.getFerme();
+        } catch (Exception e) {
+            // Repli résilient : si le ticket-service est indisponible, on retombe sur daily_stats
+            // (total et canaux fiables ; ventilation par statut dégradée).
+            log.warn("Statuts via ticket-service indisponibles ({}) — repli sur daily_stats", e.getMessage());
+            totalTickets = stats.stream().mapToInt(DailyStat::getTotalTickets).sum();
+            ticketsNouveau = stats.stream().mapToInt(DailyStat::getTicketsNouveau).sum();
+            ticketsEnCours = stats.stream().mapToInt(DailyStat::getTicketsEnCours).sum();
+            ticketsResolus = stats.stream().mapToInt(DailyStat::getTicketsResolus).sum();
+            ticketsFerme = stats.stream().mapToInt(DailyStat::getTicketsFerme).sum();
+        }
         int decFavorable = stats.stream().mapToInt(DailyStat::getDecisionsFavorable).sum();
         int decDefavorable = stats.stream().mapToInt(DailyStat::getDecisionsDefavorable).sum();
         int decEtude = stats.stream().mapToInt(DailyStat::getDecisionsEtude).sum();
@@ -103,8 +127,9 @@ public class AnalyticsService {
                 ? totalResMin.divide(BigDecimal.valueOf(totalResCount), 2, RoundingMode.HALF_UP).doubleValue()
                 : 0.0;
 
+        // Taux de résolution = tickets traités (RESOLU + FERME) / total de la période.
         double tauxResolution = totalTickets > 0
-                ? (double) ticketsResolus / totalTickets * 100.0 : 0.0;
+                ? (double) (ticketsResolus + ticketsFerme) / totalTickets * 100.0 : 0.0;
 
         return KpiResponse.builder()
                 .totalTickets(totalTickets)

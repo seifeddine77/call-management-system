@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoAssist — Organisation : Organisation-Service</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-title: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Colors for dark theme (default) */
+      --bg: #08090e;
+      --surface: #0e1017;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-visible: rgba(255, 255, 255, 0.12);
+      --text: #f0f2f5;
+      --text-muted: #8b92a5;
+      --text-subtle: #4a5168;
+      
+      --primary: #635bff;
+      --primary-light: #7c75ff;
+      --primary-soft: rgba(99, 91, 255, 0.1);
+      --secondary: #00d4aa;
+      --secondary-soft: rgba(0, 212, 170, 0.08);
+      
+      --success: #00c48c;
+      --warning: #ffb020;
+      --danger: #ff4757;
+      
+      --code-bg: #131621;
+      --sidebar-width: 280px;
+      --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    [data-theme="light"] {
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --border: #e2e5eb;
+      --border-visible: #cbd5e1;
+      --text: #111318;
+      --text-muted: #4a5168;
+      --text-subtle: #9ca3af;
+      
+      --primary: #635bff;
+      --primary-light: #4f46e5;
+      --primary-soft: rgba(99, 91, 255, 0.05);
+      --secondary: #0ea5e9;
+      --secondary-soft: rgba(14, 165, 233, 0.08);
+      
+      --code-bg: #f1f5f9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-family: var(--font-main);
+      color: var(--text);
+      background-color: var(--bg);
+      scroll-behavior: smooth;
+      transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-visible);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Sidebar Layout */
+    aside {
+      width: var(--sidebar-width);
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      border-right: 1px solid var(--border);
+      background-color: var(--surface);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-text {
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: var(--transition);
+      border: 1px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background-color: var(--primary-soft);
+      transform: translateX(3px);
+    }
+
+    .nav-links a.active {
+      color: var(--primary);
+      background-color: var(--primary-soft);
+      border-color: rgba(99, 91, 255, 0.15);
+      font-weight: 600;
+    }
+
+    .theme-toggle-container {
+      margin-top: auto;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-toggle {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-visible);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .btn-toggle:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+
+    /* Main Content */
+    main {
+      margin-left: var(--sidebar-width);
+      padding: 3rem 4rem;
+      max-width: 1100px;
+      width: calc(100% - var(--sidebar-width));
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 3rem;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -1.5rem;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 2px;
+    }
+
+    h1 {
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 2.25rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      font-weight: 400;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 2rem;
+    }
+
+    h2 {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1.6rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    h3 {
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 1.2rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    p {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1.25rem;
+      color: var(--text-muted);
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+
+    strong {
+      color: var(--text);
+    }
+
+    /* Badges */
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .tech-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      background-color: var(--primary-soft);
+      color: var(--primary-light);
+      border: 1px solid rgba(99, 91, 255, 0.15);
+    }
+
+    /* Cards Layout */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+    }
+
+    .card-title {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .code-block::before {
+      content: attr(data-lang);
+      position: absolute;
+      top: 0.5rem;
+      right: 1rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      font-weight: bold;
+    }
+
+    .code-kw { color: #f472b6; }
+    .code-str { color: #34d399; }
+    .code-fn { color: #60a5fa; }
+    .code-comment { color: var(--text-subtle); }
+    .code-num { color: #fb923c; }
+
+    /* Alert Boxes */
+    .alert {
+      padding: 1.25rem 1.5rem;
+      border-radius: 10px;
+      border-left: 4px solid;
+      margin: 1.5rem 0;
+      background-color: var(--surface);
+    }
+
+    .alert-info {
+      border-left-color: var(--primary);
+      background-color: rgba(99, 91, 255, 0.04);
+    }
+
+    .alert-warning {
+      border-left-color: var(--warning);
+      background-color: rgba(255, 176, 32, 0.04);
+    }
+
+    .alert-title {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: var(--surface);
+      text-align: left;
+      font-family: var(--font-title);
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      border-bottom: 2px solid var(--border-visible);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    tr:hover td {
+      background-color: var(--primary-soft);
+      color: var(--text);
+    }
+
+    /* Responsiveness */
+    @media (max-width: 1024px) {
+      body {
+        flex-direction: column;
+      }
+      aside {
+        width: 100%;
+        height: auto;
+        position: static;
+        padding: 1.5rem;
+      }
+      .nav-links {
+        display: none;
+      }
+      main {
+        margin-left: 0;
+        width: 100%;
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside>
+    <div>
+      <div class="logo-container">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 22h20L12 2z" stroke="url(#logo-grad)" stroke-width="3" fill="none"/>
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#635bff" />
+              <stop offset="100%" stop-color="#00d4aa" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">AutoAssist Org</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#overview" class="active" onclick="setActive(this)">1. Rôle du Service</a></li>
+        <li><a href="#rules" onclick="setActive(this)">2. Règles Métiers (CDC)</a></li>
+        <li><a href="#jpa" onclick="setActive(this)">3. JPA & Lombok</a></li>
+        <li><a href="#rabbitmq" onclick="setActive(this)">4. RabbitMQ Asynchrone</a></li>
+        <li><a href="#jury" onclick="setActive(this)">5. Soutenance & Jury</a></li>
+      </ul>
+    </div>
+    <div class="theme-toggle-container">
+      <button class="btn-toggle" onclick="toggleTheme()">
+        <span id="theme-icon">☀️</span> <span id="theme-text">Mode Clair</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <header>
+      <h1>Microservice d'Organisation (Organisation-Service)</h1>
+      <div class="subtitle">Référentiel centralisé des agences physiques et des comptes collaborateurs</div>
+    </header>
+
+    <!-- SECTION 1: OVERVIEW -->
+    <section id="overview">
+      <h2>1. Rôle et Architecture</h2>
+      <p>
+        Le microservice <code>organisation-service</code> écoute sur le port <code>8082</code>. Il constitue le référentiel d'autorité des agences physiques et des comptes collaborateurs.
+      </p>
+      <div class="badge-container">
+        <span class="tech-badge">Spring Boot 3</span>
+        <span class="tech-badge">Spring Data JPA (Hibernate)</span>
+        <span class="tech-badge">PostgreSQL</span>
+        <span class="tech-badge">Flyway Migrations</span>
+        <span class="tech-badge">RabbitMQ</span>
+      </div>
+      <p style="margin-top: 1.5rem;">
+        Il expose des endpoints administratifs et opérationnels pour la gestion des collaborateurs (Opérateurs, Superviseurs, Administrateurs) et des informations d'agences (stock de pièces de rechange, localisation, coordonnées).
+      </p>
+    </section>
+
+    <!-- SECTION 2: REGLES METIERS -->
+    <section id="rules">
+      <h2>2. Règles Métiers & Validation (CDC 1.A et 1.B)</h2>
+      <p>
+        Le service d'organisation garantit la cohérence des structures en vérifiant rigoureusement les contraintes spécifiées par le cahier des charges :
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">🏢 CDC 1.A : Rattachement Obligatoire</div>
+          <div class="card-text">
+            Dans <code>UserServiceImpl.java</code>, tout collaborateur ayant le rôle <code>OPERATOR</code> ou <code>SUPERVISOR</code> doit obligatoirement être rattaché à une agence physique lors de sa création ou mise à jour.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">👑 CDC 1.B : Responsabilité d'Agence</div>
+          <div class="card-text">
+            Dans <code>AgenceServiceImpl.java</code>, le responsable désigné pour gérer une agence physique doit impérativement être un utilisateur ayant le rôle <code>SUPERVISOR</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="code-block" data-lang="java">
+<span class="code-comment">// Validation du rattachement obligatoire dans UserServiceImpl</span>
+<span class="code-kw">if</span> ((<span class="code-str">"OPERATOR"</span>.equals(role) || <span class="code-str">"SUPERVISOR"</span>.equals(role)) && agenceId == <span class="code-kw">null</span>) {
+    <span class="code-kw">throw new</span> IllegalArgumentException(<span class="code-str">"Un opérateur/superviseur doit être rattaché à une agence"</span>);
+}
+
+<span class="code-comment">// Validation du responsable d'agence dans AgenceServiceImpl</span>
+<span class="code-kw">if</span> (!<span class="code-str">"SUPERVISOR"</span>.equals(user.getRole())) {
+    <span class="code-kw">throw new</span> IllegalArgumentException(<span class="code-str">"Le responsable d'une agence doit être un SUPERVISOR"</span>);
+}
+      </div>
+    </section>
+
+    <!-- SECTION 3: JPA & LOMBOK -->
+    <section id="jpa">
+      <h2>3. Relations JPA et Piège Lombok (Hibernate)</h2>
+      <p>
+        Pour lier l'entité <code>User</code> à son <code>Agence</code> correspondante, nous utilisons JPA avec une attention particulière aux performances et à la stabilité :
+      </p>
+      
+      <div class="alert alert-info">
+        <div class="alert-title">⚡ FetchType.LAZY (Lazy Loading)</div>
+        La liaison est annotée avec <code>@ManyToOne(fetch = FetchType.LAZY)</code>. Cela évite le chargement automatique et systématique de l'objet Agence complet à chaque fois qu'un utilisateur est récupéré en base, éliminant les requêtes N+1 et le surcoût réseau.
+      </div>
+
+      <div class="alert alert-warning">
+        <div class="alert-title">⚠️ Risque de StackOverflowError</div>
+        Dans une relation bidirectionnelle (User rattaché à Agence, et Agence contenant une liste de Users), laisser Lombok générer automatiquement les méthodes <code>toString()</code>, <code>equals()</code> et <code>hashCode()</code> provoque des appels récursifs infinis.
+        <br><br>
+        <strong>Solution :</strong> L'ajout explicite des annotations <code>@ToString.Exclude</code> et <code>@EqualsAndHashCode.Exclude</code> sur les propriétés relationnelles coupe cette récursion.
+      </div>
+
+      <div class="code-block" data-lang="java">
+<span class="code-comment">// Extrait de User.java</span>
+@Entity
+@Table(name = <span class="code-str">"users"</span>)
+@Getter @Setter
+<span class="code-kw">public class</span> User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    <span class="code-kw">private</span> Long id;
+
+    <span class="code-kw">private</span> String email;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = <span class="code-str">"agence_id"</span>)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    <span class="code-kw">private</span> Agence agence;
+}
+      </div>
+    </section>
+
+    <!-- SECTION 4: RABBITMQ ASYNCHRONE -->
+    <section id="rabbitmq">
+      <h2>4. Découplage Événementiel via RabbitMQ</h2>
+      <p>
+        Les modifications de structure (nouveau compte, nouvelle agence) doivent être notifiées aux autres services sans introduire de couplage fort ou ralentir l'expérience utilisateur.
+      </p>
+      <p>
+        Le service publie des événements asynchrones sur le <strong>Topic Exchange</strong> <code>user.exchange</code> :
+      </p>
+      <ul>
+        <li><code>user.created</code> : Reçu par <code>notification-service</code> pour envoyer le mail Thymeleaf d'accueil.</li>
+        <li><code>agence.created</code> : Reçu par <code>whatsapp-service</code> pour créer la discussion de groupe d'agence.</li>
+      </ul>
+
+      <div class="alert alert-info">
+        <div class="alert-title">🛡️ Résilience du Publisher</div>
+        La publication RabbitMQ est encapsulée dans un bloc de capture d'exceptions. Si le broker de messages RabbitMQ subit une indisponibilité, l'écriture en base de données de l'utilisateur n'est pas bloquée, garantissant la continuité opérationnelle.
+      </div>
+
+      <div class="code-block" data-lang="java">
+<span class="code-comment">// Extrait de UserEventPublisher.java</span>
+<span class="code-kw">try</span> {
+    eventPublisher.publishUserCreated(event);
+} <span class="code-kw">catch</span> (Exception e) {
+    log.warn(<span class="code-str">"Failed to publish UserCreatedEvent (RabbitMQ down): {}"</span>, e.getMessage());
+}
+      </div>
+    </section>
+
+    <!-- SECTION 5: JURY QUESTIONS -->
+    <section id="jury">
+      <h2>5. Questions / Réponses types pour le Jury</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Question du jury</th>
+            <th>Défense Technique</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pourquoi utiliser FetchType.LAZY pour la relation Agence dans l'entité User ?</strong></td>
+            <td>Par défaut, les relations <code>@ManyToOne</code> dans JPA sont configurées en <code>FetchType.EAGER</code> (chargement immédiat). Cela signifie que charger 100 utilisateurs effectuerait 100 requêtes supplémentaires pour récupérer les détails des agences, même si nous n'en avons pas besoin. <code>FetchType.LAZY</code> diffère la requête jusqu'à l'appel explicite de <code>user.getAgence()</code>, ce qui optimise grandement les performances de la base de données.</td>
+          </tr>
+          <tr>
+            <td><strong>Pourquoi désactiver les exclusions Lombok sur les liaisons bidirectionnelles ?</strong></td>
+            <td>Si nous laissons Lombok générer automatiquement la méthode <code>toString()</code> sur <code>User</code> et <code>Agence</code> sans les exclure, appeler <code>user.toString()</code> va évaluer la propriété <code>agence</code>, qui à son tour va évaluer la liste de ses utilisateurs, créant une boucle infinie se terminant par un plantage <code>StackOverflowError</code> de la JVM.</td>
+          </tr>
+          <tr>
+            <td><strong>Pourquoi ne pas bloquer la création de compte si le message RabbitMQ échoue ?</strong></td>
+            <td>C'est le principe du découplage lâche. La création d'un collaborateur est une opération transactionnelle critique qui doit aboutir. L'envoi du mail de bienvenue ou l'ouverture du salon WhatsApp sont des effets de bord asynchrones. Si RabbitMQ subit une micro-coupure, nous loggons l'avertissement mais laissons la création de l'utilisateur s'effectuer pour ne pas perturber l'administration.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeText = document.getElementById('theme-text');
+      const themeIcon = document.getElementById('theme-icon');
+      
+      if (html.getAttribute('data-theme') === 'dark') {
+        html.setAttribute('data-theme', 'light');
+        themeText.innerText = 'Mode Sombre';
+        themeIcon.innerText = '🌙';
+      } else {
+        html.setAttribute('data-theme', 'dark');
+        themeText.innerText = 'Mode Clair';
+        themeIcon.innerText = '☀️';
+      }
+    }
+
+    function setActive(link) {
+      const links = document.querySelectorAll('.nav-links a');
+      links.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    }
+  </script>
+</body>
+</html>

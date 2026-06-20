@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  RefreshCw, Plus, AlertTriangle, Pencil, Trash2, CalendarDays, 
-  User as UserIcon, Mail, Phone, Shield, Building, Clock
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  RefreshCw, Plus, AlertTriangle, Pencil, Trash2, CalendarDays,
+  User as UserIcon, Mail, Phone, Shield, Building, Clock,
+  Search, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { userService } from '../services/userService';
 import { agenceService } from '../services/agenceService';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import { ErrorState, EmptyState } from '../components/ui/States';
 import type { User, UserRequest } from '../types/user';
@@ -105,9 +107,10 @@ interface UserDetailPanelProps {
   agenceNames: Record<string, string>;
   onEdit: () => void;
   onDelete: () => void;
+  canDelete: boolean;
 }
 
-function UserDetailPanel({ selectedUser, rb, agenceNames, onEdit, onDelete }: Readonly<UserDetailPanelProps>) {
+function UserDetailPanel({ selectedUser, rb, agenceNames, onEdit, onDelete, canDelete }: Readonly<UserDetailPanelProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
@@ -200,14 +203,16 @@ function UserDetailPanel({ selectedUser, rb, agenceNames, onEdit, onDelete }: Re
         >
           <Pencil size={12} className="text-txt-2" /> Modifier
         </motion.button>
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onDelete} 
-          className="flex-1 h-9.5 rounded-xl text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold flex items-center justify-center gap-1.5"
-        >
-          <Trash2 size={12} /> Désactiver
-        </motion.button>
+        {canDelete && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onDelete}
+            className="flex-1 h-9.5 rounded-xl text-xs cursor-pointer bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold flex items-center justify-center gap-1.5"
+          >
+            <Trash2 size={12} /> Désactiver
+          </motion.button>
+        )}
       </div>
     </motion.div>
   );
@@ -440,6 +445,30 @@ export default function UsersPage() {
     handleDeleteConfirm
   } = useUsersState();
 
+  // Contrôle d'accès : seul un ADMIN peut créer/supprimer des comptes (cf. backend X-User-Role).
+  const { isAdmin } = useAuth();
+
+  // Recherche + pagination — côté client (les users sont déjà chargés)
+  const USERS_PAGE_SIZE = 8;
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u =>
+      `${u.prenom || ''} ${u.nom || ''}`.toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.telephone || '').toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  const usersPageCount = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE));
+  const usersSafePage = Math.min(page, usersPageCount - 1);
+  const pagedUsers = filteredUsers.slice(usersSafePage * USERS_PAGE_SIZE, usersSafePage * USERS_PAGE_SIZE + USERS_PAGE_SIZE);
+
+  useEffect(() => { setPage(0); }, [search, roleFilter]);
+
   const roleBadge = (role: string) => ({
     ADMIN: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', avatar: 'from-amber-500/20 to-amber-600/30 text-amber-400' },
     SUPERVISEUR: { cls: 'bg-violet-500/10 text-violet-400 border-violet-500/20', avatar: 'from-violet-500/20 to-violet-600/30 text-violet-400' },
@@ -480,37 +509,52 @@ export default function UsersPage() {
           >
             <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} />
           </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => { setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' }); setShowCreate(true); }} 
-            className="btn-cta h-9 px-4 rounded-xl text-xs text-white flex items-center gap-1.5 cursor-pointer font-bold shadow-md bg-gradient-to-r from-indigo-500 to-violet-500"
-          >
-            <Plus size={13} /> Créer un profil
-          </motion.button>
+          {isAdmin && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' }); setShowCreate(true); }}
+              className="btn-cta h-9 px-4 rounded-xl text-xs text-white flex items-center gap-1.5 cursor-pointer font-bold shadow-md bg-gradient-to-r from-indigo-500 to-violet-500"
+            >
+              <Plus size={13} /> Créer un profil
+            </motion.button>
+          )}
         </div>
       </div>
 
-      {/* Role Filters */}
-      <div className="flex gap-2 flex-wrap">
-        {[
-          { key: 'ALL', label: 'Tous les profils' },
-          { key: 'OPERATEUR', label: 'Opérateurs' },
-          { key: 'SUPERVISEUR', label: 'Superviseurs' },
-          { key: 'ADMIN', label: 'Administrateurs' }
-        ].map(r => (
-          <button 
-            key={r.key} 
-            onClick={() => setRoleFilter(r.key)} 
-            className={`chip cursor-pointer text-xs font-medium px-4.5 py-1.5 rounded-full border transition-all duration-300
-              ${roleFilter === r.key 
-                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-semibold shadow-sm' 
-                : 'bg-[var(--surface)] text-txt-3 border-border/80 hover:border-border hover:text-txt'
-              }`}
-          >
-            {r.label}
-          </button>
-        ))}
+      {/* Recherche + filtres par rôle */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3 pointer-events-none z-10" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un collaborateur (nom, email, téléphone)…"
+            className="aurora-input w-full h-9 text-xs"
+            style={{ paddingLeft: '38px' }}
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { key: 'ALL', label: 'Tous les profils' },
+            { key: 'OPERATEUR', label: 'Opérateurs' },
+            { key: 'SUPERVISEUR', label: 'Superviseurs' },
+            { key: 'ADMIN', label: 'Administrateurs' }
+          ].map(r => (
+            <button
+              key={r.key}
+              onClick={() => setRoleFilter(r.key)}
+              className={`chip cursor-pointer text-xs font-medium px-4.5 py-1.5 rounded-full border transition-all duration-300
+                ${roleFilter === r.key
+                  ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-semibold shadow-sm'
+                  : 'bg-[var(--surface)] text-txt-3 border-border/80 hover:border-border hover:text-txt'
+                }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main content split panel */}
@@ -532,10 +576,10 @@ export default function UsersPage() {
                     <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
                   ))}
                 </div>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <EmptyState icon="user" title="Aucun collaborateur" subtitle="Aucun utilisateur ne correspond à ce filtre." />
               ) : (
-                users.map((u) => (
+                pagedUsers.map((u) => (
                   <UserRow
                     key={u.id}
                     u={u}
@@ -548,6 +592,34 @@ export default function UsersPage() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Pagination */}
+          {!loading && filteredUsers.length > USERS_PAGE_SIZE && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border/60">
+              <span className="text-[10px] font-mono text-txt-3">
+                {usersSafePage * USERS_PAGE_SIZE + 1}–{Math.min((usersSafePage + 1) * USERS_PAGE_SIZE, filteredUsers.length)} sur {filteredUsers.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={usersSafePage === 0}
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                  aria-label="Page précédente"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-[10px] font-mono text-txt-3 min-w-[64px] text-center">Page {usersSafePage + 1} / {usersPageCount}</span>
+                <button
+                  disabled={usersSafePage >= usersPageCount - 1}
+                  onClick={() => setPage(p => Math.min(usersPageCount - 1, p + 1))}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Detail console */}
@@ -572,6 +644,7 @@ export default function UsersPage() {
                   setShowEdit(true);
                 }}
                 onDelete={() => setDeleteTarget(selectedUser)}
+                canDelete={isAdmin}
               />
             ) : (
               <div className="card-aurora rounded-2xl p-6 border border-border text-center">

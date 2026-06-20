@@ -175,7 +175,7 @@ class TicketControllerTest {
         }
 
         @Test
-        @DisplayName("OPERATOR → utilise l'agence du header (pas le param)")
+        @DisplayName("OPERATOR avec header → verrouillé sur l'agence du header (param ignoré)")
         void operator_usesHeaderAgenceId() {
             UUID headerAgenceId = UUID.randomUUID();
             UUID paramAgenceId = UUID.randomUUID();
@@ -187,6 +187,36 @@ class TicketControllerTest {
 
             assertThat(response.getStatusCode().value()).isEqualTo(200);
             verify(ticketService).getTicketStats(headerAgenceId);
+        }
+
+        @Test
+        @DisplayName("Appel interne sans header (n8n/WhatsApp) → le param agenceId filtre réellement")
+        void internalCall_noHeader_honoursAgenceIdParam() {
+            UUID paramAgenceId = UUID.randomUUID();
+            when(ticketService.getTicketStats(paramAgenceId)).thenReturn(new TicketStats());
+
+            // Rôle par défaut OPERATOR, aucun X-User-Agence-Id : cas de l'appel direct n8n.
+            ResponseEntity<TicketStats> response = controller.getTicketStats(
+                    paramAgenceId, null, ROLE_OPERATOR);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(ticketService).getTicketStats(paramAgenceId);
+        }
+
+        @Test
+        @DisplayName("Deux agenceId différents → deux stats distinctes (le param est bien transmis)")
+        void differentAgenceIds_routeToDifferentStats() {
+            UUID agenceA = UUID.randomUUID();
+            UUID agenceB = UUID.randomUUID();
+            when(ticketService.getTicketStats(agenceA)).thenReturn(new TicketStats());
+            when(ticketService.getTicketStats(agenceB)).thenReturn(new TicketStats());
+
+            controller.getTicketStats(agenceA, null, ROLE_OPERATOR);
+            controller.getTicketStats(agenceB, null, ROLE_OPERATOR);
+
+            verify(ticketService).getTicketStats(agenceA);
+            verify(ticketService).getTicketStats(agenceB);
+            verify(ticketService, never()).getTicketStats(null);
         }
     }
 
@@ -213,17 +243,61 @@ class TicketControllerTest {
         }
 
         @Test
-        @DisplayName("OPERATOR → utilise l'agence du header")
+        @DisplayName("OPERATOR avec header → verrouillé sur l'agence du header (param ignoré)")
         void operator_usesHeaderAgenceId() {
             UUID headerAgenceId = UUID.randomUUID();
+            UUID paramAgenceId = UUID.randomUUID();
             QueueResponse queue = new QueueResponse();
             when(queueService.getQueue(headerAgenceId)).thenReturn(queue);
 
             ResponseEntity<QueueResponse> response = controller.getQueue(
-                    null, headerAgenceId, ROLE_OPERATOR);
+                    paramAgenceId, headerAgenceId, ROLE_OPERATOR);
 
             assertThat(response.getStatusCode().value()).isEqualTo(200);
             verify(queueService).getQueue(headerAgenceId);
+        }
+
+        @Test
+        @DisplayName("Appel interne sans header (n8n/WhatsApp) → le param agenceId filtre réellement")
+        void internalCall_noHeader_honoursAgenceIdParam() {
+            UUID paramAgenceId = UUID.randomUUID();
+            QueueResponse queue = new QueueResponse();
+            when(queueService.getQueue(paramAgenceId)).thenReturn(queue);
+
+            // Rôle par défaut OPERATOR, aucun X-User-Agence-Id : c'est le cas de l'appel direct n8n.
+            ResponseEntity<QueueResponse> response = controller.getQueue(
+                    paramAgenceId, null, ROLE_OPERATOR);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(queueService).getQueue(paramAgenceId);
+        }
+
+        @Test
+        @DisplayName("Deux agenceId différents → deux files distinctes (le param est bien transmis)")
+        void differentAgenceIds_routeToDifferentQueues() {
+            UUID agenceA = UUID.randomUUID();
+            UUID agenceB = UUID.randomUUID();
+            when(queueService.getQueue(agenceA)).thenReturn(new QueueResponse());
+            when(queueService.getQueue(agenceB)).thenReturn(new QueueResponse());
+
+            controller.getQueue(agenceA, null, ROLE_OPERATOR);
+            controller.getQueue(agenceB, null, ROLE_OPERATOR);
+
+            verify(queueService).getQueue(agenceA);
+            verify(queueService).getQueue(agenceB);
+            verify(queueService, never()).getQueue(null);
+        }
+
+        @Test
+        @DisplayName("Sans param ni header → file globale (param et header null)")
+        void noParamNoHeader_returnsGlobalQueue() {
+            when(queueService.getQueue(null)).thenReturn(new QueueResponse());
+
+            ResponseEntity<QueueResponse> response = controller.getQueue(
+                    null, null, ROLE_OPERATOR);
+
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            verify(queueService).getQueue(null);
         }
     }
 

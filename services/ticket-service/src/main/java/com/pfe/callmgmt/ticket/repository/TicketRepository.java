@@ -60,6 +60,12 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
         long countByStatut(Ticket.Statut statut);
 
+        // Comptage par statut COURANT des tickets CRÉÉS dans une plage [from, to[ —
+        // utilisé par l'analytics-service pour une ventilation de statut cohérente avec
+        // le total de la période (au lieu de sommer les instantanés de daily_stats).
+        long countByStatutAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                        Ticket.Statut statut, LocalDateTime start, LocalDateTime end);
+
         List<Ticket> findTop5ByStatutAndAgenceIdOrderByCreatedAtAsc(Ticket.Statut statut, UUID agenceId);
 
         // ========== File d'attente (Queue) ==========

@@ -669,17 +669,18 @@ def record_feedback(question: str, answer: str, rating: str, group_name: str = "
 
     # ── Persist to PostgreSQL ──
     if _HAS_DB:
+        db = SessionLocal()
         try:
-            db = SessionLocal()
             db.execute(sa_text(
                 "INSERT INTO rag_feedback (question, answer_preview, rating, group_name) "
                 "VALUES (:q, :a, :r, :g)"
             ), {"q": question, "a": answer[:200], "r": rating, "g": group_name})
             db.commit()
-            db.close()
             logger.info("💾 Feedback persisted to DB")
         except Exception as e:
             logger.warning("⚠️ Could not persist feedback to DB: %s", sanitize_log(str(e)))
+        finally:
+            db.close()
 
     logger.info(
         "%s Feedback: %s (satisfaction: %.0f%%)",
@@ -697,17 +698,12 @@ def record_feedback(question: str, answer: str, rating: str, group_name: str = "
 
 def get_feedback_stats() -> dict:
     """Return feedback statistics."""
-    satisfaction = (
-        (_stats["positive_feedback"] / _stats["total_feedback"] * 100)
-        if _stats["total_feedback"] > 0 else 0
-    )
-
-    # Try to get count from DB for persistent stats
     db_total = 0
     db_positive = 0
+    recent_db_feedback = []
     if _HAS_DB:
+        db = SessionLocal()
         try:
-            db = SessionLocal()
             row = db.execute(sa_text(
                 "SELECT COUNT(*) as total, "
                 "COUNT(*) FILTER (WHERE rating = 'positive') as positive "
@@ -716,18 +712,43 @@ def get_feedback_stats() -> dict:
             if row:
                 db_total = row[0]
                 db_positive = row[1]
+            
+            # Fetch the 10 most recent feedback entries
+            rows = db.execute(sa_text(
+                "SELECT question, answer_preview, rating, group_name, created_at "
+                "FROM rag_feedback "
+                "ORDER BY id DESC "
+                "LIMIT 10"
+            )).fetchall()
+            for r in rows:
+                recent_db_feedback.append({
+                    "question": r[0],
+                    "answer_preview": r[1] or "",
+                    "rating": r[2],
+                    "group_name": r[3] or "",
+                    "created_at": r[4].isoformat() if r[4] else None
+                })
+        except Exception as e:
+            logger.warning("Could not fetch feedback stats from DB: %s", sanitize_log(str(e)))
+        finally:
             db.close()
-        except Exception:
-            pass
+
+    total = max(_stats["total_feedback"], db_total)
+    positive = max(_stats["positive_feedback"], db_positive)
+    negative = total - positive
+    satisfaction = (positive / total * 100) if total > 0 else 0
+
+    recent = recent_db_feedback if recent_db_feedback else _feedback_store[-10:]
 
     return {
-        "total_feedback": max(_stats["total_feedback"], db_total),
-        "positive": max(_stats["positive_feedback"], db_positive),
-        "negative": max(_stats["total_feedback"], db_total) - max(_stats["positive_feedback"], db_positive),
+        "total_feedback": total,
+        "positive": positive,
+        "negative": negative,
         "satisfaction_rate": f"{satisfaction:.0f}%",
-        "recent_feedback": _feedback_store[-10:],
+        "recent_feedback": recent,
         "db_persisted": db_total,
     }
+
 
 
 # Amélioration #3 : MÉMOIRE DE CONVERSATION

@@ -109,6 +109,18 @@ spring:
               args:
                 roles: SUPERVISOR,ADMIN
 
+        # AI Service Chatbot Stats — SUPERVISOR + ADMIN only
+        - id: ai-service-chat-stats
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/chat/stats
+          filters:
+            - JwtAuthFilter
+            - StripPrefix=1
+            - name: RoleFilter
+              args:
+                roles: SUPERVISOR,ADMIN
+
         # AI Service (Python) — JWT required
         - id: ai-service
           uri: http://ai-service:8000

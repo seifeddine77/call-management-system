@@ -13,7 +13,10 @@ export interface RefItem {
 
 export const ruleService = {
   getRules: async (): Promise<Rule[]> => {
-    const res = await api.get('/api/rules');
+    // Sans paramètre, le backend applique la pagination Spring par défaut (20 éléments)
+    // et la page « Moteur de règles » n'affichait que les 20 premières règles sur 59+.
+    // On demande explicitement une grande page pour récupérer toutes les règles.
+    const res = await api.get('/api/rules?page=0&size=1000');
     const data = res.data;
     return Array.isArray(data) ? data : (data.content ?? []);
   },

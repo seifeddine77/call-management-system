@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoAssist — Architecture et Implémentation Mobile (Flutter)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-title: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Colors for dark theme (default) */
+      --bg: #08090e;
+      --surface: #0e1017;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-visible: rgba(255, 255, 255, 0.12);
+      --text: #f0f2f5;
+      --text-muted: #8b92a5;
+      --text-subtle: #4a5168;
+      
+      --primary: #635bff;
+      --primary-light: #7c75ff;
+      --primary-soft: rgba(99, 91, 255, 0.1);
+      --secondary: #00d4aa;
+      --secondary-soft: rgba(0, 212, 170, 0.08);
+      
+      --success: #00c48c;
+      --warning: #ffb020;
+      --danger: #ff4757;
+      
+      --code-bg: #131621;
+      --sidebar-width: 280px;
+      --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    [data-theme="light"] {
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --border: #e2e5eb;
+      --border-visible: #cbd5e1;
+      --text: #111318;
+      --text-muted: #4a5168;
+      --text-subtle: #9ca3af;
+      
+      --primary: #635bff;
+      --primary-light: #4f46e5;
+      --primary-soft: rgba(99, 91, 255, 0.05);
+      --secondary: #0ea5e9;
+      --secondary-soft: rgba(14, 165, 233, 0.08);
+      
+      --code-bg: #f1f5f9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-family: var(--font-main);
+      color: var(--text);
+      background-color: var(--bg);
+      scroll-behavior: smooth;
+      transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Scrollbar Customization */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-visible);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Sidebar Layout */
+    aside {
+      width: var(--sidebar-width);
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      border-right: 1px solid var(--border);
+      background-color: var(--surface);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-text {
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: var(--transition);
+      border: 1px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background-color: var(--primary-soft);
+      transform: translateX(3px);
+    }
+
+    .nav-links a.active {
+      color: var(--primary);
+      background-color: var(--primary-soft);
+      border-color: rgba(99, 91, 255, 0.15);
+      font-weight: 600;
+    }
+
+    /* Theme Toggle */
+    .theme-toggle-container {
+      margin-top: auto;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-toggle {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-visible);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .btn-toggle:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+
+    /* Main Content */
+    main {
+      margin-left: var(--sidebar-width);
+      padding: 3rem 4rem;
+      max-width: 1100px;
+      width: calc(100% - var(--sidebar-width));
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 3rem;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -1.5rem;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 2px;
+    }
+
+    h1 {
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 2.5rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      font-weight: 400;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 2rem;
+    }
+
+    h2 {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1.75rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    h3 {
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    p {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1.25rem;
+      color: var(--text-muted);
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+
+    strong {
+      color: var(--text);
+    }
+
+    /* Tech Stack Badges */
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .tech-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      background-color: var(--primary-soft);
+      color: var(--primary-light);
+      border: 1px solid rgba(99, 91, 255, 0.15);
+    }
+
+    .tech-badge.dart {
+      background-color: rgba(2, 132, 199, 0.1);
+      color: #38bdf8;
+      border-color: rgba(14, 165, 233, 0.2);
+    }
+
+    .tech-badge.provider {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    .tech-badge.secure {
+      background-color: rgba(244, 63, 94, 0.1);
+      color: #fb7185;
+      border-color: rgba(244, 63, 94, 0.2);
+    }
+
+    /* Directory Tree Styling */
+    .directory-tree {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .directory-tree span.comment {
+      color: var(--text-subtle);
+    }
+
+    .directory-tree span.highlight-dir {
+      color: var(--secondary);
+      font-weight: bold;
+    }
+
+    .directory-tree span.highlight-file {
+      color: var(--primary-light);
+    }
+
+    /* Cards Layout */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: var(--transition);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-title {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .code-block::before {
+      content: attr(data-lang);
+      position: absolute;
+      top: 0.5rem;
+      right: 1rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      font-weight: bold;
+    }
+
+    .code-kw { color: #f472b6; }
+    .code-str { color: #34d399; }
+    .code-fn { color: #60a5fa; }
+    .code-comment { color: var(--text-subtle); }
+    .code-num { color: #fb923c; }
+
+    /* Alert Boxes */
+    .alert {
+      padding: 1.25rem 1.5rem;
+      border-radius: 10px;
+      border-left: 4px solid;
+      margin: 1.5rem 0;
+      background-color: var(--surface);
+    }
+
+    .alert-info {
+      border-left-color: var(--primary);
+      background-color: rgba(99, 91, 255, 0.04);
+    }
+
+    .alert-warning {
+      border-left-color: var(--warning);
+      background-color: rgba(255, 176, 32, 0.04);
+    }
+
+    .alert-danger {
+      border-left-color: var(--danger);
+      background-color: rgba(255, 71, 87, 0.04);
+    }
+
+    .alert-title {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: var(--surface);
+      text-align: left;
+      font-family: var(--font-title);
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      border-bottom: 2px solid var(--border-visible);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    tr:hover td {
+      background-color: var(--primary-soft);
+      color: var(--text);
+    }
+
+    /* Responsiveness */
+    @media (max-width: 1024px) {
+      body {
+        flex-direction: column;
+      }
+      aside {
+        width: 100%;
+        height: auto;
+        position: static;
+        padding: 1.5rem;
+      }
+      .nav-links {
+        display: none;
+      }
+      main {
+        margin-left: 0;
+        width: 100%;
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside>
+    <div>
+      <div class="logo-container">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="18" rx="4" stroke="url(#logo-grad)" stroke-width="3"/>
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#635bff" />
+              <stop offset="100%" stop-color="#00d4aa" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-text">AutoAssist Mobile</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#overview" class="active" onclick="setActive(this)">1. Vue d'ensemble</a></li>
+        <li><a href="#tree" onclick="setActive(this)">2. Structure Mobile</a></li>
+        <li><a href="#storage" onclick="setActive(this)">3. Sécurité Keychain/Keystore</a></li>
+        <li><a href="#dio" onclick="setActive(this)">4. Client HTTP Dio</a></li>
+        <li><a href="#theme" onclick="setActive(this)">5. ThemeExtension</a></li>
+        <li><a href="#navigation" onclick="setActive(this)">6. IndexedStack</a></li>
+        <li><a href="#jury" onclick="setActive(this)">7. Soutenance & Jury</a></li>
+      </ul>
+    </div>
+    <div class="theme-toggle-container">
+      <button class="btn-toggle" onclick="toggleTheme()">
+        <span id="theme-icon">☀️</span> <span id="theme-text">Mode Clair</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <header>
+      <h1>Architecture Mobile (Flutter / Dart)</h1>
+      <div class="subtitle">Guide technique complet de l'application mobile de terrain AutoAssist</div>
+    </header>
+
+    <!-- SECTION 1: OVERVIEW -->
+    <section id="overview">
+      <h2>1. Vue d'ensemble technologique</h2>
+      <p>
+        L'application mobile AutoAssist est développée à l'aide de <strong>Flutter</strong>, permettant aux experts et opérateurs de terrain de gérer les tickets, capturer des images et consulter le moteur de décision directement en mobilité.
+      </p>
+      <div class="badge-container">
+        <span class="tech-badge dart">Flutter SDK ^3.5.0</span>
+        <span class="tech-badge">Dart 3.5</span>
+        <span class="tech-badge provider">Provider 6.1</span>
+        <span class="tech-badge secure">Secure Storage 10.0</span>
+        <span class="tech-badge">Dio 5.9</span>
+        <span class="tech-badge">FL Chart 0.69</span>
+      </div>
+      <p style="margin-top: 1.5rem;">
+        La stack mobile met l'accent sur la sécurité matérielle, la persistance des performances graphiques locales et l'unification des services réseau avec notre Gateway centrale.
+      </p>
+    </section>
+
+    <!-- SECTION 2: STRUCTURE -->
+    <section id="tree">
+      <h2>2. Structure du projet mobile</h2>
+      <p>
+        Le répertoire <code>mobile</code> suit une architecture Flutter propre organisée dans le dossier <code>lib/</code> :
+      </p>
+      <div class="directory-tree">
+        mobile/<br>
+        ├── <span class="highlight-dir">android/</span> <span class="comment">// Configuration Gradle & manifestes natifs</span><br>
+        ├── <span class="highlight-dir">ios/</span> <span class="comment">// Configuration native Xcode & clés Info.plist</span><br>
+        ├── <span class="highlight-dir">lib/</span><br>
+        │   ├── <span class="highlight-dir">config/</span> <span class="comment">// Colors.dart (Thèmes), Theme.dart (ThemeData)</span><br>
+        │   ├── <span class="highlight-dir">models/</span> <span class="comment">// Mapping JSON strict en classes Dart (User, Ticket...)</span><br>
+        │   ├── <span class="highlight-dir">providers/</span> <span class="comment">// AuthProvider.dart, ThemeProvider.dart (ChangeNotifier)</span><br>
+        │   ├── <span class="highlight-dir">screens/</span> <span class="comment">// LoginScreen, TicketDetailScreen, DashboardScreen...</span><br>
+        │   ├── <span class="highlight-dir">services/</span> <span class="comment">// ApiClient.dart (Dio), auth_service.dart, ticket_service.dart...</span><br>
+        │   ├── <span class="highlight-dir">shell/</span> <span class="comment">// AppShell.dart (IndexedStack + BottomBar)</span><br>
+        │   ├── <span class="highlight-file">main.dart</span> <span class="comment">// WidgetsFlutterBinding & runApp()</span><br>
+        └── <span class="highlight-file">pubspec.yaml</span> <span class="comment">// Fichier de configuration npm-like pour les dépendances Flutter</span>
+      </div>
+    </section>
+
+    <!-- SECTION 3: SECURE STORAGE -->
+    <section id="storage">
+      <h2>3. Sécurité matérielle des Tokens</h2>
+      <p>
+        Contrairement au localStorage du Web qui stocke en clair, l'application mobile utilise <strong>FlutterSecureStorage</strong> :
+      </p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">🍎 iOS Keychain</div>
+          <div class="card-text">
+            Sous iOS, les clés JWT sont chiffrées et encapsulées au niveau du Keychain matériel, géré directement par le processeur d'Apple.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🤖 Android Keystore</div>
+          <div class="card-text">
+            Sous Android, les jetons sont chiffrés avec l'algorithme AES-256 et sauvegardés de façon protégée via l'API Android Keystore.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: HTTP CLIENT & INTERCEPTORS -->
+    <section id="dio">
+      <h2>4. Client HTTP Dio & Intercepteur de Rafraîchissement JWT</h2>
+      <p>
+        Le fichier <code>ApiClient</code> centralise la connexion et implémente un intercepteur pour rafraîchir le jeton expiré (401) de façon transparente :
+      </p>
+      <div class="code-block" data-lang="dart">
+<span class="code-comment">// extrait de services/api_client.dart</span>
+onError: (error, handler) <span class="code-kw">async</span> {
+  <span class="code-kw">if</span> (error.response?.statusCode == <span class="code-num">401</span> && !_isRefreshing) {
+    _isRefreshing = <span class="code-kw">true</span>;
+    <span class="code-kw">try</span> {
+      <span class="code-kw">final</span> refreshToken = <span class="code-kw">await</span> _storage.read(key: _refreshKey);
+      <span class="code-kw">if</span> (refreshToken != <span class="code-kw">null</span>) {
+        <span class="code-comment">// Appel de rafraîchissement avec une instance Dio propre</span>
+        <span class="code-kw">final</span> res = <span class="code-kw">await</span> refreshDio.post(<span class="code-str">'/api/auth/refresh'</span>, data: {<span class="code-str">'refreshToken'</span>: refreshToken});
+        <span class="code-kw">final</span> newToken = res.data[<span class="code-str">'accessToken'</span>];
+        <span class="code-kw">await</span> _storage.write(key: _tokenKey, value: newToken);
+        
+        <span class="code-comment">// Rejouer la requête d'origine en remplaçant le Header</span>
+        <span class="code-kw">final</span> opts = error.requestOptions;
+        opts.headers[<span class="code-str">'Authorization'</span>] = <span class="code-str">'Bearer $newToken'</span>;
+        <span class="code-kw">final</span> retryResponse = <span class="code-kw">await</span> retryDio.request(opts.path, options: Options(method: opts.method, headers: opts.headers));
+        <span class="code-kw">return</span> handler.resolve(retryResponse);
+      }
+    } <span class="code-kw">catch</span> (e) {
+      <span class="code-kw">await</span> clearTokens();
+    }
+    _isRefreshing = <span class="code-kw">false</span>;
+  }
+  <span class="code-kw">return</span> handler.next(error);
+}
+      </div>
+    </section>
+
+    <!-- SECTION 5: THEME EXTENSION -->
+    <section id="theme">
+      <h2>5. Thèmes personnalisés et ThemeExtension</h2>
+      <p>
+        Pour unifier le Design System entre le web et le mobile, nous étendons les capacités de Flutter à l'aide de <code>ThemeExtension</code>.
+      </p>
+      <div class="alert alert-info">
+        <div class="alert-title">🎨 ThemeExtension & Context extension</div>
+        Grâce aux ThemeExtensions Dart, la classe <code>AppColorScheme</code> définit les palettes <code>dark</code> et <code>light</code> de manière centralisée. Un getter sur le BuildContext permet d'appeler les couleurs simplement : <code>context.colors.surface</code>.
+      </div>
+      <div class="code-block" data-lang="dart">
+<span class="code-comment">// lib/config/colors.dart</span>
+<span class="code-kw">extension</span> AppColorsX <span class="code-kw">on</span> BuildContext {
+  AppColorScheme <span class="code-kw">get</span> colors =&gt; Theme.of(<span class="code-kw">this</span>).extension&lt;AppColorScheme&gt;()!;
+}
+
+<span class="code-comment">// Rendu dans n'importe quel widget</span>
+Widget build(BuildContext context) {
+  <span class="code-kw">final</span> c = context.colors;
+  <span class="code-kw">return</span> Container(
+    color: c.surface,
+    child: Text(<span class="code-str">'Texte Aurora'</span>, style: TextStyle(color: c.text)),
+  );
+}
+      </div>
+    </section>
+
+    <!-- SECTION 6: NAVIGATION SYSTEM -->
+    <section id="navigation">
+      <h2>6. Système de Navigation avec IndexedStack</h2>
+      <p>
+        L'onglet de navigation principal utilise un composant structurel `IndexedStack` :
+      </p>
+      <ul>
+        <li><strong>Rôle</strong> : Il charge les 4 écrans fondamentaux (Dashboard, Tickets, Queue, More) en mémoire.</li>
+        <li><strong>Maintien d'état</strong> : Contrairement à un routage classique qui détruit et recrée la page, `IndexedStack` préserve la position de scroll et les filtres de saisie lorsque l'opérateur change d'onglet.</li>
+        <li><strong>Animation</strong> : Géré de façon fluide en écoutant l'état local dans `app_shell.dart`.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 7: JURY QUESTIONS -->
+    <section id="jury">
+      <h2>7. Soutenance de Mobile (Questions/Réponses)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Question du jury</th>
+            <th>Défense Technique</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pourquoi Flutter plutôt que React Native ?</strong></td>
+            <td>Flutter compile en code binaire ARM natif sans pont JS, ce qui garantit du 60/120 FPS constant. Le moteur graphique Impeller/Skia dessine chaque pixel lui-même, nous garantissant que le design Aurora est rigoureusement identique sur iOS et Android.</td>
+          </tr>
+          <tr>
+            <td><strong>Quelle est la différence de sécurité avec le Web ?</strong></td>
+            <td>Sur le Web, le localStorage stocke les tokens en clair. Sur mobile, nous utilisons la Keychain iOS et le Keystore Android, qui sont des partitions sécurisées et chiffrées par le processeur physique.</td>
+          </tr>
+          <tr>
+            <td><strong>Comment gérez-vous l'état de l'application ?</strong></td>
+            <td>Nous utilisons la bibliothèque Provider avec des ChangeNotifier. C'est le design pattern officiel recommandé par Google, qui offre une séparation propre (MVVM) et évite le surpoids de bibliothèques lourdes comme Redux ou BLoC.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeText = document.getElementById('theme-text');
+      const themeIcon = document.getElementById('theme-icon');
+      
+      if (html.getAttribute('data-theme') === 'dark') {
+        html.setAttribute('data-theme', 'light');
+        themeText.innerText = 'Mode Sombre';
+        themeIcon.innerText = '🌙';
+      } else {
+        html.setAttribute('data-theme', 'dark');
+        themeText.innerText = 'Mode Clair';
+        themeIcon.innerText = '☀️';
+      }
+    }
+
+    function setActive(link) {
+      const links = document.querySelectorAll('.nav-links a');
+      links.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    }
+  </script>
+</body>
+</html>

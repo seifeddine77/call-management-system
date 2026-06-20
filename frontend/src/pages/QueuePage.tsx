@@ -178,13 +178,14 @@ function AdvancedFiltersPanel({
     <div className="px-5 py-3 border-b border-border/60 bg-[var(--surface)]/40 flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 min-w-[240px]">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3" />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3 pointer-events-none z-10" />
           <input
             type="text"
             placeholder="Rechercher par client ou par numéro de ticket..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="aurora-input pl-10"
+            className="aurora-input"
+            style={{ paddingLeft: '38px' }}
           />
         </div>
 

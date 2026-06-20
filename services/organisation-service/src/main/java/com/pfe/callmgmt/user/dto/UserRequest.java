@@ -2,6 +2,7 @@ package com.pfe.callmgmt.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,6 +33,7 @@ public class UserRequest {
     private String telephone;
 
     @NotBlank(message = "Le rôle est obligatoire")
+    @Pattern(regexp = "ADMIN|OPERATOR|SUPERVISOR", message = "Le rôle doit être ADMIN, OPERATOR ou SUPERVISOR")
     private String role;
 
     private UUID agenceId;

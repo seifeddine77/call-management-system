@@ -94,7 +94,12 @@ public class AuthServiceImpl implements AuthService {
             throw new ServiceUnavailableException("Service utilisateur indisponible");
         }
 
-        // 2. Hasher le mot de passe et envoyer la création au organisation-service
+        // 2. Sécurité : l'inscription publique ne peut JAMAIS attribuer un rôle privilégié.
+        // On force OPERATOR quel que soit le rôle envoyé (anti-escalade de privilèges).
+        // La création de comptes ADMIN/SUPERVISOR passe par POST /api/users (ADMIN authentifié).
+        request.setRole("OPERATOR");
+
+        // 3. Hasher le mot de passe et envoyer la création au organisation-service
         request.setPassword(passwordEncoder.encode(request.getPassword()));
 
         UserDto createdUser;

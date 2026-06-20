@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  RefreshCw, Plus, AlertTriangle, Building2, Pencil, Trash2, 
-  MapPin, Phone, Mail, Package
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  RefreshCw, Plus, AlertTriangle, Building2, Pencil, Trash2,
+  MapPin, Phone, Mail, Package,
+  Search, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { agenceService } from '../services/agenceService';
 import { userService } from '../services/userService';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import { ErrorState, EmptyState } from '../components/ui/States';
 import type { Agence, AgenceRequest } from '../types/agence';
@@ -15,6 +17,8 @@ import type { User as UserType } from '../types/user';
 interface FormErrors { nom?: string; email?: string; }
 
 export default function AgencesPage() {
+  // Contrôle d'accès : seul un ADMIN peut créer/modifier/supprimer une agence (cf. backend X-User-Role).
+  const { isAdmin } = useAuth();
   const [agences, setAgences] = useState<Agence[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,28 @@ export default function AgencesPage() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [deleteTarget, setDeleteTarget] = useState<Agence | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Recherche + pagination — côté client
+  const AGENCES_PAGE_SIZE = 9;
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+
+  const filteredAgences = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return agences;
+    return agences.filter(a =>
+      (a.nom || '').toLowerCase().includes(q) ||
+      (a.adresse || '').toLowerCase().includes(q) ||
+      (a.email || '').toLowerCase().includes(q) ||
+      (a.responsableName || '').toLowerCase().includes(q)
+    );
+  }, [agences, search]);
+
+  const agencesPageCount = Math.max(1, Math.ceil(filteredAgences.length / AGENCES_PAGE_SIZE));
+  const agencesSafePage = Math.min(page, agencesPageCount - 1);
+  const pagedAgences = filteredAgences.slice(agencesSafePage * AGENCES_PAGE_SIZE, agencesSafePage * AGENCES_PAGE_SIZE + AGENCES_PAGE_SIZE);
+
+  useEffect(() => { setPage(0); }, [search]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -134,17 +160,21 @@ export default function AgencesPage() {
         </div>
       );
     }
-    if (agences.length === 0) {
+    if (filteredAgences.length === 0) {
       return (
         <div className="card-aurora rounded-2xl border border-border p-8">
-          <EmptyState icon={<Building2 size={36} />} title="Aucune agence active" subtitle="Enregistrez votre première agence régionale pour organiser les interventions techniques." />
+          <EmptyState
+            icon={<Building2 size={36} />}
+            title={agences.length === 0 ? 'Aucune agence active' : 'Aucun résultat'}
+            subtitle={agences.length === 0 ? 'Enregistrez votre première agence régionale pour organiser les interventions techniques.' : 'Aucune agence ne correspond à votre recherche.'}
+          />
         </div>
       );
     }
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {agences.map((a, idx) => {
+          {pagedAgences.map((a, idx) => {
             const initials = a.responsableName
               ? a.responsableName.split(' ').map(n => n[0]).join('').toUpperCase()
               : '—';
@@ -174,21 +204,23 @@ export default function AgencesPage() {
                       </div>
                     </div>
                     
-                    {/* Dropdown/Quick buttons */}
-                    <div className="flex items-center gap-1 bg-[var(--surface)] border border-border rounded-xl p-0.5">
-                      <button 
-                        onClick={() => openEdit(a)} 
-                        className="h-7 w-7 rounded-lg text-txt-3 hover:text-txt hover:bg-[var(--elevated)] transition-colors flex items-center justify-center cursor-pointer"
-                      >
-                        <Pencil size={11} />
-                      </button>
-                      <button 
-                        onClick={() => setDeleteTarget(a)} 
-                        className="h-7 w-7 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center cursor-pointer"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    </div>
+                    {/* Dropdown/Quick buttons — ADMIN uniquement */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 bg-[var(--surface)] border border-border rounded-xl p-0.5">
+                        <button
+                          onClick={() => openEdit(a)}
+                          className="h-7 w-7 rounded-lg text-txt-3 hover:text-txt hover:bg-[var(--elevated)] transition-colors flex items-center justify-center cursor-pointer"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(a)}
+                          className="h-7 w-7 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center cursor-pointer"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Metadata contact grid */}
@@ -276,19 +308,64 @@ export default function AgencesPage() {
             <RefreshCw size={12} className={loading ? 'animate-spin text-indigo-400' : 'text-txt-3'} />
           </motion.button>
           
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => { setForm({ nom: '', adresse: '', telephone: '', email: '', responsableId: '', stockDescription: '' }); setShowCreate(true); }} 
-            className="btn-cta h-9 px-4 rounded-xl text-xs text-white flex items-center gap-1.5 cursor-pointer font-bold shadow-md bg-gradient-to-r from-emerald-500 to-teal-500"
-          >
-            <Plus size={13} /> Ajouter une agence
-          </motion.button>
+          {isAdmin && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { setForm({ nom: '', adresse: '', telephone: '', email: '', responsableId: '', stockDescription: '' }); setShowCreate(true); }}
+              className="btn-cta h-9 px-4 rounded-xl text-xs text-white flex items-center gap-1.5 cursor-pointer font-bold shadow-md bg-gradient-to-r from-emerald-500 to-teal-500"
+            >
+              <Plus size={13} /> Ajouter une agence
+            </motion.button>
+          )}
         </div>
       </div>
 
+      {/* Barre de recherche */}
+      {!loading && agences.length > 0 && (
+        <div className="relative max-w-md">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-3 pointer-events-none z-10" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher une agence (nom, adresse, responsable)…"
+            className="aurora-input w-full h-9 text-xs"
+            style={{ paddingLeft: '38px' }}
+          />
+        </div>
+      )}
+
       {/* Grid Layout of Cards instead of boring table */}
       {renderAgencesContent()}
+
+      {/* Pagination */}
+      {!loading && filteredAgences.length > AGENCES_PAGE_SIZE && (
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-txt-3">
+            {agencesSafePage * AGENCES_PAGE_SIZE + 1}–{Math.min((agencesSafePage + 1) * AGENCES_PAGE_SIZE, filteredAgences.length)} sur {filteredAgences.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={agencesSafePage === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+              aria-label="Page précédente"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-[10px] font-mono text-txt-3 min-w-[64px] text-center">Page {agencesSafePage + 1} / {agencesPageCount}</span>
+            <button
+              disabled={agencesSafePage >= agencesPageCount - 1}
+              onClick={() => setPage(p => Math.min(agencesPageCount - 1, p + 1))}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+              aria-label="Page suivante"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal open={showCreate || !!editingId} onClose={() => { setShowCreate(false); setEditingId(null); setFormErrors({}); }} title={showCreate ? 'Création d\'une Agence' : 'Modification de l\'Agence'}>

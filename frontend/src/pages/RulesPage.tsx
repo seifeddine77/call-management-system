@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { safeRandom } from '../utils/cryptoRandom';
-import { AlertTriangle, GripVertical, Pencil, Plus, Settings, Wrench, Users, Zap, ClipboardList, Ruler, FlaskConical, ScrollText, Trash2 } from 'lucide-react';
+import { AlertTriangle, GripVertical, Pencil, Plus, Settings, Wrench, Users, Zap, ClipboardList, Ruler, FlaskConical, ScrollText, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ruleService, type RefItem } from '../services/ruleService';
 import { ErrorState, EmptyState } from '../components/ui/States';
@@ -250,7 +250,7 @@ function ConditionsEditor({ conditions, onChange, refs, formErrors }: Readonly<{
           <option value="OR">OU (OR)</option>
         </select>
       </div>
-      {formErrors.conditions && <span className="text-rose-400 text-[10px] mb-2 block">{formErrors.conditions}</span>}
+      {formErrors.conditions && <span className="text-rose-400 text-[10px] mb-2 block font-semibold">⚠️ {formErrors.conditions}</span>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           {conditions.conditions.map((cond, i) => (
@@ -278,7 +278,7 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
       <div>
         <label htmlFor="rule-nom" className="field-label block">Nom *</label>
         <input id="rule-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60' : ''}`} value={f.nom} onChange={e => { setF(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} placeholder="Ex: Règle garantie mécanique" />
-        {formErrors.nom && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.nom}</span>}
+        {formErrors.nom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.nom}</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -293,7 +293,7 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
               setFormErrors(e2 => ({ ...e2, priorite: undefined }));
             }}
           />
-          {formErrors.priorite && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.priorite}</span>}
+          {formErrors.priorite && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.priorite}</span>}
         </div>
         <div>
           <label htmlFor="rule-scoreImpact" className="field-label block">Impact de Score *</label>
@@ -304,7 +304,7 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
       <div>
         <label htmlFor="rule-desc" className="field-label block">Description *</label>
         <input id="rule-desc" className={`aurora-input ${formErrors.description ? 'border-rose-500/60' : ''}`} value={f.description} onChange={e => { setF(p => ({ ...p, description: e.target.value })); setFormErrors(e2 => ({ ...e2, description: undefined })); }} />
-        {formErrors.description && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.description}</span>}
+        {formErrors.description && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.description}</span>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div><label htmlFor="rule-action" className="field-label block">Action</label>
@@ -323,7 +323,7 @@ function RuleFormFields({ form: f, setForm: setF, formErrors, setFormErrors, ref
               setFormErrors(e2 => ({ ...e2, actionMotif: undefined }));
             }}
           />
-          {formErrors.actionMotif && <span className="text-rose-400 text-[10px] mt-0.5 block">{formErrors.actionMotif}</span>}
+          {formErrors.actionMotif && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.actionMotif}</span>}
         </div>
       </div>
       <ConditionsEditor conditions={f.conditions} onChange={c => setF(p => ({ ...p, conditions: c }))} refs={refs} formErrors={formErrors} />
@@ -1308,10 +1308,73 @@ function RulesListTabContent({
   setTestForm,
   openEdit,
 }: Readonly<RulesListTabContentProps>) {
+  // Filtre de recherche + pagination — 100% côté client (les règles sont déjà toutes chargées),
+  // donc aucun appel API supplémentaire et aucun risque de régression sur les données.
+  const PAGE_SIZE = 8;
+  const [search, setSearch] = useState('');
+  const [actionFilter, setActionFilter] = useState<'ALL' | 'FAVORABLE' | 'DEFAVORABLE' | 'ETUDE'>('ALL');
+  const [page, setPage] = useState(0);
+
+  const actionCounts = useMemo(() => ({
+    FAVORABLE: rules.filter(r => r.action === 'FAVORABLE').length,
+    DEFAVORABLE: rules.filter(r => r.action === 'DEFAVORABLE').length,
+    ETUDE: rules.filter(r => r.action === 'ETUDE').length,
+  }), [rules]);
+
+  const filteredRules = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rules.filter(r => {
+      const matchAction = actionFilter === 'ALL' || r.action === actionFilter;
+      const matchText = !q
+        || r.nom.toLowerCase().includes(q)
+        || (r.description || '').toLowerCase().includes(q);
+      return matchAction && matchText;
+    });
+  }, [rules, search, actionFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRules.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedRules = filteredRules.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  // Revenir à la première page dès que le filtre/la recherche change
+  useEffect(() => { setPage(0); }, [search, actionFilter]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
       {/* Rules list */}
       <div className="flex flex-col gap-3">
+        {/* Barre de recherche + filtres par décision */}
+        {!loading && rules.length > 0 && (
+          <div className="card-aurora rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-3 pointer-events-none z-10" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher une règle (nom, description)…"
+                className="aurora-input w-full h-8 text-xs"
+                style={{ paddingLeft: '2.25rem' }}
+              />
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                ['ALL', `Toutes (${rules.length})`],
+                ['FAVORABLE', `Favorable (${actionCounts.FAVORABLE})`],
+                ['DEFAVORABLE', `Défavorable (${actionCounts.DEFAVORABLE})`],
+                ['ETUDE', `Étude (${actionCounts.ETUDE})`],
+              ] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setActionFilter(val)}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-semibold cursor-pointer transition-all border ${actionFilter === val ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'text-txt-3 hover:text-txt-1 border-transparent'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="space-y-3 animate-pulse">
             {['rule-skel-1', 'rule-skel-2', 'rule-skel-3', 'rule-skel-4'].map(key => <div key={key} className="h-20 bg-[var(--muted)] rounded-2xl" />)}
@@ -1325,8 +1388,17 @@ function RulesListTabContent({
               <button onClick={() => setShowCreate(true)} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">+ Créer</button>
             }
           />
+        ) : filteredRules.length === 0 ? (
+          <EmptyState
+            icon="ruler"
+            title="Aucun résultat"
+            subtitle="Aucune règle ne correspond à votre recherche"
+            action={
+              <button onClick={() => { setSearch(''); setActionFilter('ALL'); }} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">Réinitialiser</button>
+            }
+          />
         ) : (
-          rules.map((rule) => (
+          pagedRules.map((rule) => (
             <div
               key={rule.id}
               className={`card-aurora rounded-2xl p-4 transition-all hover:border-indigo-500/30 ${
@@ -1374,6 +1446,34 @@ function RulesListTabContent({
               </div>
             </div>
           ))
+        )}
+
+        {/* Pagination */}
+        {!loading && filteredRules.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-1 py-1">
+            <span className="text-[10px] font-mono text-txt-3">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredRules.length)} sur {filteredRules.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={safePage === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                aria-label="Page précédente"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-[10px] font-mono text-txt-3 min-w-[64px] text-center">Page {safePage + 1} / {pageCount}</span>
+              <button
+                disabled={safePage >= pageCount - 1}
+                onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-txt-3 hover:text-txt-1 hover:bg-[var(--overlay)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+                aria-label="Page suivante"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Test panel — Dynamic fields from API */}

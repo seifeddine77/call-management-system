@@ -21,9 +21,12 @@ const mapUserResponse = (user: User): User => ({
 
 export const userService = {
   getUsers: async (params?: { role?: string; agenceId?: string; page?: number; size?: number }): Promise<User[]> => {
-    const backendParams = params?.role && params.role !== 'ALL'
-      ? { ...params, role: toBackendRole(params.role) }
-      : params;
+    // La page Utilisateurs n'a pas de pagination : sans size, le backend renvoie 20 users sur 30+.
+    // On force une grande page pour tout afficher (le rôle reste filtrable).
+    const withSize = { size: 1000, ...params };
+    const backendParams = withSize.role && withSize.role !== 'ALL'
+      ? { ...withSize, role: toBackendRole(withSize.role) }
+      : withSize;
     const res = await api.get<User[] | { content: User[] }>('/api/users', { params: backendParams });
     const data = res.data;
     const users = Array.isArray(data) ? data : data.content;

@@ -131,6 +131,16 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getDailyTicketCounts(from, to));
     }
 
+    @GetMapping("/stats/by-period")
+    @Operation(summary = "Répartition par statut des tickets créés sur une plage",
+               description = "Ventilation par statut COURANT des tickets créés entre 'from' et 'to' (yyyy-MM-dd, incluses). "
+                       + "Consommée par l'analytics-service pour un KPI de statut cohérent avec le total de la période.")
+    public ResponseEntity<TicketStats> getStatsByPeriod(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ticketService.getTicketStatsCreatedBetween(from, to));
+    }
+
     @PostMapping("/{id}/audio")
     @Operation(summary = "Uploader un enregistrement audio pour transcription et analyse NLP")
     public ResponseEntity<TicketResponse> uploadAudio(

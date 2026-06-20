@@ -348,6 +348,25 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(readOnly = true)
+    public TicketStats getTicketStatsCreatedBetween(LocalDate from, LocalDate to) {
+        // Plage [from 00:00, to+1j 00:00[ → borne 'to' incluse sur toute la journée.
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end = to.plusDays(1).atStartOfDay();
+        long nouveau = ticketRepository.countByStatutAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Ticket.Statut.NOUVEAU, start, end);
+        long enCours = ticketRepository.countByStatutAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Ticket.Statut.EN_COURS, start, end);
+        long resolu = ticketRepository.countByStatutAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Ticket.Statut.RESOLU, start, end);
+        long ferme = ticketRepository.countByStatutAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Ticket.Statut.FERME, start, end);
+        return TicketStats.builder()
+                .nouveau(nouveau)
+                .enCours(enCours)
+                .resolu(resolu)
+                .ferme(ferme)
+                .total(nouveau + enCours + resolu + ferme)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<DailyTicketCount> getDailyTicketCounts(LocalDate from, LocalDate to) {
         // Borne haute exclusive : on inclut tout le jour `to`.
         LocalDateTime fromDt = from.atStartOfDay();
