@@ -15,9 +15,31 @@ public class RabbitMQConfig {
     public static final String DECISION_FINALIZED_QUEUE = "decision.finalized";
     public static final String DECISION_FINALIZED_ROUTING_KEY = "decision.finalized";
 
+    // RGPD — consommation de l'événement d'anonymisation émis par le ticket-service.
+    public static final String TICKET_EXCHANGE = "ticket.exchange";
+    public static final String TICKET_ANONYMIZED_ROUTING = "ticket.anonymized";
+    public static final String TICKET_ANONYMIZED_DECISION_QUEUE = "ticket.anonymized.decision";
+
     @Bean
     public TopicExchange decisionExchange() {
         return new TopicExchange(DECISION_EXCHANGE);
+    }
+
+    // Déclaration idempotente de l'exchange du ticket-service (même nom/type) pour pouvoir
+    // y lier notre queue de consommation, quel que soit l'ordre de démarrage des services.
+    @Bean
+    public TopicExchange ticketExchange() {
+        return new TopicExchange(TICKET_EXCHANGE);
+    }
+
+    @Bean
+    public Queue ticketAnonymizedDecisionQueue() {
+        return QueueBuilder.durable(TICKET_ANONYMIZED_DECISION_QUEUE).build();
+    }
+
+    @Bean
+    public Binding ticketAnonymizedDecisionBinding(Queue ticketAnonymizedDecisionQueue, TopicExchange ticketExchange) {
+        return BindingBuilder.bind(ticketAnonymizedDecisionQueue).to(ticketExchange).with(TICKET_ANONYMIZED_ROUTING);
     }
 
     @Bean

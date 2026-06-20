@@ -1010,8 +1010,10 @@ function useTicketDetailsState() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [anonymizing, setAnonymizing] = useState(false);
   const [decision, setDecision] = useState<DecisionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1104,6 +1106,26 @@ function useTicketDetailsState() {
   }, [id]);
 
   useEffect(() => { fetchTicket(); }, [fetchTicket]);
+
+  // ── RGPD — Anonymisation (droit à l'oubli), réservée à l'ADMIN ──
+  const handleAnonymize = async () => {
+    if (!id || !isAdmin) return;
+    const ok = window.confirm(
+      "Anonymiser ce ticket (RGPD) ?\n\nCette action est IRRÉVERSIBLE : les données personnelles du client, "
+      + "l'enregistrement audio, la transcription, la décision et les courriers seront définitivement effacés."
+    );
+    if (!ok) return;
+    setAnonymizing(true);
+    try {
+      const updated = await ticketService.anonymize(id);
+      setTicket(updated);
+      toast.success('Ticket anonymisé — effacement RGPD en cours sur tous les services');
+    } catch {
+      toast.error("Échec de l'anonymisation");
+    } finally {
+      setAnonymizing(false);
+    }
+  };
 
   // Resolve agence & opérateur names from UUIDs
   useEffect(() => {
@@ -1269,7 +1291,10 @@ function useTicketDetailsState() {
     handleAccept,
     handleReject,
     handleDownloadPDF,
-    handleChangeStatut
+    handleChangeStatut,
+    isAdmin,
+    anonymizing,
+    handleAnonymize
   };
 }
 
@@ -1307,7 +1332,10 @@ export default function TicketDetailPage() {
     handleAccept,
     handleReject,
     handleDownloadPDF,
-    handleChangeStatut
+    handleChangeStatut,
+    isAdmin,
+    anonymizing,
+    handleAnonymize
   } = useTicketDetailsState();
 
   useEffect(() => {
@@ -1420,6 +1448,17 @@ export default function TicketDetailPage() {
 
         {/* Dynamic header badge indicators */}
         <div className="flex items-center gap-2">
+          {isAdmin && ticket.clientNom !== '***ANONYMISÉ***' && (
+            <button
+              type="button"
+              onClick={handleAnonymize}
+              disabled={anonymizing}
+              title="Anonymiser ce ticket (RGPD — droit à l'oubli)"
+              className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 px-2.5 py-1 rounded-full cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ShieldAlert size={12} /> {anonymizing ? 'Anonymisation…' : 'Anonymiser (RGPD)'}
+            </button>
+          )}
           {ticket.priorite === 1 && (
             <span className="flex items-center gap-1 text-[10px] font-mono font-extrabold uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.1)]">
               🔥 Urgent

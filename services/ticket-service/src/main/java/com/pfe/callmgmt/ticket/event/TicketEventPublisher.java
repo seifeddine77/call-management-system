@@ -33,4 +33,10 @@ public class TicketEventPublisher {
                 event.getNumero(), event.getOldStatut(), event.getNewStatut());
         rabbitTemplate.convertAndSend(TICKET_EXCHANGE, "ticket.status-changed", event);
     }
+
+    /** RGPD — déclenche l'effacement durable et garanti des données liées au ticket. */
+    public void publishTicketAnonymized(TicketAnonymizedEvent event) {
+        log.info("Publishing TicketAnonymizedEvent for ticket: {}", event.getTicketId());
+        rabbitTemplate.convertAndSend(TICKET_EXCHANGE, "ticket.anonymized", event);
+    }
 }

@@ -410,6 +410,9 @@ public class TicketController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // Anonymisation locale + publication de l'événement TicketAnonymized (dans le service).
+        // L'effacement inter-services (IA audio/transcription + décision/courriers) est déclenché
+        // par cet événement durable RabbitMQ → livraison GARANTIE avec rejeu si un service est down.
         return ResponseEntity.ok(ticketService.anonymizeTicket(id, adminId, adminName));
     }
 

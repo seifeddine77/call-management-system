@@ -65,6 +65,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   bool _analyzing = false;
   bool _changingStatus = false;
   bool _downloading = false;
+  bool _anonymizing = false;
   String? _error;
 
   // Audio Player Simulated States
@@ -399,6 +400,48 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     }
   }
 
+  // RGPD — Anonymisation (droit à l'oubli), réservée à l'ADMIN.
+  Future<void> _anonymize() async {
+    final c = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Anonymiser ce ticket (RGPD) ?'),
+        content: const Text(
+          "Action IRRÉVERSIBLE : les données personnelles du client, l'enregistrement audio, "
+          "la transcription, la décision et les courriers seront définitivement effacés.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Anonymiser', style: TextStyle(color: c.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _anonymizing = true);
+    try {
+      final updated = await _ticketService.anonymize(widget.ticketId);
+      if (mounted) {
+        setState(() => _ticket = updated);
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Ticket anonymisé — effacement RGPD en cours'), backgroundColor: c.success),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text("Échec de l'anonymisation"), backgroundColor: c.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _anonymizing = false);
+    }
+  }
+
   Future<void> _changeStatus(String newStatus) async {
     final c = context.colors;
     setState(() => _changingStatus = true);
@@ -640,6 +683,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => AuditScreen(ticketId: _ticket!.id)),
               ),
+            ),
+          if (_ticket != null && auth.isAdmin && _ticket!.clientNom != '***ANONYMISÉ***')
+            IconButton(
+              icon: _anonymizing
+                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: c.danger))
+                  : Icon(Icons.person_off, size: 18, color: c.danger),
+              tooltip: 'Anonymiser (RGPD)',
+              onPressed: _anonymizing ? null : _anonymize,
             ),
           if (_ticket != null)
             IconButton(icon: const Icon(Icons.refresh, size: 18), onPressed: _fetch),

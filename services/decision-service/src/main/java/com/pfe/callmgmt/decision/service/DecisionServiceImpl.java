@@ -8,7 +8,9 @@ import com.pfe.callmgmt.decision.config.RabbitMQConfig;
 import com.pfe.callmgmt.decision.dto.*;
 import com.pfe.callmgmt.decision.entity.Decision;
 import com.pfe.callmgmt.decision.event.DecisionFinalizedEvent;
+import com.pfe.callmgmt.decision.entity.Letter;
 import com.pfe.callmgmt.decision.repository.DecisionRepository;
+import com.pfe.callmgmt.decision.repository.LetterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -50,6 +52,7 @@ public class DecisionServiceImpl {
     private final RestTemplate llmRestTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final LetterGenerationService letterService;
+    private final LetterRepository letterRepository;
 
     @Value("${letters.storage-path:/tmp/letters}")
     private String storagePath;
@@ -302,10 +305,34 @@ public class DecisionServiceImpl {
     @Transactional
     public void deleteByTicketId(UUID ticketId) {
         decisionRepository.findByTicketId(ticketId).ifPresent(decision -> {
+            // RGPD — supprimer aussi les courriers (lignes + fichiers générés sur disque)
+            // avant la décision, pour un effacement complet des données personnelles.
+            List<Letter> letters = letterRepository.findByDecisionId(decision.getId());
+            for (Letter letter : letters) {
+                deleteLetterFileQuietly(letter.getFilePath());
+            }
+            if (!letters.isEmpty()) {
+                letterRepository.deleteAll(letters);
+                log.info("🗑️ RGPD: {} courrier(s) supprimé(s) pour la décision {}", letters.size(), decision.getId());
+            }
             decisionRepository.delete(decision);
-            log.info("🗑️ Décision {} supprimée pour ticket {} — ré-analyse possible",
-                    decision.getId(), ticketId);
+            log.info("🗑️ Décision {} supprimée pour ticket {}", decision.getId(), ticketId);
         });
+    }
+
+    /** Supprime le fichier d'un courrier sur disque, sans faire échouer l'effacement si absent. */
+    private void deleteLetterFileQuietly(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+        try {
+            boolean removed = java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(filePath));
+            if (removed) {
+                log.info("🗑️ RGPD: fichier courrier supprimé — {}", filePath);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ RGPD: suppression fichier courrier échouée ({}) — {}", filePath, e.getMessage());
+        }
     }
 
     public Optional<Decision> findById(UUID decisionId) {

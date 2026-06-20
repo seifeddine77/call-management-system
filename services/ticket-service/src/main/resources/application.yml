@@ -41,6 +41,18 @@
     # au lieu d'être silencieux. Asynchrone : ne bloque pas convertAndSend.
     publisher-confirm-type: correlated
     publisher-returns: true
+    listener:
+      simple:
+        # RGPD — effacement événementiel : rejeu borné avec backoff exponentiel si un
+        # consommateur échoue (ex. ai-service momentanément down), puis abandon après
+        # max-attempts pour éviter la boucle de message empoisonné.
+        retry:
+          enabled: true
+          max-attempts: 5
+          initial-interval: 2000
+          multiplier: 2
+          max-interval: 30000
+        default-requeue-rejected: false
 
 server:
   port: ${SERVER_PORT:8083}

@@ -65,6 +65,13 @@ class TicketService {
     return Ticket.fromJson(res.data);
   }
 
+  /// RGPD — Anonymise un ticket (droit à l'oubli, ADMIN uniquement).
+  /// Déclenche l'effacement durable des données personnelles sur tous les services.
+  Future<Ticket> anonymize(String ticketId) async {
+    final res = await _api.dio.post('${ApiConfig.ticketsPath}/$ticketId/anonymize');
+    return Ticket.fromJson(res.data);
+  }
+
   Future<Ticket> uploadPhotos(String ticketId, List<dynamic> files) async {
     final formData = FormData();
     for (final file in files) {

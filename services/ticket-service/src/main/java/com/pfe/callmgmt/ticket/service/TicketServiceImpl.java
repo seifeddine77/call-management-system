@@ -3,6 +3,7 @@ package com.pfe.callmgmt.ticket.service;
 import com.pfe.callmgmt.ticket.dto.*;
 import com.pfe.callmgmt.ticket.entity.Ticket;
 import com.pfe.callmgmt.ticket.entity.TicketAction;
+import com.pfe.callmgmt.ticket.event.TicketAnonymizedEvent;
 import com.pfe.callmgmt.ticket.event.TicketCreatedEvent;
 import com.pfe.callmgmt.ticket.event.TicketEventPublisher;
 import com.pfe.callmgmt.ticket.event.TicketResolvedEvent;
@@ -313,6 +314,13 @@ public class TicketServiceImpl implements TicketService {
 
         logAction(ticket, adminId, adminName, "ANONYMISE",
                 "Client: " + oldNom, "***ANONYMISÉ***", "Anonymisation RGPD — droit à l'oubli");
+
+        // Effacement inter-services GARANTI via événement durable (RabbitMQ) :
+        // ai-service (audio + transcription) et decision-service (décision + courriers)
+        // consomment l'événement, avec rejeu automatique si l'un est indisponible.
+        if (eventPublisher != null) {
+            eventPublisher.publishTicketAnonymized(new TicketAnonymizedEvent(ticket.getId()));
+        }
 
         return ticketMapper.toResponse(ticket);
     }

@@ -51,6 +51,8 @@ class DecisionServiceImplTest {
         @Mock
         private LetterGenerationService letterService;
         @Mock
+        private com.pfe.callmgmt.decision.repository.LetterRepository letterRepository;
+        @Mock
         private CircuitBreakerRegistry circuitBreakerRegistry;
         @Mock
         private CircuitBreaker circuitBreaker;

@@ -19,10 +19,34 @@ public class RabbitMQConfig {
     public static final String TICKET_CREATED_QUEUE = "ticket.created";
     public static final String TICKET_RESOLVED_QUEUE = "ticket.resolved";
     public static final String TICKET_STATUS_CHANGED_QUEUE = "ticket.status-changed";
+    // RGPD — droit à l'oubli : un routage commun, une queue durable par consommateur.
+    public static final String TICKET_ANONYMIZED_ROUTING = "ticket.anonymized";
+    public static final String TICKET_ANONYMIZED_AI_QUEUE = "ticket.anonymized.ai";
+    public static final String TICKET_ANONYMIZED_DECISION_QUEUE = "ticket.anonymized.decision";
 
     @Bean
     public TopicExchange ticketExchange() {
         return new TopicExchange(TICKET_EXCHANGE);
+    }
+
+    @Bean
+    public Queue ticketAnonymizedAiQueue() {
+        return QueueBuilder.durable(TICKET_ANONYMIZED_AI_QUEUE).build();
+    }
+
+    @Bean
+    public Queue ticketAnonymizedDecisionQueue() {
+        return QueueBuilder.durable(TICKET_ANONYMIZED_DECISION_QUEUE).build();
+    }
+
+    @Bean
+    public Binding ticketAnonymizedAiBinding(Queue ticketAnonymizedAiQueue, TopicExchange ticketExchange) {
+        return BindingBuilder.bind(ticketAnonymizedAiQueue).to(ticketExchange).with(TICKET_ANONYMIZED_ROUTING);
+    }
+
+    @Bean
+    public Binding ticketAnonymizedDecisionBinding(Queue ticketAnonymizedDecisionQueue, TopicExchange ticketExchange) {
+        return BindingBuilder.bind(ticketAnonymizedDecisionQueue).to(ticketExchange).with(TICKET_ANONYMIZED_ROUTING);
     }
 
     @Bean

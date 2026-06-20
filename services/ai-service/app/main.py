@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from py_eureka_client import eureka_client
 
 from app.core.database import Base, engine
-from app.routers import analysis, audio_stream, chat, streaming, transcription
+from app.routers import analysis, audio_stream, chat, rgpd, streaming, transcription
 from app.rag import rag_service
 from app.core.config import settings
 from app.core.logging_utils import sanitize_log
@@ -108,6 +108,7 @@ app.include_router(analysis.router)
 app.include_router(streaming.router)
 app.include_router(chat.router)
 app.include_router(audio_stream.router)
+app.include_router(rgpd.router)
 
 # Instrument for Prometheus metrics
 from prometheus_fastapi_instrumentator import Instrumentator
