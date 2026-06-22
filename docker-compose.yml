@@ -24,6 +24,21 @@ services:
       - callmgmt-net
     restart: unless-stopped
 
+  # Adminer — interface web légère pour explorer les bases PostgreSQL (démo / dev).
+  # Accès : http://localhost:8091  (Système: PostgreSQL · Serveur: postgres · Utilisateur/Mot de passe: cf .env)
+  adminer:
+    image: adminer:latest
+    container_name: callmgmt-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8091:8080"
+    depends_on:
+      - postgres
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: callmgmt-redis
