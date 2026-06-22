@@ -39,6 +39,28 @@ services:
       - callmgmt-net
     restart: unless-stopped
 
+  # pgAdmin — interface graphique riche pour PostgreSQL (démo / dev).
+  # Accès : http://localhost:8092  — serveur "AutoAssist PostgreSQL" déjà pré-enregistré ;
+  # au 1er clic, saisir le mot de passe DB (cf .env POSTGRES_PASSWORD).
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: callmgmt-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@autoassist.tn
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "8092:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./infrastructure/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      - postgres
+    networks:
+      - callmgmt-net
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: callmgmt-redis
@@ -501,6 +523,7 @@ volumes:
   n8n_data:
   whatsapp_session:
   letters_data:
+  pgadmin_data:
   # ollama_data: # Supprimé — Docker Model Runner gère son propre stockage
 
 

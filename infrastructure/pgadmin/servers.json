@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "AutoAssist PostgreSQL",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "callmgmt",
+      "SSLMode": "prefer",
+      "Comment": "Toutes les bases du système (database-per-service) : auth_db, users_db, tickets_db, rules_db, decisions_db, notif_db, analytics_db, ai_db, n8n_db."
+    }
+  }
+}
