@@ -63,8 +63,9 @@
   --border-visible: rgba(255,255,255,0.13);
   --text: #F0F2F5;
   --text-2: #8B92A5;
-  --text-3: #4A5168;
-  --text-3: #4A5168;
+  /* Texte tertiaire (libellés, placeholders) — éclairci pour atteindre le contraste WCAG AA
+     sur le fond très sombre (#4A5168 était trop sombre / peu lisible). */
+  --text-3: #7E8699;
   --gradient-title: linear-gradient(to right, #ffffff, #e2e8f0, #94a3b8);
   /* (Linear-inspired) Inner glow + thin border on cards */
   --card-shadow: inset 0 1px 0 rgba(255,255,255,0.025), 0 0 0 1px var(--border);
@@ -85,7 +86,9 @@
   --border-visible: #D1D5DC;
   --text: #111318;
   --text-2: #4A5168;
-  --text-3: #9CA3AF;
+  /* Texte tertiaire (libellés, placeholders) — assombri pour atteindre le contraste WCAG AA
+     sur fond blanc (#9CA3AF ≈ 2.6:1 était illisible ; #667085 ≈ 4.6:1). */
+  --text-3: #667085;
   --gradient-title: linear-gradient(to right, #111318, #475569, #94a3b8);
   --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02), 0 0 0 1px var(--border-subtle);
   --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03), 0 0 0 1px var(--border);
@@ -405,7 +408,9 @@ a { color: inherit; text-decoration: none; }
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-3);
+  /* Un libellé de champ doit être nettement lisible (plus que les placeholders) :
+     on utilise le texte secondaire (contraste fort) et non tertiaire. */
+  color: var(--text-2);
   margin-bottom: 6px;
 }
 
