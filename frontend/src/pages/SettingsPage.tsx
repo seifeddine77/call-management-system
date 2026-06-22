@@ -376,7 +376,7 @@ export default function SettingsPage() {
                   >
                     <div className="flex justify-center mb-2"><Sun size={26} className="text-amber-500 animate-spin animate-duration-10000" /></div>
                     <div className="text-xs font-bold text-gray-800 tracking-wide">Mode jour (Clair)</div>
-                    <span className="font-mono text-[8px] text-gray-400 block mt-1">Luminosité standard</span>
+                    <span className="font-mono text-[8px] text-gray-500 block mt-1">Luminosité standard</span>
                   </motion.div>
                   
                   <motion.div 
