@@ -19,6 +19,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * API REST d'analytique (analytics-service) — alimente le dashboard superviseur.
+ *
+ * <p>Expose KPIs, comparaisons de périodes, répartitions (canal/décision) et export.
+ * Réservé SUPERVISOR/ADMIN au niveau gateway. Pour garantir la cohérence des statuts, les KPIs
+ * de statut sont recalculés à la demande auprès du ticket-service (source de vérité) plutôt que
+ * sommés depuis les instantanés {@code daily_stats}, avec repli résilient si le service est indisponible.</p>
+ */
 @RestController
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor

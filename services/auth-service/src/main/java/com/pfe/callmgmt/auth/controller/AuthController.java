@@ -10,6 +10,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * API REST d'authentification (auth-service) — point d'entrée public (hors gateway RoleFilter).
+ *
+ * <p>Expose login / register / refresh. Émet un couple JWT (access 15 min, refresh 7 j) dont le
+ * {@code subject} porte l'identifiant utilisateur ; ce token est ensuite validé par la gateway
+ * qui en extrait l'identité injectée dans les en-têtes {@code X-User-*} des services aval.</p>
+ */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

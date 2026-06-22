@@ -3,7 +3,10 @@
 .idea/
 .flutter-plugins
 .flutter-plugins-dependencies
-build/
+# Exclure les builds mobiles mais garder build/web
+build/app/
+build/ios/
+build/android/
 .packages
 .pub-cache/
 .pub/

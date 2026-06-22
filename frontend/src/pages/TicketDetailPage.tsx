@@ -1,3 +1,9 @@
+/**
+ * Détail d'un ticket — pilote du formulaire d'analyse, du scoring IA, de la conformité RGPD,
+ * des preuves visuelles et de la timeline. Source unique de l'appel `/decision/analyze`.
+ * Le scoring est alimenté par `transcription ?? description` pour rester cohérent entre les canaux
+ * CALL (audio transcrit) et EMAIL/WEB (texte). Sources : ticketService + decisionService.
+ */
 import { useState, useEffect, useCallback, useRef, useMemo, type ChangeEvent } from 'react';
 import { safeRandom } from '../utils/cryptoRandom';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -67,6 +73,21 @@ function resolveDecisionEmoji(decision: string): string {
   if (decision === 'FAVORABLE') return '🟢';
   if (decision === 'DEFAVORABLE') return '🔴';
   return '🟡';
+}
+
+/**
+ * Affichage du consentement RGPD audio.
+ * Le consentement d'enregistrement ne concerne que le canal CALL ; pour EMAIL/WEB
+ * il n'y a aucun audio → état neutre « Sans objet » (et non un refus).
+ */
+function getRgpdAudioDisplay(ticket: { canal?: string; consentementEnregistrement?: boolean }) {
+  if (ticket.canal !== 'CALL') {
+    return { badge: '— Sans objet', className: 'text-txt-3', long: 'Sans objet (aucun enregistrement)' };
+  }
+  if (ticket.consentementEnregistrement) {
+    return { badge: '✓ Accordé', className: 'text-emerald-400', long: 'Accord Explicite (RGPD)' };
+  }
+  return { badge: '✕ Refusé', className: 'text-rose-400', long: 'Refus d\'archivage' };
 }
 
 function readFileAsDataURL(file: File): Promise<string> {
@@ -811,8 +832,8 @@ function DossierClientPanel({
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
               <span className="font-mono text-[8px] text-txt-3 uppercase">RGPD Audio</span>
-              <span className={`text-[10px] font-bold ${ticket.consentementEnregistrement ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {ticket.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé'}
+              <span className={`text-[10px] font-bold ${getRgpdAudioDisplay(ticket).className}`}>
+                {getRgpdAudioDisplay(ticket).badge}
               </span>
             </div>
             <div className="p-2 bg-[var(--elevated)] rounded-xl border border-border flex flex-col gap-0.5">
@@ -1164,7 +1185,9 @@ function useTicketDetailsState() {
         try { await decisionService.deleteByTicket(id); } catch { /* ignore */ }
         setDecision(null);
       }
-      const payload = buildAnalyzePayload(formData, fieldRefs, id, pieceReference, ticket?.transcription);
+      // Texte de la réclamation pour l'analyse de mots-clés du score : transcription (CALL)
+      // OU description (EMAIL/WEB) → scoring cohérent sur les 3 canaux.
+      const payload = buildAnalyzePayload(formData, fieldRefs, id, pieceReference, ticket?.transcription || ticket?.description);
       const result = await decisionService.analyze(payload);
       setDecision(result);
       const emoji = resolveDecisionEmoji(result.decision);
@@ -2072,7 +2095,7 @@ export default function TicketDetailPage() {
                 { label: 'Date d\'ouverture', value: new Date(ticket.createdAt.endsWith('Z') ? ticket.createdAt : ticket.createdAt + 'Z').toLocaleString('fr-FR') },
                 { label: 'Dernière mise à jour', value: new Date(ticket.updatedAt.endsWith('Z') ? ticket.updatedAt : ticket.updatedAt + 'Z').toLocaleString('fr-FR') },
                 { label: 'Canal d\'ingestion', value: ticket.canal },
-                { label: 'Accord d\'écoute', value: ticket.consentementEnregistrement ? 'Accord Explicite (RGPD)' : 'Refus d\'archivage' }
+                { label: 'Accord d\'écoute', value: getRgpdAudioDisplay(ticket).long }
               ].map((info) => (
                 <div key={info.label} className="flex flex-col gap-1 border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
                   <span className="font-mono text-[8px] text-txt-3 uppercase tracking-wide">{info.label}</span>

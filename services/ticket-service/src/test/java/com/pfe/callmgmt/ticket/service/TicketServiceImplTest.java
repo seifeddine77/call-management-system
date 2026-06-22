@@ -468,4 +468,75 @@ class TicketServiceImplTest {
                     LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30))).isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("detectPriority — détection unifiée de priorité (multi-canal)")
+    class DetectPriority {
+
+        @Test
+        @DisplayName("Urgence explicite ou sinistre grave → P1")
+        void severe_returnsP1() {
+            assertThat(TicketServiceImpl.detectPriority("URGENT : panne sur autoroute")).isEqualTo((short) 1);
+            assertThat(TicketServiceImpl.detectPriority("Situation critique, intervention requise")).isEqualTo((short) 1);
+            assertThat(TicketServiceImpl.detectPriority("J'ai eu un accident ce matin")).isEqualTo((short) 1);
+            assertThat(TicketServiceImpl.detectPriority("Début d'incendie moteur")).isEqualTo((short) 1);
+            assertThat(TicketServiceImpl.detectPriority("Véhicule immobilisé, conducteur blessé")).isEqualTo((short) 1);
+        }
+
+        @Test
+        @DisplayName("Panne / besoin rapide → P2")
+        void rapid_returnsP2() {
+            assertThat(TicketServiceImpl.detectPriority("Panne d'alternateur")).isEqualTo((short) 2);
+            assertThat(TicketServiceImpl.detectPriority("Message important, merci de traiter rapidement")).isEqualTo((short) 2);
+            assertThat(TicketServiceImpl.detectPriority("Besoin d'un remorquage")).isEqualTo((short) 2);
+        }
+
+        @Test
+        @DisplayName("Aucun mot-clé / texte vide → P3 (normale)")
+        void normal_returnsP3() {
+            assertThat(TicketServiceImpl.detectPriority("Bonjour, je souhaite un devis")).isEqualTo((short) 3);
+            assertThat(TicketServiceImpl.detectPriority("")).isEqualTo((short) 3);
+            assertThat(TicketServiceImpl.detectPriority(null)).isEqualTo((short) 3);
+        }
+
+        @Test
+        @DisplayName("L'urgence explicite prime sur la panne (P1 > P2)")
+        void urgentOverridesPanne() {
+            assertThat(TicketServiceImpl.detectPriority("Panne URGENTE moteur")).isEqualTo((short) 1);
+        }
+    }
+
+    @Nested
+    @DisplayName("updateAudioTranscription — ré-évaluation de priorité (CALL)")
+    class UpdateAudioTranscriptionPriority {
+
+        @Test
+        @DisplayName("Transcription urgente fait monter un ticket P3 → P1")
+        void transcriptionUpgradesPriority() {
+            Ticket ticket = createSampleTicket(Ticket.Statut.NOUVEAU); // priorité 3
+            when(ticketRepository.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
+            when(ticketRepository.save(any(Ticket.class))).thenReturn(ticket);
+            when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
+
+            ticketService.updateAudioTranscription(TICKET_ID, "/audio/x.enc",
+                    "J'ai un problème de boîte de vitesse, c'est urgent", "[\"urgent\"]");
+
+            assertThat(ticket.getPriorite()).isEqualTo((short) 1);
+        }
+
+        @Test
+        @DisplayName("Transcription sans urgence ne dégrade pas une priorité déjà élevée")
+        void transcriptionDoesNotDowngrade() {
+            Ticket ticket = createSampleTicket(Ticket.Statut.NOUVEAU);
+            ticket.setPriorite((short) 1); // déjà urgente (saisie explicite)
+            when(ticketRepository.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
+            when(ticketRepository.save(any(Ticket.class))).thenReturn(ticket);
+            when(actionRepository.save(any(TicketAction.class))).thenReturn(new TicketAction());
+
+            ticketService.updateAudioTranscription(TICKET_ID, "/audio/x.enc",
+                    "Bonjour, je voudrais un devis pour un rétroviseur", "[]");
+
+            assertThat(ticket.getPriorite()).isEqualTo((short) 1);
+        }
+    }
 }

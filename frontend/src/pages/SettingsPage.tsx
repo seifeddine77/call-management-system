@@ -1,3 +1,8 @@
+/**
+ * Paramètres — compte personnel en self-service, accessible à TOUS les rôles.
+ * Modifie son propre profil et son mot de passe via les endpoints `/api/users/me` (non gatés par rôle).
+ * L'email est en lecture seule (identifiant de connexion). Source : userService (getMyProfile, etc.).
+ */
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -7,7 +12,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
-import { agenceService } from '../services/agenceService';
 
 // ── Notification items defined outside component (no hooks inside map) ──
 const NOTIFICATION_ITEMS = [
@@ -50,38 +54,29 @@ export default function SettingsPage() {
     });
   };
 
-  // Load user profile details on mount
+  // Load own profile via /me (self-service, accessible à tous les rôles y compris OPERATOR).
+  // Le profil renvoie agenceName → plus besoin de l'appel getAgenceById (gaté SUP/ADMIN).
   useEffect(() => {
-    if (user?.userId) {
-      userService.getUserById(user.userId)
-        .then(fullUser => {
-          setProfile({
-            prenom: fullUser.prenom || '',
-            nom: fullUser.nom || '',
-            email: fullUser.email || '',
-            telephone: fullUser.telephone || '',
-          });
-        })
-        .catch(() => {
-          // Profile details failed to load — fallback to session data already in context
+    userService.getMyProfile()
+      .then(fullUser => {
+        setProfile({
+          prenom: fullUser.prenom || '',
+          nom: fullUser.nom || '',
+          email: fullUser.email || '',
+          telephone: fullUser.telephone || '',
         });
-    }
+        setMyAgenceName(fullUser.agenceName || '—');
+      })
+      .catch(() => {
+        // Profile details failed to load — fallback to session data already in context
+      });
   }, [user?.userId]);
-
-  // resolve agence name
-  useEffect(() => {
-    if (user?.agenceId) {
-      agenceService.getAgenceById(user.agenceId)
-        .then(a => setMyAgenceName(a.nom))
-        .catch(() => setMyAgenceName(user.agenceId || '—'));
-    }
-  }, [user?.agenceId]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
       if (!user?.userId) throw new Error('Non authentifié');
-      await userService.updateUser(user.userId, {
+      await userService.updateMyProfile({
         prenom: profile.prenom,
         nom: profile.nom,
         email: profile.email,
@@ -118,7 +113,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       if (!user?.userId) throw new Error('Non authentifié');
-      await userService.changePassword(user.userId, {
+      await userService.changeMyPassword({
         oldPassword: passwords.current,
         newPassword: passwords.newPassword,
       });
@@ -213,8 +208,8 @@ export default function SettingsPage() {
                     <input id="settings-nom" className="aurora-input" value={profile.nom} onChange={e => setProfile(p => ({ ...p, nom: e.target.value }))} />
                   </div>
                   <div>
-                    <label htmlFor="settings-email" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Adresse Email de Secours</label>
-                    <input id="settings-email" className="aurora-input" type="email" value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} />
+                    <label htmlFor="settings-email" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Email (identifiant — non modifiable)</label>
+                    <input id="settings-email" className="aurora-input opacity-60 cursor-not-allowed" type="email" value={profile.email} readOnly title="L'email sert d'identifiant de connexion et n'est pas modifiable ici." />
                   </div>
                   <div>
                     <label htmlFor="settings-tel" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1.5 text-txt-3">Téléphone Direct</label>

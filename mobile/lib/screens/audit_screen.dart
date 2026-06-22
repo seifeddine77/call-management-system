@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -457,13 +455,12 @@ class _AuditScreenState extends State<AuditScreen> {
 
       final bytes = await doc.save();
 
-      // Save to temp and share
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/audit_${t.numero}_${DateTime.now().toIso8601String().substring(0, 10)}.pdf');
-      await file.writeAsBytes(bytes);
-
+      // Printing.sharePdf accepte directement les octets : fonctionne sur Web
+      // (téléchargement navigateur) ET en natif (feuille de partage), sans passer
+      // par un fichier temporaire — getTemporaryDirectory()/dart:io n'existent pas sur Web.
+      final filename = 'audit_${t.numero}_${DateTime.now().toIso8601String().substring(0, 10)}.pdf';
       if (mounted) {
-        await Printing.sharePdf(bytes: bytes, filename: file.uri.pathSegments.last);
+        await Printing.sharePdf(bytes: bytes, filename: filename);
       }
     } catch (e) {
       if (mounted) {

@@ -1,3 +1,8 @@
+/**
+ * Analytique — dashboard décisionnel superviseur (SUPERVISOR / ADMIN).
+ * KPIs, tendances, répartitions canal / décision, sentiment vocal et feedbacks chatbot WhatsApp.
+ * Sources : analyticsService + chatbotService (/api/chat/stats).
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Calendar, Download, Shield, BarChart3, CheckCircle2, Clock, Bot, Target, PlusCircle, RotateCw, FolderClosed, PhoneCall, Mail, Globe, AlertCircle, AlertTriangle, CircleCheck, ThumbsUp, ThumbsDown } from 'lucide-react';

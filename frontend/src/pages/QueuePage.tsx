@@ -1,3 +1,7 @@
+/**
+ * File d'attente — tickets NOUVEAU non assignés, triés par stratégie (FIFO ou priorité + SLA).
+ * Permet à l'opérateur de prendre en charge le prochain dossier. Source : ticketService (queue).
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 

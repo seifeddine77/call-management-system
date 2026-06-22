@@ -21,6 +21,16 @@ spring:
             - Path=/api/agences
             - Method=GET
 
+        # User self-service (/me) — TOUT rôle authentifié (profil + mot de passe propres).
+        # Doit précéder la route /api/users/** gatée (1re correspondance gagne).
+        # JwtAuthFilter seul → pas de RoleFilter ; l'identité (X-User-Id) borne l'action à soi-même.
+        - id: user-self-service
+          uri: lb://organisation-service
+          predicates:
+            - Path=/api/users/me,/api/users/me/**
+          filters:
+            - JwtAuthFilter
+
         # User Service — SUPERVISOR + ADMIN only
         - id: organisation-service
           uri: lb://organisation-service

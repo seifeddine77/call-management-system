@@ -23,6 +23,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<DailyStat> _daily = [];
   List<OperatorPerformance> _operators = [];
   List<SupervisionAlert> _alerts = [];
+  ChatbotStats? _chatbotStats;
+  bool _chatbotError = false; // true si /chat/stats a échoué (réseau/CORS) — distinct de "0 feedback"
   bool _loading = true;
   String? _error;
   String _period = 'month';
@@ -40,13 +42,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _fetch() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _chatbotError = false; });
     try {
       final results = await Future.wait([
         _service.getComparison(period: _period),
         _service.getDailyStats(period: _period),
         _service.getOperatorPerformance(period: _period).catchError((_) => <OperatorPerformance>[]),
         _service.getSupervisionAlerts().catchError((_) => <SupervisionAlert>[]),
+        _service.getChatbotStats().catchError((err) {
+          debugPrint('❌ Error fetching chatbot stats: $err');
+          _chatbotError = true; // distingue l'échec d'appel d'un vrai "0 feedback"
+          return ChatbotStats(
+            totalFeedback: 0,
+            positive: 0,
+            negative: 0,
+            satisfactionRate: '0%',
+            dbPersisted: 0,
+            recentFeedback: [],
+          );
+        }),
       ]);
       setState(() {
         _comparison = results[0] as KpiComparison;
@@ -54,6 +68,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _daily = results[1] as List<DailyStat>;
         _operators = List<OperatorPerformance>.from(results[2] as List);
         _alerts = List<SupervisionAlert>.from(results[3] as List);
+        _chatbotStats = results[4] as ChatbotStats;
         _loading = false;
       });
     } catch (e) {
@@ -81,13 +96,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Analytique', style: GoogleFonts.inter(
-                  fontSize: 20, fontWeight: FontWeight.w800, color: c.text,
-                )),
-                const SizedBox(height: 2),
-                Text('📅 ${_periodLabels[_period] ?? _period}',
-                    style: GoogleFonts.inter(fontSize: 11, color: c.text3)),
+              Row(children: [
+                // Bouton retour : indispensable sur Flutter Web (pas de geste de retour natif).
+                if (Navigator.canPop(context)) ...[
+                  IconButton(
+                    icon: Icon(Icons.arrow_back, size: 20, color: c.text),
+                    onPressed: () => Navigator.maybePop(context),
+                    tooltip: 'Retour',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Analytique', style: GoogleFonts.inter(
+                    fontSize: 20, fontWeight: FontWeight.w800, color: c.text,
+                  )),
+                  const SizedBox(height: 2),
+                  Text('📅 ${_periodLabels[_period] ?? _period}',
+                      style: GoogleFonts.inter(fontSize: 11, color: c.text3)),
+                ]),
               ]),
               Row(children: [
                 ..._buildPeriodChips(c),
@@ -129,6 +157,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
             // ═══ 4b. Sentiment Thermometer ═══
             _buildSentimentThermometer(c),
+            const SizedBox(height: 16),
+
+            // ═══ 4c. Chatbot WhatsApp Feedbacks ═══
+            _buildChatbotFeedbackSection(c),
             const SizedBox(height: 16),
 
             // ═══ 5. Canal Breakdown ═══
@@ -825,6 +857,180 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           fontSize: 7, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 0.5,
         )),
       ],
+    );
+  }
+
+  Widget _buildChatbotFeedbackSection(AppColorScheme c) {
+    final stats = _chatbotStats;
+    if (stats == null || stats.totalFeedback == 0) {
+      return _card(
+        c,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('CHATBOT WHATSAPP (FEEDBACKS)', style: GoogleFonts.inter(
+              fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
+            )),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                _chatbotError
+                    ? 'Évaluations momentanément indisponibles. Réessayez.'
+                    : 'Aucune évaluation enregistrée pour le moment.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: _chatbotError ? c.danger : c.text3),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _card(
+      c,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('CHATBOT WHATSAPP (FEEDBACKS)', style: GoogleFonts.inter(
+                fontSize: 10, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 1,
+              )),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+                ),
+                child: Text('😊 ${stats.satisfactionRate} Satisfait', style: GoogleFonts.inter(
+                  fontSize: 8, fontWeight: FontWeight.w700, color: const Color(0xFF10B981),
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 2x2 Grid of chatbot stats
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.2,
+            children: [
+              _buildSmallStatCard('Total Évaluations', '${stats.totalFeedback}', Icons.forum_outlined, c.text3, c),
+              _buildSmallStatCard('Retours Positifs 👍', '${stats.positive}', Icons.thumb_up_outlined, const Color(0xFF10B981), c),
+              _buildSmallStatCard('Retours Négatifs 👎', '${stats.negative}', Icons.thumb_down_outlined, c.danger, c),
+              _buildSmallStatCard('Persistés en Base', '${stats.dbPersisted}', Icons.shield_outlined, c.primary, c),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          Text('DERNIERS RETOURS REÇUS', style: GoogleFonts.inter(
+            fontSize: 9, fontWeight: FontWeight.w700, color: c.text3, letterSpacing: 0.5,
+          )),
+          const SizedBox(height: 8),
+
+          // List of recent feedbacks
+          ...stats.recentFeedback.take(5).map((fb) {
+            final agencyName = fb.groupName.replaceAll('@g.us', '').split('@')[0];
+            final isPos = fb.rating == 'positive';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: c.background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: c.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        agencyName.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 9, fontWeight: FontWeight.w800, color: c.primary,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isPos ? const Color(0xFF10B981).withOpacity(0.1) : c.danger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isPos ? '👍 POSITIF' : '👎 NÉGATIF',
+                          style: GoogleFonts.inter(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                            color: isPos ? const Color(0xFF10B981) : c.danger,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Q: ${fb.question}',
+                    style: GoogleFonts.inter(fontSize: 10, color: c.text, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'R: ${fb.answerPreview}',
+                    style: GoogleFonts.inter(fontSize: 10, color: c.text2),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallStatCard(String label, String value, IconData icon, Color color, AppColorScheme c) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: c.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: GoogleFonts.inter(fontSize: 7, fontWeight: FontWeight.w700, color: c.text3, letterSpacing: 0.5),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: c.text),
+                ),
+              ],
+            ),
+          ),
+          Icon(icon, size: 16, color: color),
+        ],
+      ),
     );
   }
 

@@ -494,7 +494,8 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         categorieClient: _formData['categorieClient'],
         typeSinistre: _formData['typeSinistre'],
         pieceReference: _formData['pieceReference'],
-        transcriptionText: _ticket?.transcription,
+        // Transcription (CALL) ou description (EMAIL/WEB) → scoring cohérent multi-canal.
+        transcriptionText: _ticket?.transcription ?? _ticket?.description,
       ));
       setState(() => _decision = result);
       final emoji = result.decision == 'FAVORABLE' ? '🟢' : result.decision == 'DEFAVORABLE' ? '🔴' : '🟡';
@@ -868,33 +869,39 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('RGPD AUDIO', style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.w600, color: c.text3, letterSpacing: 0.8)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (t.consentementEnregistrement ? c.success : c.danger).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: (t.consentementEnregistrement ? c.success : c.danger).withOpacity(0.2)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              t.consentementEnregistrement ? Icons.check_circle_outline : Icons.cancel_outlined,
-                              size: 10,
-                              color: t.consentementEnregistrement ? c.success : c.danger,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              t.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé',
-                              style: GoogleFonts.inter(
-                                fontSize: 9, 
-                                fontWeight: FontWeight.w700, 
-                                color: t.consentementEnregistrement ? c.success : c.danger
+                      Builder(builder: (_) {
+                        // Le consentement d'enregistrement ne concerne que le canal CALL.
+                        // EMAIL / WEB → aucun audio → "Sans objet" (état neutre, pas un refus).
+                        final bool isCall = t.canal == 'CALL';
+                        final Color badge = !isCall
+                            ? c.text3
+                            : (t.consentementEnregistrement ? c.success : c.danger);
+                        final IconData icon = !isCall
+                            ? Icons.remove_circle_outline
+                            : (t.consentementEnregistrement ? Icons.check_circle_outline : Icons.cancel_outlined);
+                        final String label = !isCall
+                            ? '— Sans objet'
+                            : (t.consentementEnregistrement ? '✓ Accordé' : '✕ Refusé');
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: badge.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: badge.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(icon, size: 10, color: badge),
+                              const SizedBox(width: 4),
+                              Text(
+                                label,
+                                style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: badge),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ],

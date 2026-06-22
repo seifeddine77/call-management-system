@@ -144,53 +144,8 @@ class EmailListenerServiceTest {
         assertThat(result).isFalse();
     }
 
-    // ─────────────────────────────────────────────────────
-    // detectPriority — via reflection
-    // ─────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("detectPriority — sujet contient 'urgent' → priorité 1")
-    void detectPriority_urgent() throws Exception {
-        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
-        m.setAccessible(true);
-
-        short priority = (short) m.invoke(emailListenerService, "URGENT: Panne voiture", "");
-
-        assertThat(priority).isEqualTo((short) 1);
-    }
-
-    @Test
-    @DisplayName("detectPriority — corps contient 'critique' → priorité 1")
-    void detectPriority_critique() throws Exception {
-        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
-        m.setAccessible(true);
-
-        short priority = (short) m.invoke(emailListenerService, "Demande", "Situation critique nécessitant intervention");
-
-        assertThat(priority).isEqualTo((short) 1);
-    }
-
-    @Test
-    @DisplayName("detectPriority — sujet contient 'important' → priorité 2")
-    void detectPriority_important() throws Exception {
-        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
-        m.setAccessible(true);
-
-        short priority = (short) m.invoke(emailListenerService, "Message important", "Merci de traiter rapidement");
-
-        assertThat(priority).isEqualTo((short) 2);
-    }
-
-    @Test
-    @DisplayName("detectPriority — rien de spécial → priorité 3 (normale)")
-    void detectPriority_normal() throws Exception {
-        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
-        m.setAccessible(true);
-
-        short priority = (short) m.invoke(emailListenerService, "Bonjour", "Je souhaite un devis");
-
-        assertThat(priority).isEqualTo((short) 3);
-    }
+    // detectPriority a été centralisé dans TicketServiceImpl (détection unifiée multi-canal).
+    // Les tests correspondants vivent désormais dans TicketServiceImplTest.
 
     // ─────────────────────────────────────────────────────
     // extractEmailAddress — via reflection
@@ -325,7 +280,7 @@ class EmailListenerServiceTest {
             req.getClientNom().equals("Jean Dupont") &&
             req.getClientEmail().equals("sender@test.com") &&
             req.getCanal().equals("EMAIL") &&
-            req.getPriorite() == (short) 1 && // urgent/panne = 1
+            req.getPriorite() == null && // priorité déléguée à la détection centralisée de createTicket
             req.getAgenceId().toString().equals("22222222-2222-2222-2222-222222222222")
         ), eq(null), eq("SYSTEM-IMAP"));
     }
@@ -365,7 +320,7 @@ class EmailListenerServiceTest {
         verify(msg).setFlag(Flags.Flag.SEEN, true);
         verify(ticketService).createTicket(argThat(req -> 
             req.getClientNom().equals("sender2@test.com") &&
-            req.getPriorite() == (short) 2 // important/rapidement = 2
+            req.getPriorite() == null // priorité déléguée à la détection centralisée de createTicket
         ), eq(null), eq("SYSTEM-IMAP"));
     }
 
@@ -694,16 +649,4 @@ class EmailListenerServiceTest {
         assertThat(result3).isFalse();
     }
 
-    @Test
-    @DisplayName("detectPriority — détection de priorité sur différents mots clés")
-    void detectPriority_variousKeywords() throws Exception {
-        Method m = EmailListenerService.class.getDeclaredMethod("detectPriority", String.class, String.class);
-        m.setAccessible(true);
-
-        short p1 = (short) m.invoke(emailListenerService, "Problème", "panne d'alternateur");
-        short p2 = (short) m.invoke(emailListenerService, "Demande", "traiter rapidement s'il vous plaît");
-
-        assertThat(p1).isEqualTo((short) 1);
-        assertThat(p2).isEqualTo((short) 2);
-    }
 }

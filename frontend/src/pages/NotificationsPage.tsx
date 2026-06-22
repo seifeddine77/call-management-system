@@ -1,3 +1,7 @@
+/**
+ * Journal des notifications (ADMIN) — historique des emails envoyés (ticket / décision / SLA).
+ * L'envoi réel est asynchrone côté backend (consommation d'événements RabbitMQ). Source : notificationService.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Mail, MessageSquare, AlertCircle, CheckCircle, RefreshCcw, Send, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

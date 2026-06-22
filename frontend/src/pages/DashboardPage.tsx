@@ -1,3 +1,8 @@
+/**
+ * Tableau de bord — vue d'ensemble opérationnelle (tous rôles).
+ * Agrège les KPIs temps réel (tickets, décisions IA, délais) et les derniers tickets,
+ * via ticketService + analyticsService, avec rafraîchissement périodique.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';

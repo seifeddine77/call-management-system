@@ -22,6 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+/**
+ * Implémentation métier des utilisateurs : persistance, hachage BCrypt et <b>RBAC fin</b>.
+ *
+ * <p>Source de vérité des identifiants de connexion : l'auth-service lit le {@code passwordHash}
+ * via Feign pour valider les logins. La méthode {@code validateUpdatePermissions} applique la règle
+ * d'accès : un OPERATOR ne modifie que lui-même (et jamais son rôle), un SUPERVISOR uniquement
+ * les comptes de son agence, un ADMIN n'importe qui.</p>
+ */
 @Slf4j
 @Service
 @Transactional
@@ -162,6 +170,19 @@ public class UserServiceImpl implements UserService {
         return toInternalResponse(saved);
     }
 
+    /**
+     * Met à jour un utilisateur sous contrôle d'accès (RBAC).
+     * Le mot de passe n'est ré-haché que s'il est fourni et non vide ; l'email (identifiant de
+     * connexion) n'est volontairement pas modifié ici.
+     *
+     * @param id                identifiant de l'utilisateur cible
+     * @param request           nouvelles valeurs (nom, prénom, téléphone, rôle, agence…)
+     * @param requesterId       identifiant du demandeur (issu du JWT)
+     * @param requesterRole     rôle du demandeur (OPERATOR/SUPERVISOR/ADMIN)
+     * @param requesterAgenceId agence du demandeur (borne la portée d'un SUPERVISOR)
+     * @return l'utilisateur mis à jour
+     * @throws org.springframework.security.access.AccessDeniedException si le demandeur n'est pas autorisé
+     */
     @Override
     public UserResponse updateUser(UUID id, UserRequest request, UUID requesterId, String requesterRole,
             UUID requesterAgenceId) {

@@ -573,7 +573,8 @@ export default function PublicFormPage() {
         email: form.email.trim() || null,
         description: form.description.trim(),
         agenceId: form.agenceId,
-        priorite: 3,
+        // Priorité omise volontairement : détectée automatiquement côté back (TicketServiceImpl.detectPriority)
+        // sur la description, de façon cohérente avec les canaux CALL et EMAIL.
         consentementTraitement: form.consentementTraitement,
       });
 

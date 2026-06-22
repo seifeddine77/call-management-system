@@ -14,6 +14,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * API REST du journal de notifications (notification-service).
+ *
+ * <p>Expose l'historique des notifications email envoyées (consultation ADMIN). L'envoi lui-même
+ * est piloté de façon asynchrone par consommation d'événements RabbitMQ (ticket/décision), ce qui
+ * découple la notification du chemin critique de traitement.</p>
+ */
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor

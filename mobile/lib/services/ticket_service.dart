@@ -11,28 +11,47 @@ class TicketService {
   static const _cacheKey = 'tickets_cache';
 
   Future<TicketPage> getTickets(TicketFilter filter) async {
-    final prefs = await SharedPreferences.getInstance();
-
+    // Le cache local n'est qu'un confort offline : il ne doit JAMAIS bloquer le
+    // chargement. Sur Flutter Web, shared_preferences peut lever MissingPluginException ;
+    // on l'isole donc dans des helpers best-effort.
+    final bool cacheable = filter.page == 0 && filter.search == null;
     try {
       final res = await _api.dio.get(ApiConfig.ticketsPath, queryParameters: filter.toQueryParams());
       final data = res.data;
-      
-      // Save to cache for the first page only to prevent huge cache files
-      if (filter.page == 0 && filter.search == null) {
-        await prefs.setString(_cacheKey, jsonEncode(data));
+      if (cacheable) {
+        await _writeCache(data); // best-effort, n'échoue jamais
       }
-      
       return TicketPage.fromJson(data);
     } catch (e) {
-      // If network fails, try to load from cache
-      if (filter.page == 0 && filter.search == null) {
-        final cachedStr = prefs.getString(_cacheKey);
-        if (cachedStr != null) {
-          final data = jsonDecode(cachedStr);
-          return TicketPage.fromJson(data);
+      // Réseau KO → tenter le cache local (best-effort)
+      if (cacheable) {
+        final cached = await _readCache();
+        if (cached != null) {
+          return TicketPage.fromJson(cached);
         }
       }
       rethrow;
+    }
+  }
+
+  /// Écrit le cache des tickets sans jamais propager d'erreur (ex. Web sans shared_preferences).
+  Future<void> _writeCache(dynamic data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cacheKey, jsonEncode(data));
+    } catch (_) {
+      // Stockage local indisponible → on ignore silencieusement le cache.
+    }
+  }
+
+  /// Lit le cache des tickets sans jamais propager d'erreur ; retourne null si indisponible.
+  Future<dynamic> _readCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedStr = prefs.getString(_cacheKey);
+      return cachedStr != null ? jsonDecode(cachedStr) : null;
+    } catch (_) {
+      return null;
     }
   }
 

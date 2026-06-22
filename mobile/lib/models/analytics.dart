@@ -207,3 +207,62 @@ class SupervisionAlert {
   }
 }
 
+class ChatbotFeedback {
+  final String question;
+  final String answerPreview;
+  final String rating;
+  final String groupName;
+  final String? createdAt;
+
+  ChatbotFeedback({
+    required this.question,
+    required this.answerPreview,
+    required this.rating,
+    required this.groupName,
+    this.createdAt,
+  });
+
+  factory ChatbotFeedback.fromJson(Map<String, dynamic> json) {
+    return ChatbotFeedback(
+      question: json['question'] ?? '',
+      answerPreview: json['answer_preview'] ?? '',
+      rating: json['rating'] ?? 'positive',
+      groupName: json['group_name'] ?? '',
+      createdAt: json['created_at'],
+    );
+  }
+}
+
+class ChatbotStats {
+  final int totalFeedback;
+  final int positive;
+  final int negative;
+  final String satisfactionRate;
+  final int dbPersisted;
+  final List<ChatbotFeedback> recentFeedback;
+
+  ChatbotStats({
+    required this.totalFeedback,
+    required this.positive,
+    required this.negative,
+    required this.satisfactionRate,
+    required this.dbPersisted,
+    required this.recentFeedback,
+  });
+
+  factory ChatbotStats.fromJson(Map<String, dynamic> json) {
+    var list = json['recent_feedback'] as List?;
+    List<ChatbotFeedback> feedbackList = list != null
+        ? list.map((i) => ChatbotFeedback.fromJson(Map<String, dynamic>.from(i as Map))).toList()
+        : [];
+    return ChatbotStats(
+      totalFeedback: json['total_feedback'] ?? 0,
+      positive: json['positive'] ?? 0,
+      negative: json['negative'] ?? 0,
+      satisfactionRate: json['satisfaction_rate'] ?? '0%',
+      dbPersisted: json['db_persisted'] ?? 0,
+      recentFeedback: feedbackList,
+    );
+  }
+}
+

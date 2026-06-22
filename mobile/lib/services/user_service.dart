@@ -104,4 +104,36 @@ class UserService {
       'newPassword': newPassword,
     });
   }
+
+  // ── Self-service (/me) : accessible à TOUS les rôles (profil + mot de passe propres) ──
+
+  /// Récupère son propre profil (route /me non gatée par rôle).
+  Future<User> getMyProfile() async {
+    final res = await _api.dio.get('${ApiConfig.usersPath}/me');
+    return _mapUser(res.data);
+  }
+
+  /// Met à jour son propre profil.
+  Future<User> updateMyProfile(UserRequest request) async {
+    final payload = <String, dynamic>{
+      'nom': request.nom,
+      'prenom': request.prenom,
+      'email': request.email,
+      'role': toBackendRole(request.role),
+      'telephone': request.telephone,
+    };
+    if (request.agenceId != null && request.agenceId!.isNotEmpty) {
+      payload['agenceId'] = request.agenceId;
+    }
+    final res = await _api.dio.put('${ApiConfig.usersPath}/me', data: payload);
+    return _mapUser(res.data);
+  }
+
+  /// Change son propre mot de passe.
+  Future<void> changeMyPassword({required String oldPassword, required String newPassword}) async {
+    await _api.dio.patch('${ApiConfig.usersPath}/me/password', data: {
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    });
+  }
 }

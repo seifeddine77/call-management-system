@@ -20,6 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+/**
+ * Logique métier des agences : CRUD, affectation de responsable et publication d'événements.
+ *
+ * <p>À la création d'une agence, un événement {@code agence.created} est publié (RabbitMQ) afin que
+ * les autres services puissent matérialiser le référentiel sans dépendance directe (cohérence par
+ * événements, pas de FK inter-services).</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

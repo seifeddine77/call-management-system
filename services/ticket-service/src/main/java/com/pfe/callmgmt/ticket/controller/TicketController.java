@@ -34,6 +34,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * API REST des tickets de réclamation (ticket-service).
+ *
+ * <p>Expose la consultation/gestion des tickets, la file d'attente, l'upload des preuves
+ * (photos sinistre), l'audio chiffré et la supervision. L'acquisition multicanale (VoIP/Email/Web)
+ * passe par un contrôleur dédié ({@code ChannelAcquisitionController}). Délègue toute la logique
+ * métier au {@code TicketService} (contrôleur mince).</p>
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/tickets")

@@ -210,7 +210,8 @@ public class EmailListenerService {
         ticketReq.setClientEmail(from);
         ticketReq.setCanal("EMAIL");
         ticketReq.setDescription("[" + subject + "]\n" + body);
-        ticketReq.setPriorite(detectPriority(subject, body));
+        // Priorité laissée à null : détection automatique centralisée et unifiée dans
+        // TicketServiceImpl.createTicket (sur la description = sujet + corps).
 
         // Affecter l'agence par défaut (configurée dans application.yml)
         if (defaultAgenceId != null && !defaultAgenceId.isBlank()) {
@@ -272,20 +273,6 @@ public class EmailListenerService {
         }
 
         return "(Contenu non lisible)";
-    }
-
-    /**
-     * Détecte automatiquement la priorité en fonction de mots-clés.
-     */
-    private short detectPriority(String subject, String body) {
-        String combined = (subject + " " + body).toLowerCase();
-        if (combined.contains("urgent") || combined.contains("critique") || combined.contains("panne")) {
-            return 1; // Urgente
-        }
-        if (combined.contains("important") || combined.contains("rapidement")) {
-            return 2; // Haute
-        }
-        return 3; // Normale
     }
 
     /**

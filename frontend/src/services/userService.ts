@@ -66,4 +66,26 @@ export const userService = {
   changePassword: async (id: string, data: ChangePasswordRequest): Promise<void> => {
     await api.patch(`/api/users/${id}/password`, data);
   },
+
+  // ── Self-service (/me) : accessible à TOUS les rôles (profil + mot de passe propres).
+  //    Route gateway dédiée sans RoleFilter ; l'identité (X-User-Id) borne l'action à soi-même. ──
+  getMyProfile: async (): Promise<User> => {
+    const res = await api.get<User>('/api/users/me');
+    return mapUserResponse(res.data);
+  },
+
+  updateMyProfile: async (data: UserRequest): Promise<User> => {
+    const payload = {
+      ...data,
+      role: toBackendRole(data.role),
+      password: data.password && data.password.length > 0 ? data.password : null,
+      agenceId: data.agenceId && data.agenceId.length > 0 ? data.agenceId : null,
+    };
+    const res = await api.put<User>('/api/users/me', payload);
+    return mapUserResponse(res.data);
+  },
+
+  changeMyPassword: async (data: ChangePasswordRequest): Promise<void> => {
+    await api.patch('/api/users/me/password', data);
+  },
 };

@@ -45,6 +45,13 @@ const navGroups = [
       { path: '/users', icon: Users, label: 'Utilisateurs' },
       { path: '/agences', icon: Building2, label: 'Agences' },
       { path: '/notifications', icon: Bell, label: 'Notifications' },
+    ],
+  },
+  {
+    // Compte personnel (self-service) — visible par TOUS les rôles, y compris OPERATOR.
+    // Distinct de l'administration : ici on gère SON propre profil/mot de passe.
+    label: 'COMPTE',
+    items: [
       { path: '/settings', icon: Settings, label: 'Paramètres' },
     ],
   },

@@ -1,3 +1,7 @@
+/**
+ * Gestion des agences (SUPERVISOR : lecture ; ADMIN : CRUD + affectation du responsable).
+ * Le réseau d'agences structure le rattachement des opérateurs. Source : agenceService.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   RefreshCw, Plus, AlertTriangle, Building2, Pencil, Trash2,

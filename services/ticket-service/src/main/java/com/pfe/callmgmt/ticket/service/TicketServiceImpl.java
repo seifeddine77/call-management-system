@@ -31,6 +31,16 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+/**
+ * Cœur métier du cycle de vie d'un ticket de réclamation (création → résolution).
+ *
+ * <p>Responsabilités : création multicanale (CALL/EMAIL/WEB), transitions de statut contrôlées,
+ * journalisation des actions (audit), publication d'événements RabbitMQ et <b>détection automatique
+ * de priorité unifiée</b> sur les 3 canaux.</p>
+ *
+ * <p>Choix d'architecture : aucune clé étrangère vers les autres services — la cohérence inter-services
+ * passe par des événements (ticket.created / resolved / status-changed) pour préserver le découplage.</p>
+ */
 @Slf4j
 @Service
 @Transactional
@@ -39,6 +49,11 @@ public class TicketServiceImpl implements TicketService {
     private static final String ROLE_OPERATOR = "OPERATOR";
     private static final String SYSTEM_USER_NAME = "SYSTEM";
     private static final String SYSTEM_USER_UUID = "00000000-0000-0000-0000-000000000000";
+
+    // Niveaux de priorité (évite les nombres magiques — cf. détection automatique).
+    private static final short PRIORITE_URGENTE = 1; // P1
+    private static final short PRIORITE_HAUTE = 2;   // P2
+    private static final short PRIORITE_NORMALE = 3; // P3
 
     private final TicketRepository ticketRepository;
     private final TicketActionRepository actionRepository;
@@ -64,6 +79,45 @@ public class TicketServiceImpl implements TicketService {
         this.messagingTemplate = messagingTemplate;
     }
 
+    /**
+     * Détection automatique et unifiée de la priorité à partir du texte de la réclamation
+     * (description EMAIL/WEB, ou sujet+corps pour les emails IMAP, ou transcription CALL).
+     * Appliquée de façon identique sur les 3 canaux pour garantir la cohérence du tri,
+     * et surchargée par toute priorité explicitement fournie (saisie opérateur / formulaire).
+     *
+     *  - P1 (Urgente) : urgence explicite ou sinistre grave / sécurité (accident, incendie, vol,
+     *    véhicule immobilisé, blessé).
+     *  - P2 (Haute)   : besoin de traitement rapide ou panne mécanique (panne, remorquage, fuite).
+     *  - P3 (Normale) : par défaut.
+     */
+    static short detectPriority(String text) {
+        if (text == null || text.isBlank()) {
+            return PRIORITE_NORMALE;
+        }
+        String t = text.toLowerCase();
+        if (t.contains("urgent") || t.contains("critique") || t.contains("accident")
+                || t.contains("incendie") || t.contains("danger") || t.contains("immobilis")
+                || t.contains("bless") || t.contains("vol ") || t.contains("volé")) {
+            return PRIORITE_URGENTE;
+        }
+        if (t.contains("panne") || t.contains("important") || t.contains("rapidement")
+                || t.contains("remorqu") || t.contains("fuite") || t.contains("bloqu")) {
+            return PRIORITE_HAUTE;
+        }
+        return PRIORITE_NORMALE;
+    }
+
+    /**
+     * Crée un ticket de réclamation, quel que soit le canal d'origine.
+     * Seuls les tickets CALL sont auto-assignés à l'opérateur créateur ; EMAIL/WEB partent en file
+     * d'attente. La priorité est détectée automatiquement depuis la description si non fournie, puis
+     * un événement {@code ticket.created} est publié pour les services aval.
+     *
+     * @param request       données du ticket (client, canal, description, priorité optionnelle…)
+     * @param operateurId   identifiant de l'opérateur créateur (null pour une création système/canal)
+     * @param operateurName nom affiché de l'opérateur (ou identifiant système, pour l'audit)
+     * @return le ticket créé, avec numéro généré et statut NOUVEAU
+     */
     @Override
     public TicketResponse createTicket(CreateTicketRequest request, UUID operateurId, String operateurName) {
         // CDC: Only CALL tickets are auto-assigned to the creating operator.
@@ -77,7 +131,9 @@ public class TicketServiceImpl implements TicketService {
                 .clientEmail(request.getClientEmail())
                 .canal(canal)
                 .statut(Ticket.Statut.NOUVEAU)
-                .priorite(request.getPriorite() != null ? request.getPriorite() : (short) 3)
+                // Priorité unifiée multi-canal : la valeur explicite (saisie opérateur / formulaire)
+                // prime ; sinon détection automatique par mots-clés sur la description (EMAIL/WEB/CALL).
+                .priorite(request.getPriorite() != null ? request.getPriorite() : detectPriority(request.getDescription()))
                 .operateurId(autoAssign ? operateurId : null)
                 .agenceId(request.getAgenceId())
                 .description(request.getDescription())
@@ -274,8 +330,24 @@ public class TicketServiceImpl implements TicketService {
         ticket.setAudioPath(audioPath);
         ticket.setTranscription(transcription);
         ticket.setTranscriptionKeywords(keywords);
+
+        // Pour un CALL, le contenu réel (donc l'urgence) n'arrive qu'avec la transcription Whisper,
+        // postérieure à la création. On ré-évalue donc la priorité sur la transcription et on ne
+        // garde que la plus urgente (numéro le plus bas) : une urgence détectée fait monter un
+        // ticket P3 → P1, sans jamais rétrograder une priorité fixée explicitement.
+        if (transcription != null && !transcription.isBlank()) {
+            short detected = detectPriority(transcription);
+            short current = ticket.getPriorite() != null ? ticket.getPriorite() : 3;
+            if (detected < current) {
+                ticket.setPriorite(detected);
+                logAction(ticket, UUID.fromString(SYSTEM_USER_UUID), SYSTEM_USER_NAME,
+                        "PRIORITE_AJUSTEE", String.valueOf(current), String.valueOf(detected),
+                        "Priorité relevée d'après la transcription audio");
+            }
+        }
+
         ticketRepository.save(ticket);
-        log.info("Audio transcription updated for ticket: {}", ticket.getNumero());
+        log.info("Audio transcription updated for ticket: {} (priorité={})", ticket.getNumero(), ticket.getPriorite());
 
         logAction(ticket, UUID.fromString(SYSTEM_USER_UUID),
                 SYSTEM_USER_NAME, "TRANSCRIPTION_AJOUTEE", null, null, "Transcription audio ajoutée");

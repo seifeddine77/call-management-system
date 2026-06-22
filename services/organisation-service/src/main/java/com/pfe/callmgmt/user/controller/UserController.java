@@ -17,6 +17,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * API REST de gestion des utilisateurs (organisation-service).
+ *
+ * <p>Deux familles d'endpoints coexistent volontairement :</p>
+ * <ul>
+ *   <li><b>Administration</b> ({@code /api/users}, {@code /{id}}) — réservée SUPERVISOR/ADMIN
+ *       via le RoleFilter de la gateway, pour gérer les comptes d'autrui.</li>
+ *   <li><b>Self-service</b> ({@code /api/users/me}) — ouverte à tout utilisateur authentifié,
+ *       bornée à son propre compte grâce à l'en-tête {@code X-User-Id} injecté depuis le JWT.</li>
+ * </ul>
+ * <p>L'identité et le rôle ne sont jamais lus du corps de la requête mais des en-têtes signés
+ * par la gateway → défense contre l'usurpation et l'escalade de privilèges.</p>
+ */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -25,13 +38,18 @@ public class UserController {
 
     private final UserService userService;
 
+    // Noms des en-têtes d'identité injectés par l'API Gateway (extraits du JWT).
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_USER_ROLE = "X-User-Role";
+    private static final String HEADER_USER_AGENCE_ID = "X-User-Agence-Id";
+
     @GetMapping
     @Operation(summary = "Lister les utilisateurs avec filtres")
     public ResponseEntity<Page<UserResponse>> getAllUsers(
             @RequestParam(value = "role", required = false) String role,
             @RequestParam(value = "agenceId", required = false) UUID agenceId,
-            @RequestHeader(name = "X-User-Role", required = false) String requesterRole,
-            @RequestHeader(name = "X-User-Agence-Id", required = false) UUID requesterAgenceId,
+            @RequestHeader(name = HEADER_USER_ROLE, required = false) String requesterRole,
+            @RequestHeader(name = HEADER_USER_AGENCE_ID, required = false) UUID requesterAgenceId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size) {
         // CDC 1.C — SUPERVISOR ne voit que les utilisateurs de son agence
@@ -40,6 +58,52 @@ public class UserController {
             effectiveAgenceId = requesterAgenceId;
         }
         return ResponseEntity.ok(userService.getAllUsers(role, effectiveAgenceId, page, size));
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // SELF-SERVICE (/me) — accessible à TOUS les rôles authentifiés.
+    // Résout l'utilisateur depuis l'en-tête X-User-Id injecté par la gateway
+    // (le JWT prouve l'identité), donc strictement limité à son propre compte.
+    // Routé via une route gateway dédiée SANS RoleFilter, à la différence de
+    // /api/users/** (gestion des comptes, réservée SUPERVISOR/ADMIN).
+    // ════════════════════════════════════════════════════════════════
+
+    @GetMapping("/me")
+    @Operation(summary = "Obtenir son propre profil (self-service, tous rôles)")
+    public ResponseEntity<UserResponse> getMyProfile(
+            @RequestHeader(name = HEADER_USER_ID, required = false) UUID requesterId) {
+        requireAuthenticated(requesterId);
+        return ResponseEntity.ok(userService.getUserById(requesterId));
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "Modifier son propre profil (self-service, tous rôles)")
+    public ResponseEntity<UserResponse> updateMyProfile(
+            @Valid @RequestBody UserRequest request,
+            @RequestHeader(name = HEADER_USER_ID, required = false) UUID requesterId,
+            @RequestHeader(name = HEADER_USER_ROLE, required = false) String requesterRole,
+            @RequestHeader(name = HEADER_USER_AGENCE_ID, required = false) UUID requesterAgenceId) {
+        requireAuthenticated(requesterId);
+        // requesterId == cible : le RBAC (validateUpdatePermissions) autorise l'auto-modification
+        // et empêche tout changement de rôle pour un OPERATOR.
+        return ResponseEntity.ok(
+                userService.updateUser(requesterId, request, requesterId, requesterRole, requesterAgenceId));
+    }
+
+    @PatchMapping("/me/password")
+    @Operation(summary = "Changer son propre mot de passe (self-service, tous rôles)")
+    public ResponseEntity<Void> changeMyPassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @RequestHeader(name = HEADER_USER_ID, required = false) UUID requesterId) {
+        requireAuthenticated(requesterId);
+        userService.changePassword(requesterId, request.getOldPassword(), request.getNewPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    private static void requireAuthenticated(UUID requesterId) {
+        if (requesterId == null) {
+            throw new AccessDeniedException("Authentification requise");
+        }
     }
 
     @GetMapping("/{id}")
@@ -58,8 +122,8 @@ public class UserController {
     @Operation(summary = "Créer un utilisateur (ADMIN uniquement)")
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody UserRequest request,
-            @RequestHeader(name = "X-User-Id", required = false) UUID requesterId,
-            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+            @RequestHeader(name = HEADER_USER_ID, required = false) UUID requesterId,
+            @RequestHeader(name = HEADER_USER_ROLE, required = false) String requesterRole) {
         requireAdmin(requesterRole);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(userService.createUser(request, requesterId));
@@ -77,9 +141,9 @@ public class UserController {
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable("id") UUID id,
             @Valid @RequestBody UserRequest request,
-            @RequestHeader(name = "X-User-Id", required = false) UUID requesterId,
-            @RequestHeader(name = "X-User-Role", required = false) String requesterRole,
-            @RequestHeader(name = "X-User-Agence-Id", required = false) UUID requesterAgenceId) {
+            @RequestHeader(name = HEADER_USER_ID, required = false) UUID requesterId,
+            @RequestHeader(name = HEADER_USER_ROLE, required = false) String requesterRole,
+            @RequestHeader(name = HEADER_USER_AGENCE_ID, required = false) UUID requesterAgenceId) {
         return ResponseEntity.ok(userService.updateUser(id, request, requesterId, requesterRole, requesterAgenceId));
     }
 
@@ -87,7 +151,7 @@ public class UserController {
     @Operation(summary = "Désactiver un utilisateur (soft delete — ADMIN uniquement)")
     public ResponseEntity<Void> deactivateUser(
             @PathVariable("id") UUID id,
-            @RequestHeader(name = "X-User-Role", required = false) String requesterRole) {
+            @RequestHeader(name = HEADER_USER_ROLE, required = false) String requesterRole) {
         requireAdmin(requesterRole);
         userService.deactivateUser(id);
         return ResponseEntity.noContent().build();

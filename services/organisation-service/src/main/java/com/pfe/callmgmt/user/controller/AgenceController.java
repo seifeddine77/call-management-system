@@ -16,6 +16,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * API REST de gestion des agences (organisation-service).
+ *
+ * <p>Le réseau d'agences structure le rattachement des utilisateurs (un superviseur supervise les
+ * opérateurs de son agence). La création/modification/suppression d'agence et l'affectation d'un
+ * responsable sont réservées à l'ADMIN ; le {@code GET /api/agences} est public (sélection d'agence
+ * dans le formulaire web).</p>
+ */
 @RestController
 @RequestMapping("/api/agences")
 @RequiredArgsConstructor

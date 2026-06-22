@@ -1,3 +1,7 @@
+/**
+ * Liste des tickets — recherche, filtres (statut / canal / priorité / décision), pagination et export CSV.
+ * Point d'entrée vers le détail d'un ticket. Source : ticketService.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Search, Download, X, PhoneCall, Mail, Globe, Radio, ShieldCheck } from 'lucide-react';

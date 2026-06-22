@@ -1,3 +1,8 @@
+/**
+ * Moteur de règles — administration des règles de décision (SUPERVISOR / ADMIN).
+ * Création / édition / réordonnancement (priorité DESC, veto ETUDE) et test via « /evaluate ».
+ * Source : rulesService.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { safeRandom } from '../utils/cryptoRandom';
 import { AlertTriangle, GripVertical, Pencil, Plus, Settings, Wrench, Users, Zap, ClipboardList, Ruler, FlaskConical, ScrollText, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';

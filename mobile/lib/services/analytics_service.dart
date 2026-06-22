@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../models/analytics.dart';
 import 'api_client.dart';
@@ -44,5 +46,29 @@ class AnalyticsService {
   Future<List<SupervisionAlert>> getSupervisionAlerts() async {
     final res = await _api.dio.get(ApiConfig.supervisionAlertsPath);
     return (res.data as List).map((d) => SupervisionAlert.fromJson(d)).toList();
+  }
+
+  Future<ChatbotStats> getChatbotStats() async {
+    try {
+      final res = await _api.dio.get(ApiConfig.chatbotStatsPath);
+      final dynamic data = res.data;
+      if (data == null) {
+        throw Exception('Response data is null');
+      }
+      final Map<String, dynamic> jsonMap = data is String
+          ? jsonDecode(data) as Map<String, dynamic>
+          : Map<String, dynamic>.from(data as Map);
+      // Robuste aux deux formes de réponse :
+      //  - imbriquée : { ..., "feedback": { "total_feedback": .., "recent_feedback": [..] } }
+      //  - racine    : { "total_feedback": .., "recent_feedback": [..] }
+      final feedbackNode = (jsonMap['feedback'] is Map)
+          ? Map<String, dynamic>.from(jsonMap['feedback'] as Map)
+          : jsonMap;
+      return ChatbotStats.fromJson(feedbackNode);
+    } catch (e, s) {
+      debugPrint('❌ AnalyticsService.getChatbotStats error: $e');
+      debugPrint(s.toString());
+      rethrow;
+    }
   }
 }

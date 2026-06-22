@@ -29,6 +29,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
+/**
+ * Orchestrateur de la décision (decision-service).
+ *
+ * <p>Combine le moteur de règles (via Feign vers rules-service) et le scoring IA, avec un
+ * <b>circuit-breaker (Resilience4j)</b> pour dégrader proprement si un composant est indisponible,
+ * et un <b>cache Redis</b> (TTL) pour éviter de recalculer une décision identique. La décision finale
+ * est persistée puis publiée (RabbitMQ {@code decision.finalized}) pour les services consommateurs.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j

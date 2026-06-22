@@ -21,6 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Logique d'authentification : vérification BCrypt, émission et rotation des JWT.
+ *
+ * <p>Ne stocke pas les utilisateurs lui-même : il interroge l'organisation-service via Feign
+ * ({@code findByEmail} pour récupérer le {@code passwordHash}). Sécurité clé : l'inscription
+ * publique force toujours le rôle OPERATOR (anti-escalade de privilèges) — la création de comptes
+ * privilégiés passe par l'API users protégée ADMIN.</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,6 +39,15 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Authentifie un utilisateur et émet un couple de tokens (access + refresh).
+     * Le profil et le {@code passwordHash} sont récupérés auprès de l'organisation-service (Feign),
+     * puis le mot de passe est vérifié en BCrypt. Un compte désactivé est refusé.
+     *
+     * @param request email + mot de passe en clair
+     * @return les tokens JWT et les informations publiques de l'utilisateur
+     * @throws com.pfe.callmgmt.common.exception.UnauthorizedException si identifiants invalides ou compte désactivé
+     */
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -121,6 +138,15 @@ public class AuthServiceImpl implements AuthService {
         return generateTokens(createdUser);
     }
 
+    /**
+     * Renouvelle un access token à partir d'un refresh token valide (rotation de session).
+     * Le rôle et l'identité proviennent des claims du refresh token, jamais d'une donnée client,
+     * afin d'éviter toute élévation de privilèges.
+     *
+     * @param refreshTokenStr le refresh token JWT présenté par le client
+     * @return un nouveau couple de tokens (access + refresh)
+     * @throws com.pfe.callmgmt.common.exception.UnauthorizedException si le token est invalide, expiré ou révoqué
+     */
     @Override
     @Transactional
     public AuthResponse refreshToken(String refreshTokenStr) {

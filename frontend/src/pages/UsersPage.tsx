@@ -1,3 +1,7 @@
+/**
+ * Gestion des utilisateurs (SUPERVISOR / ADMIN). Création et désactivation réservées à l'ADMIN ;
+ * un SUPERVISOR ne voit et n'édite que les comptes de son agence. Source : userService.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   RefreshCw, Plus, AlertTriangle, Pencil, Trash2, CalendarDays,

@@ -7,7 +7,6 @@ import '../config/colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/user_service.dart';
-import '../services/agence_service.dart';
 import '../models/user.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -19,7 +18,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _userService = UserService();
-  final _agenceService = AgenceService();
 
   String _myAgenceName = '—';
   bool _saving = false;
@@ -49,24 +47,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _nomC = TextEditingController(text: user?.nom ?? '');
     _emailC = TextEditingController(text: user?.email ?? '');
     _phoneC = TextEditingController();
-    _resolveAgence();
     _loadUserProfile();
     _loadNotifs();
   }
 
   Future<void> _loadNotifs() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notifTicketEntrant = prefs.getBool('notif_ticket_entrant') ?? true;
-      _notifDecisionIa = prefs.getBool('notif_decision_ia') ?? true;
-      _notifSlaAlert = prefs.getBool('notif_sla_alert') ?? true;
-      _notifEmailRapport = prefs.getBool('notif_email_rapport') ?? false;
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _notifTicketEntrant = prefs.getBool('notif_ticket_entrant') ?? true;
+        _notifDecisionIa = prefs.getBool('notif_decision_ia') ?? true;
+        _notifSlaAlert = prefs.getBool('notif_sla_alert') ?? true;
+        _notifEmailRapport = prefs.getBool('notif_email_rapport') ?? false;
+      });
+    } catch (_) {
+      // Stockage local indisponible (ex. Flutter Web) → on garde les valeurs par défaut.
+    }
   }
 
   Future<void> _saveNotif(String key, bool val) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, val);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, val);
+    } catch (_) {
+      // Préférence non persistée si le stockage local est indisponible.
+    }
   }
 
   @override
@@ -81,33 +86,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _resolveAgence() async {
-    final user = context.read<AuthProvider>().user;
-    if (user?.agenceId != null && user!.agenceId!.isNotEmpty) {
-      try {
-        final agence = await _agenceService.getAgenceById(user.agenceId!);
-        if (mounted) setState(() => _myAgenceName = agence.nom);
-      } catch (_) {
-        if (mounted) setState(() => _myAgenceName = user.agenceId ?? '—');
-      }
-    }
-  }
-
   Future<void> _loadUserProfile() async {
-    final user = context.read<AuthProvider>().user;
-    if (user == null) return;
     try {
-      final fullUser = await _userService.getUserById(user.userId);
+      // Endpoint self-service /me : accessible à tous les rôles (y compris OPERATOR).
+      // Le profil renvoie agenceName → plus besoin de l'appel getAgenceById (gaté SUP/ADMIN).
+      final fullUser = await _userService.getMyProfile();
       if (mounted) {
         setState(() {
           _prenomC.text = fullUser.prenom;
           _nomC.text = fullUser.nom;
           _emailC.text = fullUser.email;
           _phoneC.text = fullUser.telephone;
+          _myAgenceName = fullUser.agenceName ?? '—';
         });
       }
     } catch (e) {
-      debugPrint('Error loading full user profile: $e');
+      debugPrint('Error loading profile: $e');
     }
   }
 
@@ -119,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _saving = true);
     try {
-      await _userService.updateUser(user.userId, UserRequest(
+      await _userService.updateMyProfile(UserRequest(
         prenom: _prenomC.text.trim(),
         nom: _nomC.text.trim(),
         email: _emailC.text.trim(),
@@ -173,8 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _saving = true);
     try {
-      await _userService.changePassword(
-        user.userId,
+      await _userService.changeMyPassword(
         oldPassword: _currentPwC.text,
         newPassword: _newPwC.text,
       );
@@ -268,7 +261,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(child: _formField(c, 'Nom', _nomC)),
               ]),
               const SizedBox(height: 10),
-              _formField(c, 'Email', _emailC, keyboardType: TextInputType.emailAddress),
+              _formField(c, 'Email (identifiant — non modifiable)', _emailC,
+                  keyboardType: TextInputType.emailAddress, readOnly: true),
               const SizedBox(height: 10),
               _formField(c, 'Téléphone', _phoneC, keyboardType: TextInputType.phone),
               const SizedBox(height: 14),
@@ -491,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _formField(AppColorScheme c, String label, TextEditingController ctrl,
-      {bool obscure = false, TextInputType? keyboardType}) {
+      {bool obscure = false, TextInputType? keyboardType, bool readOnly = false}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: c.text3)),
       const SizedBox(height: 4),
@@ -499,12 +493,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         controller: ctrl,
         obscureText: obscure,
         keyboardType: keyboardType,
-        style: GoogleFonts.inter(fontSize: 12, color: c.text),
+        readOnly: readOnly,
+        style: GoogleFonts.inter(fontSize: 12, color: readOnly ? c.text3 : c.text),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           filled: true,
-          fillColor: c.elevated,
+          fillColor: readOnly ? c.muted : c.elevated,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.border)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.border)),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.primary)),

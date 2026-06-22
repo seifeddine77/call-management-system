@@ -1,14 +1,26 @@
 # ============================================================
-# Alertmanager — Envoi direct d'e-mails via SMTP Gmail
+# Alertmanager — Notifications par e-mail (SMTP Gmail) ET Slack
+# ============================================================
+# Slack : les alertes sont aussi envoyées dans un canal Slack via une
+# "Incoming Webhook". L'URL du webhook est un SECRET, lu depuis le fichier
+#   infrastructure/monitoring/alertmanager/secrets/slack_webhook_url
+# (dossier secrets/ gitignoré — l'URL n'est jamais committée).
+#
+# Pour activer Slack :
+#   1. Slack → Apps → "Incoming Webhooks" → Add to Slack → choisir le canal
+#      (ex. #alertes) → copier l'URL (https://hooks.slack.com/services/T.../B.../xxx).
+#   2. Coller cette URL dans secrets/slack_webhook_url (une seule ligne, sans quotes).
+#   3. Ajuster 'channel' ci-dessous si besoin, puis recharger Alertmanager :
+#        curl -X POST http://localhost:9093/-/reload
 # ============================================================
 global:
   resolve_timeout: 5m
-  
+
   # ── Configuration SMTP Globale (Gmail) ──
   smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: 'saifrezgui77@gmail.com'
   smtp_auth_username: 'saifrezgui77@gmail.com'
-  smtp_auth_password_file: '/etc/alertmanager/secrets/smtp_password'  
+  smtp_auth_password_file: '/etc/alertmanager/secrets/smtp_password'
   smtp_require_tls: true
 
 route:
@@ -16,13 +28,28 @@ route:
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 1h
-  receiver: 'email-direct'
+  # Receiver unique qui notifie e-mail ET Slack.
+  receiver: 'email-and-slack'
 
 receivers:
-  - name: 'email-direct'
+  - name: 'email-and-slack'
+    # ── 1) E-mail (inchangé) ──
     email_configs:
       - to: 'saifrezgui77@gmail.com'
         send_resolved: true
-        # Personnalisation du sujet du mail
         headers:
           subject: '{{ if eq .Status "firing" }}🔴[ALERTE] {{ else }}✅[RÉSOLU] {{ end }}{{ .CommonLabels.alertname }} sur {{ .CommonLabels.job }}'
+
+    # ── 2) Slack (nouveau) ──
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/secrets/slack_webhook_url'
+        channel: '#alertes'
+        send_resolved: true
+        title: '{{ if eq .Status "firing" }}:red_circle: [ALERTE]{{ else }}:white_check_mark: [RÉSOLU]{{ end }} {{ .CommonLabels.alertname }}'
+        title_link: 'http://localhost:9090/alerts'
+        text: >-
+          *Service* : `{{ .CommonLabels.job }}`  |  *Sévérité* : {{ if .CommonLabels.severity }}{{ .CommonLabels.severity }}{{ else }}n/a{{ end }}
+          {{ range .Alerts }}
+          • {{ if .Annotations.summary }}{{ .Annotations.summary }}{{ else }}{{ .Labels.alertname }}{{ end }}{{ if .Annotations.description }}
+            _{{ .Annotations.description }}_{{ end }}
+          {{ end }}

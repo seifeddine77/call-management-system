@@ -17,6 +17,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+/**
+ * API REST d'aide à la décision (decision-service) — scoring d'acceptation des réclamations.
+ *
+ * <p>Orchestre le pipeline RULES → AI → HYBRID et expose l'analyse (score + décision FAVORABLE/
+ * DEFAVORABLE/ETUDE), la finalisation par un superviseur (override) et la génération de courrier.
+ * La traçabilité (règles appliquées, source de décision) sert l'explicabilité exigée par le métier.</p>
+ */
 @RestController
 @RequestMapping("/api/decisions")
 @RequiredArgsConstructor
