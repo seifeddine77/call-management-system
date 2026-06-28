@@ -45,27 +45,24 @@ def main():
     m = re.search(r'127.0.0.1:([0-9]+)', host_config)
     if not m:
         print("Could not find dynamic port in host config.")
-        sys.exit(0)
+        sys.exit(1)
         
     port = m.group(1)
     print("Detected dynamic Kubernetes port from host:", port)
     
-    # 4. Update the target kubeconfig file in Jenkins
-    if not os.path.exists(kubeconfig_path):
-        print(f"Target kubeconfig file not found at: {kubeconfig_path}")
-        sys.exit(1)
-        
-    with open(kubeconfig_path, 'r') as f:
-        kb = f.read()
-        
-    # Replace server URL and remove certificate authority
-    kb = re.sub(r'server:.*', f'server: https://host.docker.internal:{port}\n    insecure-skip-tls-verify: true', kb)
-    kb = re.sub(r'certificate-authority-data:.*', '', kb)
+    # 4. Modify the host config to point to host.docker.internal:port and disable TLS validation
+    modified_config = re.sub(
+        r'server:.*', 
+        f'server: https://host.docker.internal:{port}\n    insecure-skip-tls-verify: true', 
+        host_config
+    )
+    modified_config = re.sub(r'certificate-authority-data:.*', '', modified_config)
     
+    # 5. Write the modified host config over the target kubeconfig in Jenkins
     with open(kubeconfig_path, 'w') as f:
-        f.write(kb)
+        f.write(modified_config)
         
-    print(f"Successfully updated kubeconfig at: {kubeconfig_path}")
+    print(f"Successfully replaced kubeconfig with updated host credentials at: {kubeconfig_path}")
 
 if __name__ == '__main__':
     main()
