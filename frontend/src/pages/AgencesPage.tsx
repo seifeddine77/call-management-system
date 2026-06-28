@@ -84,7 +84,7 @@ export default function AgencesPage() {
     if (form.nom && form.nom.length > 200) errors.nom = "Le nom ne peut pas dépasser 200 caractères";
     
     if (form.email && form.email.trim().length > 0) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
         errors.email = "Format d'email invalide";
       }
     }

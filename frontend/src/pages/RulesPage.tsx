@@ -1344,6 +1344,88 @@ function RulesListTabContent({
   // Revenir à la première page dès que le filtre/la recherche change
   useEffect(() => { setPage(0); }, [search, actionFilter]);
 
+  const renderRulesList = () => {
+    if (loading) {
+      return (
+        <div className="space-y-3 animate-pulse">
+          {['rule-skel-1', 'rule-skel-2', 'rule-skel-3', 'rule-skel-4'].map(key => <div key={key} className="h-20 bg-[var(--muted)] rounded-2xl" />)}
+        </div>
+      );
+    }
+    if (rules.length === 0) {
+      return (
+        <EmptyState
+          icon="ruler"
+          title="Aucune règle"
+          subtitle="Créez votre première règle métier"
+          action={
+            <button onClick={() => setShowCreate(true)} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">+ Créer</button>
+          }
+        />
+      );
+    }
+    if (filteredRules.length === 0) {
+      return (
+        <EmptyState
+          icon="ruler"
+          title="Aucun résultat"
+          subtitle="Aucune règle ne correspond à votre recherche"
+          action={
+            <button onClick={() => { setSearch(''); setActionFilter('ALL'); }} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">Réinitialiser</button>
+          }
+        />
+      );
+    }
+    return pagedRules.map((rule) => (
+      <div
+        key={rule.id}
+        className={`card-aurora rounded-2xl p-4 transition-all hover:border-indigo-500/30 ${
+          selectedRule?.id === rule.id ? 'border border-indigo-500/40 bg-indigo-500/[0.03]' : ''
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleSelectRule(rule)}
+            className="flex-1 min-w-0 text-left bg-transparent border-none p-0 cursor-pointer focus:outline-none"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-bold">{rule.nom}</span>
+              <span className="font-mono text-[9px] text-txt-3 bg-[var(--overlay)] px-2 py-0.5 rounded border border-border-subtle">v{rule.version}</span>
+            </div>
+            <div className="text-xs text-txt-2 line-clamp-1">{rule.description}</div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`badge border text-[9px] ${getActionBadgeClass(rule.action)}`}>
+                {rule.action}
+              </span>
+              <span className={`badge font-mono text-[9px] ${getScoreImpactClass(rule.scoreImpact)}`}>
+                Impact: {rule.scoreImpact > 0 ? `+${rule.scoreImpact}` : rule.scoreImpact}
+              </span>
+              <span className="font-mono text-[9px] text-txt-3">P{rule.priorite}</span>
+              <span className="font-mono text-[9px] text-txt-3">{rule.conditions.conditions.length} cond.</span>
+            </div>
+          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div
+              role="switch"
+              tabIndex={0}
+              aria-checked={rule.actif}
+              onClick={(e) => { e.stopPropagation(); handleToggle(rule.id); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleToggle(rule.id); } }}
+              className={`toggle-switch cursor-pointer ${rule.actif ? 'on' : ''} ${toggling === rule.id ? 'opacity-50' : ''}`}
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(rule); }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+            >
+              <Trash2 size={13} className="text-txt-3 hover:text-rose-400" />
+            </button>
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
       {/* Rules list */}
@@ -1380,78 +1462,7 @@ function RulesListTabContent({
             </div>
           </div>
         )}
-        {loading ? (
-          <div className="space-y-3 animate-pulse">
-            {['rule-skel-1', 'rule-skel-2', 'rule-skel-3', 'rule-skel-4'].map(key => <div key={key} className="h-20 bg-[var(--muted)] rounded-2xl" />)}
-          </div>
-        ) : rules.length === 0 ? (
-          <EmptyState
-            icon="ruler"
-            title="Aucune règle"
-            subtitle="Créez votre première règle métier"
-            action={
-              <button onClick={() => setShowCreate(true)} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">+ Créer</button>
-            }
-          />
-        ) : filteredRules.length === 0 ? (
-          <EmptyState
-            icon="ruler"
-            title="Aucun résultat"
-            subtitle="Aucune règle ne correspond à votre recherche"
-            action={
-              <button onClick={() => { setSearch(''); setActionFilter('ALL'); }} className="btn-cta h-8 px-4 rounded-lg text-xs text-white cursor-pointer">Réinitialiser</button>
-            }
-          />
-        ) : (
-          pagedRules.map((rule) => (
-            <div
-              key={rule.id}
-              className={`card-aurora rounded-2xl p-4 transition-all hover:border-indigo-500/30 ${
-                selectedRule?.id === rule.id ? 'border border-indigo-500/40 bg-indigo-500/[0.03]' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleSelectRule(rule)}
-                  className="flex-1 min-w-0 text-left bg-transparent border-none p-0 cursor-pointer focus:outline-none"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-bold">{rule.nom}</span>
-                    <span className="font-mono text-[9px] text-txt-3 bg-[var(--overlay)] px-2 py-0.5 rounded border border-border-subtle">v{rule.version}</span>
-                  </div>
-                  <div className="text-xs text-txt-2 line-clamp-1">{rule.description}</div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`badge border text-[9px] ${getActionBadgeClass(rule.action)}`}>
-                      {rule.action}
-                    </span>
-                    <span className={`badge font-mono text-[9px] ${getScoreImpactClass(rule.scoreImpact)}`}>
-                      Impact: {rule.scoreImpact > 0 ? `+${rule.scoreImpact}` : rule.scoreImpact}
-                    </span>
-                    <span className="font-mono text-[9px] text-txt-3">P{rule.priorite}</span>
-                    <span className="font-mono text-[9px] text-txt-3">{rule.conditions.conditions.length} cond.</span>
-                  </div>
-                </button>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <div
-                    role="switch"
-                    tabIndex={0}
-                    aria-checked={rule.actif}
-                    onClick={(e) => { e.stopPropagation(); handleToggle(rule.id); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleToggle(rule.id); } }}
-                    className={`toggle-switch cursor-pointer ${rule.actif ? 'on' : ''} ${toggling === rule.id ? 'opacity-50' : ''}`}
-                  />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(rule); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-txt-3 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
-                  >
-                    <Trash2 size={13} className="text-txt-3 hover:text-rose-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+        {renderRulesList()}
 
         {/* Pagination */}
         {!loading && filteredRules.length > PAGE_SIZE && (

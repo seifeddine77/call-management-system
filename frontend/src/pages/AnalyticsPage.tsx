@@ -379,7 +379,7 @@ interface ChatbotPerformanceProps {
 function ChatbotPerformance({ stats }: Readonly<ChatbotPerformanceProps>) {
   if (!stats) return null;
 
-  const satisfaction = parseInt(stats.satisfaction_rate.replace('%', '')) || 0;
+  const satisfaction = Number.parseInt(stats.satisfaction_rate.replace('%', ''), 10) || 0;
 
   return (
     <motion.div variants={item} className="card-aurora rounded-2xl p-5 relative overflow-hidden group">
@@ -429,10 +429,10 @@ function ChatbotPerformance({ stats }: Readonly<ChatbotPerformanceProps>) {
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {stats.recent_feedback && stats.recent_feedback.length > 0 ? (
-                stats.recent_feedback.map((fb, idx) => {
+                stats.recent_feedback.map((fb) => {
                   const agencyName = fb.group_name.replace('@g.us', '').split('@')[0];
                   return (
-                    <tr key={`chatbot-fb-${idx}`} className="hover:bg-white/[0.01] transition-colors">
+                    <tr key={`${fb.group_name}-${fb.question}`} className="hover:bg-white/[0.01] transition-colors">
                       <td className="p-2.5 font-mono text-[10px] text-[var(--text-2)] whitespace-nowrap">{agencyName}</td>
                       <td className="p-2.5 max-w-[200px] truncate text-[var(--text-2)]" title={fb.question}>{fb.question}</td>
                       <td className="p-2.5 max-w-[300px] truncate text-[var(--text-3)]" title={fb.answer_preview}>{fb.answer_preview}</td>

@@ -32,7 +32,7 @@ function validateUserForm(
   if (!form.nom || form.nom.trim().length === 0) errors.nom = 'Le nom est obligatoire';
   if (!form.email || form.email.trim().length === 0) {
     errors.email = "L'email est obligatoire";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
     errors.email = "Format d'email invalide";
   }
   if (isCreate) {
