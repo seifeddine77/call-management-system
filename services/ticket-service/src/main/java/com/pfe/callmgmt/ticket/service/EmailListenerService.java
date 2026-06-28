@@ -3,6 +3,7 @@ package com.pfe.callmgmt.ticket.service;
 import com.pfe.callmgmt.ticket.dto.CreateTicketRequest;
 import com.pfe.callmgmt.ticket.dto.TicketResponse;
 import jakarta.mail.*;
+import jakarta.mail.search.SearchTerm;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMultipart;
 import lombok.RequiredArgsConstructor;
@@ -79,18 +80,12 @@ public class EmailListenerService {
      */
     @Scheduled(fixedDelayString = "${email.listener.poll-interval:30000}")
     public void pollEmails() {
-        if (!enabled || username.isBlank() || password.isBlank()) {
+        if (isListenerDisabled()) {
             return; // Listener désactivé ou non configuré
         }
 
         // Initialiser le timestamp de démarrage au premier poll
-        if (serviceStartTime == null) {
-            serviceStartTime = java.time.Instant.now();
-            log.info("📧 [IMAP] Listener démarré — filtrage actif : {}",
-                    filterKeywords != null && !filterKeywords.isEmpty()
-                            ? "mots-clés: " + filterKeywords
-                            : "TOUS les emails (aucun filtre)");
-        }
+        initServiceStartTime();
 
         // Connexion IMAP SSL
         Properties props = new Properties();
@@ -108,42 +103,7 @@ public class EmailListenerService {
 
             try (Folder folder = store.getFolder(folderName)) {
                 folder.open(Folder.READ_WRITE);
-
-                // Recherche côté serveur IMAP : emails non lus ET reçus depuis le démarrage du service
-                jakarta.mail.search.SearchTerm searchTerm;
-                if (skipOldEmails && serviceStartTime != null) {
-                    searchTerm = new jakarta.mail.search.AndTerm(
-                            new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false),
-                            new jakarta.mail.search.ReceivedDateTerm(jakarta.mail.search.ComparisonTerm.GE,
-                                    java.util.Date.from(serviceStartTime)));
-                } else {
-                    searchTerm = new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false);
-                }
-
-                Message[] messages = folder.search(searchTerm);
-
-                if (messages.length == 0) {
-                    return; // Pas de nouveaux emails
-                }
-
-                log.info("📧 [IMAP] {} nouveaux emails détectés", messages.length);
-
-                int processed = 0;
-                int skipped = 0;
-
-                for (Message message : messages) {
-                    int status = processSingleEmail(message);
-                    if (status == 1) {
-                        processed++;
-                    } else if (status == 0) {
-                        skipped++;
-                    }
-                }
-
-                if (processed > 0 || skipped > 0) {
-                    log.info("📧 [IMAP] Résultat : {} traités, {} ignorés sur {} total",
-                            processed, skipped, messages.length);
-                }
+                processMessages(folder);
             }
         } catch (AuthenticationFailedException e) {
             log.error("❌ [IMAP] Authentification échouée — vérifiez username/password: {}", e.getMessage(), e);
@@ -151,6 +111,59 @@ public class EmailListenerService {
             log.error("❌ [IMAP] Erreur connexion IMAP: {}", e.getMessage(), e);
         }
     }
+
+    private boolean isListenerDisabled() {
+        return !enabled || username.isBlank() || password.isBlank();
+    }
+
+    private void initServiceStartTime() {
+        if (serviceStartTime == null) {
+            serviceStartTime = java.time.Instant.now();
+            log.info("📧 [IMAP] Listener démarré — filtrage actif : {}",
+                    filterKeywords != null && !filterKeywords.isEmpty()
+                            ? "mots-clés: " + filterKeywords
+                            : "TOUS les emails (aucun filtre)");
+        }
+    }
+
+    private SearchTerm buildSearchTerm() {
+        if (skipOldEmails && serviceStartTime != null) {
+            return new jakarta.mail.search.AndTerm(
+                    new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false),
+                    new jakarta.mail.search.ReceivedDateTerm(jakarta.mail.search.ComparisonTerm.GE,
+                            java.util.Date.from(serviceStartTime)));
+        }
+        return new jakarta.mail.search.FlagTerm(new Flags(Flags.Flag.SEEN), false);
+    }
+
+    private void processMessages(Folder folder) throws MessagingException {
+        SearchTerm searchTerm = buildSearchTerm();
+        Message[] messages = folder.search(searchTerm);
+
+        if (messages.length == 0) {
+            return; // Pas de nouveaux emails
+        }
+
+        log.info("📧 [IMAP] {} nouveaux emails détectés", messages.length);
+
+        int processed = 0;
+        int skipped = 0;
+
+        for (Message message : messages) {
+            int status = processSingleEmail(message);
+            if (status == 1) {
+                processed++;
+            } else if (status == 0) {
+                skipped++;
+            }
+        }
+
+        if (processed > 0 || skipped > 0) {
+            log.info("📧 [IMAP] Résultat : {} traités, {} ignorés sur {} total",
+                    processed, skipped, messages.length);
+        }
+    }
+
 
     /**
      * Traite un email individuel : vérifie le filtre mots-clés, crée le ticket, et marque comme lu.

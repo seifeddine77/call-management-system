@@ -82,40 +82,44 @@ public class ReconciliationService {
         List<ReconciliationDrift> drifts = new ArrayList<>();
 
         for (DailyTicketCount t : truth) {
-            DailyStat stat = dailyStatRepository.findByDate(t.getDate()).orElse(null);
-
-            long actualTotal = stat != null ? nz(stat.getTotalTickets()) : 0;
-            long actualCall = stat != null ? nz(stat.getTicketsCall()) : 0;
-            long actualEmail = stat != null ? nz(stat.getTicketsEmail()) : 0;
-            long actualWeb = stat != null ? nz(stat.getTicketsWeb()) : 0;
-
-            boolean hasDrift = actualTotal != t.getTotalTickets()
-                    || actualCall != t.getTicketsCall()
-                    || actualEmail != t.getTicketsEmail()
-                    || actualWeb != t.getTicketsWeb();
-            if (!hasDrift) {
-                continue;
-            }
-
-            if (apply) {
-                if (stat == null) {
-                    // Jour pour lequel aucune stat n'existe (événements perdus + pas de passe nocturne).
-                    stat = DailyStat.builder().date(t.getDate()).build();
-                }
-                stat.setTotalTickets((int) t.getTotalTickets());
-                stat.setTicketsCall((int) t.getTicketsCall());
-                stat.setTicketsEmail((int) t.getTicketsEmail());
-                stat.setTicketsWeb((int) t.getTicketsWeb());
-                dailyStatRepository.save(stat);
-            }
-
-            recordDrift(drifts, t.getDate(), "totalTickets", t.getTotalTickets(), actualTotal, apply);
-            recordDrift(drifts, t.getDate(), "ticketsCall", t.getTicketsCall(), actualCall, apply);
-            recordDrift(drifts, t.getDate(), "ticketsEmail", t.getTicketsEmail(), actualEmail, apply);
-            recordDrift(drifts, t.getDate(), "ticketsWeb", t.getTicketsWeb(), actualWeb, apply);
+            reconcileSingleDate(t, apply, drifts);
         }
         return drifts;
     }
+
+    private void reconcileSingleDate(DailyTicketCount t, boolean apply, List<ReconciliationDrift> drifts) {
+        DailyStat stat = dailyStatRepository.findByDate(t.getDate()).orElse(null);
+
+        long actualTotal = stat != null ? nz(stat.getTotalTickets()) : 0;
+        long actualCall = stat != null ? nz(stat.getTicketsCall()) : 0;
+        long actualEmail = stat != null ? nz(stat.getTicketsEmail()) : 0;
+        long actualWeb = stat != null ? nz(stat.getTicketsWeb()) : 0;
+
+        boolean hasDrift = actualTotal != t.getTotalTickets()
+                || actualCall != t.getTicketsCall()
+                || actualEmail != t.getTicketsEmail()
+                || actualWeb != t.getTicketsWeb();
+        if (!hasDrift) {
+            return;
+        }
+
+        if (apply) {
+            if (stat == null) {
+                stat = DailyStat.builder().date(t.getDate()).build();
+            }
+            stat.setTotalTickets((int) t.getTotalTickets());
+            stat.setTicketsCall((int) t.getTicketsCall());
+            stat.setTicketsEmail((int) t.getTicketsEmail());
+            stat.setTicketsWeb((int) t.getTicketsWeb());
+            dailyStatRepository.save(stat);
+        }
+
+        recordDrift(drifts, t.getDate(), "totalTickets", t.getTotalTickets(), actualTotal, apply);
+        recordDrift(drifts, t.getDate(), "ticketsCall", t.getTicketsCall(), actualCall, apply);
+        recordDrift(drifts, t.getDate(), "ticketsEmail", t.getTicketsEmail(), actualEmail, apply);
+        recordDrift(drifts, t.getDate(), "ticketsWeb", t.getTicketsWeb(), actualWeb, apply);
+    }
+
 
     private void recordDrift(List<ReconciliationDrift> drifts, LocalDate date, String field,
                              long expected, long actual, boolean corrected) {
