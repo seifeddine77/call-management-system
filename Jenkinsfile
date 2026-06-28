@@ -414,6 +414,7 @@ CIEOF
                     ]) {
                         sh '''
                             export KUBECONFIG="$KUBECONFIG"
+                            python3 infrastructure/jenkins/fix_kubeconfig.py "$KUBECONFIG"
                             kubectl create namespace autoassist --dry-run=client -o yaml | kubectl apply --validate=false -f -
                             kubectl create secret generic autoassist-secrets \\
                                 --namespace autoassist \\
@@ -440,6 +441,7 @@ CIEOF
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
                         script {
+                            sh "python3 infrastructure/jenkins/fix_kubeconfig.py \"\$KUBECONFIG\""
                             def deployments = [
                                 'eureka-server', 'api-gateway', 'auth-service',
                                 'organisation-service', 'ticket-service', 'rules-service',
@@ -491,6 +493,7 @@ CIEOF
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
                     withCredentials([file(credentialsId: 'kubeconfig-docker-desktop', variable: 'KUBECONFIG')]) {
                         script {
+                            sh "python3 infrastructure/jenkins/fix_kubeconfig.py \"\$KUBECONFIG\""
                             echo 'Rolling back all K8s deployments to previous version...'
                             def deployments = [
                                 'eureka-server', 'api-gateway', 'auth-service',
