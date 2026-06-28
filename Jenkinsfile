@@ -169,10 +169,8 @@ pipeline {
                 stage('OWASP Dependency Check') {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                            retry(3) {
-                                dir('services/auth-service') {
-                                    sh 'mvn org.owasp:dependency-check-maven:check -DskipTests -q -DfailBuildOnCVSS=11 -DdataDirectory=/var/jenkins_home/owasp-data -DfailOnError=false'
-                                }
+                            dir('services/auth-service') {
+                                sh 'mvn org.owasp:dependency-check-maven:check -DskipTests -q -DfailBuildOnCVSS=11 -DdataDirectory=/var/jenkins_home/owasp-data -DfailOnError=false -DautoUpdate=false'
                             }
                         }
                     }
