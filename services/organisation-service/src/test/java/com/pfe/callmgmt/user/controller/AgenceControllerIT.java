@@ -1,4 +1,4 @@
-package com.pfe.callmgmt.user.controller;
+﻿package com.pfe.callmgmt.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pfe.callmgmt.user.dto.AgenceRequest;
@@ -59,7 +59,7 @@ class AgenceControllerIT {
                 request.setTelephone("71000111");
                 request.setEmail("tunis@callmgmt.com");
 
-                mockMvc.perform(post(API_AGENCES)
+                mockMvc.perform(post(API_AGENCES).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
@@ -77,7 +77,7 @@ class AgenceControllerIT {
                 AgenceRequest request = new AgenceRequest();
                 // nom is @NotBlank, so empty should fail
 
-                mockMvc.perform(post(API_AGENCES)
+                mockMvc.perform(post(API_AGENCES).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest());
@@ -146,7 +146,7 @@ class AgenceControllerIT {
                 update.setTelephone("71111111");
                 update.setEmail("new@callmgmt.com");
 
-                mockMvc.perform(put("/api/agences/{id}", agence.getId())
+                mockMvc.perform(put("/api/agences/{id}", agence.getId()).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(update)))
                                 .andExpect(status().isOk())
@@ -165,7 +165,8 @@ class AgenceControllerIT {
                                 .nom("To Deactivate").adresse("Address").telephone(PHONE_DEFAULT)
                                 .email("deactivate@callmgmt.com").actif(true).build());
 
-                mockMvc.perform(delete("/api/agences/{id}", agence.getId()))
+                mockMvc.perform(delete("/api/agences/{id}", agence.getId())
+                                .header("X-User-Role", "ADMIN"))
                                 .andExpect(status().isNoContent());
 
                 Agence updated = agenceRepository.findById(agence.getId()).orElseThrow();
@@ -187,7 +188,7 @@ class AgenceControllerIT {
                 request.setEmail("stock@callmgmt.com");
                 request.setStockDescription("Pièces mécaniques: 450 unités, Électriques: 120");
 
-                mockMvc.perform(post(API_AGENCES)
+                mockMvc.perform(post(API_AGENCES).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
@@ -210,7 +211,7 @@ class AgenceControllerIT {
                 update.setEmail("majstock@callmgmt.com");
                 update.setStockDescription("Nouveau stock: 500 pièces toutes catégories");
 
-                mockMvc.perform(put("/api/agences/{id}", agence.getId())
+                mockMvc.perform(put("/api/agences/{id}", agence.getId()).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(update)))
                                 .andExpect(status().isOk())

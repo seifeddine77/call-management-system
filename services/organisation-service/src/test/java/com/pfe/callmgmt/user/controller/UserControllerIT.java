@@ -88,7 +88,7 @@ class UserControllerIT {
                 request.setRole(ROLE_OPERATOR);
                 request.setAgenceId(testAgence.getId());
 
-                mockMvc.perform(post(API_USERS)
+                mockMvc.perform(post(API_USERS).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
@@ -123,7 +123,7 @@ class UserControllerIT {
                 request.setRole(ROLE_OPERATOR);
                 request.setAgenceId(testAgence.getId());
 
-                mockMvc.perform(post(API_USERS)
+                mockMvc.perform(post(API_USERS).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isConflict());
@@ -136,7 +136,7 @@ class UserControllerIT {
                 UserRequest request = new UserRequest();
                 // Missing all required fields
 
-                mockMvc.perform(post(API_USERS)
+                mockMvc.perform(post(API_USERS).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest());
@@ -262,7 +262,7 @@ class UserControllerIT {
                                 .actif(true)
                                 .build());
 
-                mockMvc.perform(delete(API_USERS_ID, user.getId()))
+                mockMvc.perform(delete(API_USERS_ID, user.getId()).header("X-User-Role", "ADMIN"))
                                 .andExpect(status().isNoContent());
 
                 User updated = userRepository.findById(user.getId()).orElseThrow();
@@ -319,7 +319,7 @@ class UserControllerIT {
                 request.setAgenceId(testAgence.getId());
                 request.setPlanning("Lundi-Vendredi 08:00-17:00, Samedi 09:00-13:00");
 
-                mockMvc.perform(post(API_USERS)
+                mockMvc.perform(post(API_USERS).header("X-User-Role", "ADMIN")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isCreated())
