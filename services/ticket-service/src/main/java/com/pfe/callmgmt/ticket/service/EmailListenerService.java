@@ -266,8 +266,8 @@ public class EmailListenerService {
     private String extractTextContent(Message message) throws MessagingException, IOException {
         Object content = message.getContent();
 
-        if (content instanceof String) {
-            return (String) content;
+        if (content instanceof String string) {
+            return string;
         }
 
         if (content instanceof MimeMultipart multipart) {

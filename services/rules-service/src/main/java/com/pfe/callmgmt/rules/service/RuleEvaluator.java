@@ -186,8 +186,8 @@ public class RuleEvaluator {
      * Convertit une valeur en double pour les comparaisons numériques.
      */
     private double toDouble(Object value) {
-        if (value instanceof Number)
-            return ((Number) value).doubleValue();
+        if (value instanceof Number number)
+            return number.doubleValue();
         return Double.parseDouble(value.toString());
     }
 }

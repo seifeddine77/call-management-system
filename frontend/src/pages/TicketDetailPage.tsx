@@ -1131,7 +1131,7 @@ function useTicketDetailsState() {
   // ── RGPD — Anonymisation (droit à l'oubli), réservée à l'ADMIN ──
   const handleAnonymize = async () => {
     if (!id || !isAdmin) return;
-    const ok = window.confirm(
+    const ok = globalThis.confirm(
       "Anonymiser ce ticket (RGPD) ?\n\nCette action est IRRÉVERSIBLE : les données personnelles du client, "
       + "l'enregistrement audio, la transcription, la décision et les courriers seront définitivement effacés."
     );
@@ -1867,147 +1867,161 @@ interface CallChannelCardProps {
   fetchTicket: () => void;
 }
 
+interface AudioTwilioCardProps {
+  id: string;
+  audioPath: string | null | undefined;
+  transcription: string | null | undefined;
+}
+
+function AudioTwilioCard({ id, audioPath, transcription }: Readonly<AudioTwilioCardProps>) {
+  return (
+    <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 to-indigo-500" />
+      <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <Phone size={16} />
+          </div>
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">☎ Enregistrement Audio Twilio</h3>
+        </div>
+        <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          SIP Stream
+        </span>
+      </div>
+
+      {audioPath ? (
+        <div className="space-y-4">
+          <div className="p-3 bg-[var(--elevated)] border border-border rounded-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold">Fichier d'archive disponible</span>
+              </div>
+              <div className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] border border-border px-2 py-0.5 rounded-md truncate max-w-[180px]">
+                {audioPath.split('/').pop()}
+              </div>
+            </div>
+
+            <PremiumAudioPlayer ticketId={id} filename={audioPath ?? undefined} />
+          </div>
+
+          <div className="flex items-center justify-between bg-[var(--elevated)]/40 p-3 rounded-xl border border-border">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[9px] text-emerald-400 font-bold">✓</div>
+              <span className="font-mono text-[8px] uppercase text-emerald-400 tracking-wider">Audio Capturé</span>
+            </div>
+            <div className="flex-1 h-px bg-border mx-3" />
+            <div className="flex items-center gap-1.5">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'}`}>
+                {transcription ? '✓' : '⏳'}
+              </div>
+              <span className={`font-mono text-[8px] uppercase tracking-wider ${transcription ? 'text-emerald-400' : 'text-amber-400'}`}>
+                Whisper Transcrit
+              </span>
+            </div>
+            <div className="flex-1 h-px bg-border mx-3" />
+            <div className="flex items-center gap-1.5">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-[var(--muted)] border border-border text-txt-3'}`}>
+                {transcription ? '✓' : '○'}
+              </div>
+              <span className={`font-mono text-[8px] uppercase tracking-wider ${transcription ? 'text-emerald-400' : 'text-txt-3'}`}>
+                NLP Évalué
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+          <div className="text-3xl mb-2 animate-bounce">📞</div>
+          <div className="text-xs text-txt-2 font-bold uppercase tracking-wider">Enregistrement automatique en cours</div>
+          <p className="text-[10px] text-txt-3 mt-1.5 max-w-[280px] mx-auto leading-relaxed">
+            L'appel via le numéro vert AutoAssist est actif. L'enregistrement audio et l'analyse NLP Whisper démarreront automatiquement à la fin de la communication.
+          </p>
+          <div className="mt-4 inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-[9px] font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />{' '}
+            Canal Twilio Connecté
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface WhisperTranscriptionCardProps {
+  transcription: string | null | undefined;
+  keywords: string[];
+  audioPath: string | null | undefined;
+}
+
+function WhisperTranscriptionCard({ transcription, keywords, audioPath }: Readonly<WhisperTranscriptionCardProps>) {
+  return (
+    <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
+      <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
+          <FileText size={14} className="text-indigo-400" />
+          Transcription de la conversation (NLP)
+        </h3>
+        {transcription && (
+          <span className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+            {transcription.length} caractères
+          </span>
+        )}
+      </div>
+
+      {transcription ? (
+        <div className="space-y-4">
+          <TranscriptionViewer transcription={transcription} keywords={keywords} />
+
+          {keywords.length > 0 && (
+            <div className="bg-[var(--elevated)]/30 p-3 rounded-xl border border-border space-y-2">
+              <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-bold">Mots-clés sémantiques identifiés :</div>
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((kw) => (
+                  <span key={kw} className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 font-bold shadow-sm">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-border pt-4 mt-2">
+            <label htmlFor="ticket-operator-notes" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-2 font-bold">📋 Remarques et Annotations Opérateur</label>
+            <textarea 
+              id="ticket-operator-notes" 
+              className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2 px-3 focus:border-indigo-500/60" 
+              placeholder="Saisissez ici des notes complémentaires sur l'appel ou l'entretien..." 
+              defaultValue="" 
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-10 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
+          <div className="text-3xl mb-2 filter drop-shadow-sm">📄</div>
+          <div className="text-xs text-txt-3 max-w-[220px] mx-auto leading-relaxed">
+            {audioPath ? 'Analyse audio Whisper en cours. Les segments de texte apparaîtront sous peu...' : 'En attente de la clôture de la ligne téléphonique pour générer l\'audit textuel.'}
+          </div>
+          {audioPath && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-indigo-400 text-[10px] font-mono bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full w-fit mx-auto">
+              <RefreshCw size={11} className="animate-spin" />
+              Synthèse Whisper en cours...
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CallChannelCard({ id, audioPath, transcription, keywords, fetchTicket }: Readonly<CallChannelCardProps>) {
   return (
     <>
-      {/* Audio Twilio Card */}
-      <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 to-indigo-500" />
-        <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <Phone size={16} />
-            </div>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2">☎ Enregistrement Audio Twilio</h3>
-          </div>
-          <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            SIP Stream
-          </span>
-        </div>
-
-        {audioPath ? (
-          <div className="space-y-4">
-            <div className="p-3 bg-[var(--elevated)] border border-border rounded-xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-[10px] text-emerald-400 font-mono uppercase font-bold">Fichier d'archive disponible</span>
-                </div>
-                <div className="font-mono text-[9px] text-txt-3 bg-[var(--surface)] border border-border px-2 py-0.5 rounded-md truncate max-w-[180px]">
-                  {audioPath.split('/').pop()}
-                </div>
-              </div>
-
-              {/* Premium custom scrubber audio player */}
-              <PremiumAudioPlayer ticketId={id} filename={audioPath ?? undefined} />
-            </div>
-
-            {/* Processing status visual pipeline */}
-            <div className="flex items-center justify-between bg-[var(--elevated)]/40 p-3 rounded-xl border border-border">
-              <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[9px] text-emerald-400 font-bold">✓</div>
-                <span className="font-mono text-[8px] uppercase text-emerald-400 tracking-wider">Audio Capturé</span>
-              </div>
-              <div className="flex-1 h-px bg-border mx-3" />
-              <div className="flex items-center gap-1.5">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'}`}>
-                  {transcription ? '✓' : '⏳'}
-                </div>
-                <span className={`font-mono text-[8px] uppercase tracking-wider ${transcription ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  Whisper Transcrit
-                </span>
-              </div>
-              <div className="flex-1 h-px bg-border mx-3" />
-              <div className="flex items-center gap-1.5">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${transcription ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-[var(--muted)] border border-border text-txt-3'}`}>
-                  {transcription ? '✓' : '○'}
-                </div>
-                <span className={`font-mono text-[8px] uppercase tracking-wider ${transcription ? 'text-emerald-400' : 'text-txt-3'}`}>
-                  NLP Évalué
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
-            <div className="text-3xl mb-2 animate-bounce">📞</div>
-            <div className="text-xs text-txt-2 font-bold uppercase tracking-wider">Enregistrement automatique en cours</div>
-            <p className="text-[10px] text-txt-3 mt-1.5 max-w-[280px] mx-auto leading-relaxed">
-              L'appel via le numéro vert AutoAssist est actif. L'enregistrement audio et l'analyse NLP Whisper démarreront automatiquement à la fin de la communication.
-            </p>
-            <div className="mt-4 inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-[9px] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />{' '}
-              Canal Twilio Connecté
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Real-time Streaming STT Module */}
+      <AudioTwilioCard id={id} audioPath={audioPath} transcription={transcription} />
       <LiveTranscription ticketId={id} onTranscriptionUpdate={fetchTicket} />
-
-      {/* Segmented Whisper Transcription Card */}
-      <div className="card-aurora rounded-2xl p-5 relative overflow-hidden">
-        <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-txt-2 flex items-center gap-2">
-            <FileText size={14} className="text-indigo-400" />
-            Transcription de la conversation (NLP)
-          </h3>
-          {transcription && (
-            <span className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
-              {transcription.length} caractères
-            </span>
-          )}
-        </div>
-
-        {transcription ? (
-          <div className="space-y-4">
-            {/* Interactive block list of text speech fragments */}
-            <TranscriptionViewer transcription={transcription} keywords={keywords} />
-
-            {/* Extracted NLP Keywords list */}
-            {keywords.length > 0 && (
-              <div className="bg-[var(--elevated)]/30 p-3 rounded-xl border border-border space-y-2">
-                <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-bold">Mots-clés sémantiques identifiés :</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {keywords.map((kw) => (
-                    <span key={kw} className="font-mono text-[9px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 font-bold shadow-sm">
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Operator observations field */}
-            <div className="border-t border-border pt-4 mt-2">
-              <label htmlFor="ticket-operator-notes" className="font-mono text-[9px] text-txt-3 uppercase tracking-wider block mb-2 font-bold">📋 Remarques et Annotations Opérateur</label>
-              <textarea 
-                id="ticket-operator-notes" 
-                className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2 px-3 focus:border-indigo-500/60" 
-                placeholder="Saisissez ici des notes complémentaires sur l'appel ou l'entretien..." 
-                defaultValue="" 
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-10 border border-dashed border-border rounded-xl bg-[var(--elevated)]/20">
-            <div className="text-3xl mb-2 filter drop-shadow-sm">📄</div>
-            <div className="text-xs text-txt-3 max-w-[220px] mx-auto leading-relaxed">
-              {audioPath ? 'Analyse audio Whisper en cours. Les segments de texte apparaîtront sous peu...' : 'En attente de la clôture de la ligne téléphonique pour générer l\'audit textuel.'}
-            </div>
-            {audioPath && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-indigo-400 text-[10px] font-mono bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-full w-fit mx-auto">
-                <RefreshCw size={11} className="animate-spin" />
-                Synthèse Whisper en cours...
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <WhisperTranscriptionCard transcription={transcription} keywords={keywords} audioPath={audioPath} />
     </>
   );
 }
@@ -2025,6 +2039,177 @@ interface DecisionEngineCardProps {
   handleAccept: () => void;
   handleReject: () => void;
   handleDownloadPDF: () => void;
+}
+
+interface DecisionRulesAppliedProps {
+  rulesApplied: string[];
+}
+
+function DecisionRulesApplied({ rulesApplied }: Readonly<DecisionRulesAppliedProps>) {
+  if (rulesApplied.length === 0) return null;
+  return (
+    <div className="space-y-2 bg-[var(--elevated)]/20 p-3.5 rounded-2xl border border-border/80 shadow-sm">
+      <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-extrabold">Filtres réglementaires appliqués :</div>
+      <div className="space-y-1.5">
+        {rulesApplied.map((r: string) => (
+          <div 
+            key={r} 
+            className="flex items-start gap-2.5 p-2 bg-[var(--elevated)]/80 border border-border rounded-xl text-[11px] font-medium transition-colors hover:border-indigo-500/20"
+          >
+            <span className="text-emerald-400 font-extrabold text-xs flex-shrink-0 mt-0.5">✓</span>
+            <span className="text-txt-2 font-mono text-[10px]">{r}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface DecisionDetailsBoxProps {
+  source: string;
+  cached: boolean;
+  ambiguous: boolean;
+}
+
+function DecisionDetailsBox({ source, cached, ambiguous }: Readonly<DecisionDetailsBoxProps>) {
+  return (
+    <div className="p-3 bg-[var(--elevated)]/30 border border-border rounded-xl space-y-2 text-[10px] font-mono text-txt-3">
+      <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <span>Source d'évaluation</span>
+        <span className="text-txt-2 font-semibold">
+          {getDecisionSourceLabel(source)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <span>État de la décision</span>
+        <span className="text-txt-2 font-semibold">{cached ? '📦 Restitution Cache' : '🆕 Nouvelle exécution'}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span>Ambiguïté sémantique</span>
+        {ambiguous ? (
+          <span className="text-rose-400 font-bold bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 flex items-center gap-1">
+            <ShieldAlert size={10} /> Vérification requise
+          </span>
+        ) : (
+          <span className="text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 flex items-center gap-1">
+            <CheckCircle2 size={10} /> Évaluation fiable
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface DecisionOperatorActionsProps {
+  ticketStatut: string;
+  motif: string;
+  setMotif: (val: string) => void;
+  accepting: boolean;
+  rejecting: boolean;
+  handleAccept: () => void;
+  handleReject: () => void;
+}
+
+function DecisionOperatorActions({
+  ticketStatut,
+  motif,
+  setMotif,
+  accepting,
+  rejecting,
+  handleAccept,
+  handleReject
+}: Readonly<DecisionOperatorActionsProps>) {
+  if (ticketStatut === 'FERME' || ticketStatut === 'RESOLU') return null;
+
+  return (
+    <div className="space-y-3.5 border-t border-border pt-4 mt-2">
+      <div className="space-y-1.5">
+        <label htmlFor="ticket-decision-motif" className="font-mono text-[9px] text-txt-2 uppercase tracking-wide block font-extrabold">
+          Justification requise (motif) *
+        </label>
+        <textarea
+          id="ticket-decision-motif"
+          className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2.5 px-3.5 focus:border-indigo-500/60"
+          placeholder="Saisissez obligatoirement le motif qualifiant pour acter cette décision..."
+          value={motif}
+          onChange={(e) => setMotif(e.target.value)}
+        />
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={handleAccept} 
+          disabled={accepting || !motif.trim()} 
+          className="btn-premium-accept flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {accepting ? '...' : (
+            <span>✓ Accepter</span>
+          )}
+        </button>
+        <button 
+          onClick={handleReject} 
+          disabled={rejecting || !motif.trim()} 
+          className="btn-premium-reject flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {rejecting ? '...' : (
+            <span>✕ Rejeter</span>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface DecisionFinalBoxProps {
+  finalDecision: string;
+  overrideMotif?: string;
+}
+
+function DecisionFinalBox({ finalDecision, overrideMotif }: Readonly<DecisionFinalBoxProps>) {
+  return (
+    <div className={`p-4 rounded-xl border text-center text-xs font-extrabold shadow-sm bg-[var(--elevated)] ${
+      finalDecision === 'FAVORABLE' 
+        ? 'text-emerald-400 border-emerald-500/25 bg-emerald-500/[0.01]' 
+        : 'text-rose-400 border-rose-500/25 bg-rose-500/[0.01]'
+    }`}>
+      <div className="font-mono text-[8px] text-txt-3 uppercase block mb-1">Arbitrage définitif :</div>
+      <span className="text-sm tracking-wide">
+        {finalDecision === 'FAVORABLE' ? '🟢 FAVORABLE' : '🔴 DEFAVORABLE'}
+      </span>
+      {overrideMotif && (
+        <div className="mt-2 text-[10px] text-txt-2 font-mono font-medium max-w-[280px] mx-auto leading-relaxed border-t border-border/40 pt-2">
+          "{overrideMotif}"
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DecisionDownloadButtonProps {
+  downloading: boolean;
+  handleDownloadPDF: () => void;
+}
+
+function DecisionDownloadButton({ downloading, handleDownloadPDF }: Readonly<DecisionDownloadButtonProps>) {
+  return (
+    <button 
+      onClick={handleDownloadPDF} 
+      disabled={downloading} 
+      className="w-full h-10 rounded-xl font-mono text-[10px] font-extrabold flex items-center justify-center gap-2 border border-border hover:bg-[var(--elevated)] hover:border-border-visible transition-colors cursor-pointer disabled:opacity-50"
+    >
+      {downloading ? (
+        <>
+          <RefreshCw size={12} className="animate-spin text-txt-3" />
+          Génération Courrier...
+        </>
+      ) : (
+        <>
+          <Download size={13} className="text-txt-3" />
+          <span>Télécharger courrier de réponse (PDF)</span>
+        </>
+      )}
+    </button>
+  );
 }
 
 function DecisionEngineCard({
@@ -2128,127 +2313,26 @@ function DecisionEngineCard({
               </div>
             </div>
 
-            {/* List of evaluated decision rules with glowing checklist */}
-            {decision.rulesApplied.length > 0 && (
-              <div className="space-y-2 bg-[var(--elevated)]/20 p-3.5 rounded-2xl border border-border/80 shadow-sm">
-                <div className="font-mono text-[8px] text-txt-3 uppercase tracking-wider font-extrabold">Filtres réglementaires appliqués :</div>
-                <div className="space-y-1.5">
-                  {decision.rulesApplied.map((r: string) => (
-                    <div 
-                      key={r} 
-                      className="flex items-start gap-2.5 p-2 bg-[var(--elevated)]/80 border border-border rounded-xl text-[11px] font-medium transition-colors hover:border-indigo-500/20"
-                    >
-                      <span className="text-emerald-400 font-extrabold text-xs flex-shrink-0 mt-0.5">✓</span>
-                      <span className="text-txt-2 font-mono text-[10px]">{r}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <DecisionRulesApplied rulesApplied={decision.rulesApplied} />
 
-            {/* Metadata and Ambiguity Warnings */}
-            <div className="p-3 bg-[var(--elevated)]/30 border border-border rounded-xl space-y-2 text-[10px] font-mono text-txt-3">
-              <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
-                <span>Source d'évaluation</span>
-                <span className="text-txt-2 font-semibold">
-                  {getDecisionSourceLabel(decision.source)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
-                <span>État de la décision</span>
-                <span className="text-txt-2 font-semibold">{decision.cached ? '📦 Restitution Cache' : '🆕 Nouvelle exécution'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Ambiguïté sémantique</span>
-                {decision.ambiguous ? (
-                  <span className="text-rose-400 font-bold bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 flex items-center gap-1">
-                    <ShieldAlert size={10} /> Vérification requise
-                  </span>
-                ) : (
-                  <span className="text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 flex items-center gap-1">
-                    <CheckCircle2 size={10} /> Évaluation fiable
-                  </span>
-                )}
-              </div>
-            </div>
+            <DecisionDetailsBox source={decision.source} cached={decision.cached} ambiguous={decision.ambiguous} />
 
-            {/* Interactive operator decision control actions */}
-            {!decision.finalDecision && ticket.statut !== 'FERME' && ticket.statut !== 'RESOLU' && (
-              <div className="space-y-3.5 border-t border-border pt-4 mt-2">
-                <div className="space-y-1.5">
-                  <label htmlFor="ticket-decision-motif" className="font-mono text-[9px] text-txt-2 uppercase tracking-wide block font-extrabold">
-                    Justification requise (motif) *
-                  </label>
-                  <textarea
-                    id="ticket-decision-motif"
-                    className="aurora-input text-[11px] w-full h-[65px] resize-none rounded-xl py-2.5 px-3.5 focus:border-indigo-500/60"
-                    placeholder="Saisissez obligatoirement le motif qualifiant pour acter cette décision..."
-                    value={motif}
-                    onChange={(e) => setMotif(e.target.value)}
-                  />
-                </div>
-                
-                <div className="flex gap-3">
-                  <button 
-                    onClick={handleAccept} 
-                    disabled={accepting || !motif.trim()} 
-                    className="btn-premium-accept flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {accepting ? '...' : (
-                      <span>✓ Accepter</span>
-                    )}
-                  </button>
-                  <button 
-                    onClick={handleReject} 
-                    disabled={rejecting || !motif.trim()} 
-                    className="btn-premium-reject flex-1 h-10 rounded-xl font-mono text-[10px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {rejecting ? '...' : (
-                      <span>✕ Rejeter</span>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
+            <DecisionOperatorActions
+              ticketStatut={ticket.statut}
+              motif={motif}
+              setMotif={setMotif}
+              accepting={accepting}
+              rejecting={rejecting}
+              handleAccept={handleAccept}
+              handleReject={handleReject}
+            />
 
-            {/* Locked Final Decision Box */}
             {decision.finalDecision && (
-              <div className={`p-4 rounded-xl border text-center text-xs font-extrabold shadow-sm bg-[var(--elevated)] ${
-                decision.finalDecision === 'FAVORABLE' 
-                  ? 'text-emerald-400 border-emerald-500/25 bg-emerald-500/[0.01]' 
-                  : 'text-rose-400 border-rose-500/25 bg-rose-500/[0.01]'
-              }`}>
-                <div className="font-mono text-[8px] text-txt-3 uppercase block mb-1">Arbitrage définitif :</div>
-                <span className="text-sm tracking-wide">
-                  {decision.finalDecision === 'FAVORABLE' ? '🟢 FAVORABLE' : '🔴 DEFAVORABLE'}
-                </span>
-                {decision.overrideMotif && (
-                  <div className="mt-2 text-[10px] text-txt-2 font-mono font-medium max-w-[280px] mx-auto leading-relaxed border-t border-border/40 pt-2">
-                    "{decision.overrideMotif}"
-                  </div>
-                )}
-              </div>
+              <DecisionFinalBox finalDecision={decision.finalDecision} overrideMotif={decision.overrideMotif} />
             )}
 
-            {/* Mail/PDF generator action button */}
             {decision.finalDecision && (
-              <button 
-                onClick={handleDownloadPDF} 
-                disabled={downloading} 
-                className="w-full h-10 rounded-xl font-mono text-[10px] font-extrabold flex items-center justify-center gap-2 border border-border hover:bg-[var(--elevated)] hover:border-border-visible transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {downloading ? (
-                  <>
-                    <RefreshCw size={12} className="animate-spin text-txt-3" />
-                    Génération Courrier...
-                  </>
-                ) : (
-                  <>
-                    <Download size={13} className="text-txt-3" />
-                    <span>Télécharger courrier de réponse (PDF)</span>
-                  </>
-                )}
-              </button>
+              <DecisionDownloadButton downloading={downloading} handleDownloadPDF={handleDownloadPDF} />
             )}
           </div>
         ) : (

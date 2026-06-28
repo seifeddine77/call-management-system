@@ -234,7 +234,7 @@ async function fetchUsersData(
   setLoading(true);
   setError(null);
   try {
-    const data = await userService.getUsers({ role: roleFilter !== 'ALL' ? roleFilter : undefined });
+    const data = await userService.getUsers({ role: roleFilter === 'ALL' ? undefined : roleFilter });
     setUsers(data);
   } catch (err: unknown) {
     setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -489,6 +489,31 @@ export default function UsersPage() {
     { label: 'Temps plein +', value: 'Lundi-Vendredi 08:00-17:00, Samedi 09:00-13:00' },
   ];
 
+  const renderUsersList = () => {
+    if (loading) {
+      return (
+        <div className="p-5 space-y-3">
+          {Array.from({ length: 4 }, (_, idx) => `skel-user-${idx}`).map((key) => (
+            <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      );
+    }
+    if (filteredUsers.length === 0) {
+      return <EmptyState icon="user" title="Aucun collaborateur" subtitle="Aucun utilisateur ne correspond à ce filtre." />;
+    }
+    return pagedUsers.map((u) => (
+      <UserRow
+        key={u.id}
+        u={u}
+        rb={roleBadge(u.role)}
+        initials={`${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase()}
+        isSelected={selectedUser?.id === u.id}
+        onSelect={() => setSelectedUser(u)}
+      />
+    ));
+  };
+
   if (error) return <ErrorState message={error} onRetry={fetchUsers} />;
 
   return (
@@ -575,26 +600,7 @@ export default function UsersPage() {
 
           <div className="divide-y divide-border/60">
             <AnimatePresence mode="popLayout">
-              {loading ? (
-                <div className="p-5 space-y-3">
-                  {Array.from({ length: 4 }, (_, idx) => `skel-user-${idx}`).map((key) => (
-                    <div key={key} className="h-16 bg-[var(--muted)]/40 border border-border/40 rounded-2xl animate-pulse" />
-                  ))}
-                </div>
-              ) : filteredUsers.length === 0 ? (
-                <EmptyState icon="user" title="Aucun collaborateur" subtitle="Aucun utilisateur ne correspond à ce filtre." />
-              ) : (
-                pagedUsers.map((u) => (
-                  <UserRow
-                    key={u.id}
-                    u={u}
-                    rb={roleBadge(u.role)}
-                    initials={`${(u.prenom || '')[0] || ''}${(u.nom || '')[0] || ''}`.toUpperCase()}
-                    isSelected={selectedUser?.id === u.id}
-                    onSelect={() => setSelectedUser(u)}
-                  />
-                ))
-              )}
+              {renderUsersList()}
             </AnimatePresence>
           </div>
 
@@ -716,6 +722,13 @@ function UserFormModal({
   onClose,
   onSubmit,
 }: Readonly<UserFormModalProps>) {
+  let submitLabel = 'Enregistrer';
+  if (saving) {
+    submitLabel = 'Sauvegarde...';
+  } else if (showCreate) {
+    submitLabel = 'Créer le compte';
+  }
+
   return (
     <Modal open={open} onClose={onClose} title={showCreate ? 'Création de Compte Collaborateur' : 'Modification du Compte Collaborateur'}>
       <div className="space-y-4 pt-1">
@@ -806,7 +819,7 @@ function UserFormModal({
             disabled={saving} 
             className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:pointer-events-none"
           >
-            {saving ? 'Sauvegarde...' : (showCreate ? 'Créer le compte' : 'Enregistrer')}
+            {submitLabel}
           </motion.button>
         </div>
       </div>

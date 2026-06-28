@@ -465,7 +465,7 @@ class TicketServiceImplTest {
                     .thenReturn(List.of());
 
             assertThat(ticketService.getDailyTicketCounts(
-                    LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30))).isEmpty();
+                    LocalDate.of(2026, java.time.Month.JUNE, 1), LocalDate.of(2026, java.time.Month.JUNE, 30))).isEmpty();
         }
     }
 

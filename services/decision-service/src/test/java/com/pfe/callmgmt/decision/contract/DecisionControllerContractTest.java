@@ -56,9 +56,7 @@ class DecisionControllerContractTest {
         @MockBean
         private LetterGenerationService letterService;
 
-        // ──────────────────────────────────────
-        // POST /api/decisions/analyze
-        // ──────────────────────────────────────
+        // Endpoint: POST /api/decisions/analyze
 
         @Nested
         @DisplayName("POST /api/decisions/analyze")
@@ -165,9 +163,7 @@ class DecisionControllerContractTest {
                 }
         }
 
-        // ──────────────────────────────────────
-        // POST /api/decisions/{id}/accept
-        // ──────────────────────────────────────
+        // Endpoint: POST /api/decisions/{id}/accept
 
         @Nested
         @DisplayName("POST /api/decisions/{id}/accept")
@@ -252,9 +248,7 @@ class DecisionControllerContractTest {
                 }
         }
 
-        // ──────────────────────────────────────
-        // POST /api/decisions/{id}/reject
-        // ──────────────────────────────────────
+        // Endpoint: POST /api/decisions/{id}/reject
 
         @Nested
         @DisplayName("POST /api/decisions/{id}/reject")
@@ -285,9 +279,7 @@ class DecisionControllerContractTest {
                 }
         }
 
-        // ──────────────────────────────────────
-        // GET /api/decisions/ticket/{ticketId}
-        // ──────────────────────────────────────
+        // Endpoint: GET /api/decisions/ticket/{ticketId}
 
         @Nested
         @DisplayName("GET /api/decisions/ticket/{ticketId}")
@@ -325,9 +317,7 @@ class DecisionControllerContractTest {
                 }
         }
 
-        // ──────────────────────────────────────
-        // GET /api/decisions/{id}/letter
-        // ──────────────────────────────────────
+        // Endpoint: GET /api/decisions/{id}/letter
 
         @Nested
         @DisplayName("GET /api/decisions/{id}/letter")
@@ -383,9 +373,7 @@ class DecisionControllerContractTest {
                 }
         }
 
-        // ──────────────────────────────────────
-        // GET /api/decisions/health
-        // ──────────────────────────────────────
+        // Endpoint: GET /api/decisions/health
 
         @Test
         @DisplayName("GET /health — retourne 200 OK")

@@ -111,10 +111,10 @@ public class ReferenceItemController {
         ReferenceItem item = repository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(MSG_ITEM_NOT_FOUND + id));
 
-        item.setActif(!item.getActif());
+        item.setActif(!Boolean.TRUE.equals(item.getActif()));
         item = repository.save(item);
         log.info("🔄 Référence {} / {} → {}", item.getCategory(), item.getCode(),
-                item.getActif() ? "ACTIVÉE" : "DÉSACTIVÉE");
+                Boolean.TRUE.equals(item.getActif()) ? "ACTIVÉE" : "DÉSACTIVÉE");
         return ResponseEntity.ok(item);
     }
 
