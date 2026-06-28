@@ -12,6 +12,7 @@ import { ticketService } from '../services/ticketService';
 import { KpiSkeleton, TableSkeleton, ErrorState, EmptyState } from '../components/ui/States';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import { useAuth } from '../contexts/AuthContext';
+import { formatTempsMoyenStr } from '../utils/formatUtils';
 import type { KpiResponse, HourlyData, OperatorPerformance, SupervisionAlert } from '../types/analytics';
 import type { Ticket, Canal } from '../types/ticket';
 
@@ -228,7 +229,7 @@ export default function DashboardPage() {
   let aiInsight: string | null = null;
   if (kpis) {
     const perf = getPerformanceLabel(kpis.tauxResolution);
-    aiInsight = `${kpis.totalTickets.toLocaleString('fr-FR')} tickets traités · ${kpis.tauxResolution.toFixed(1)}% résolution · ${kpis.tempsMoyenMinutes.toFixed(0)}min temps moyen · Performance ${perf}`;
+    aiInsight = `${kpis.totalTickets.toLocaleString('fr-FR')} tickets traités · ${kpis.tauxResolution.toFixed(1)}% résolution · ${formatTempsMoyenStr(kpis.tempsMoyenMinutes)} temps moyen · Performance ${perf}`;
   }
 
   const hour = new Date().getHours();
@@ -364,7 +365,13 @@ export default function DashboardPage() {
                   <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">Temps moyen</span>
                 </div>
               </div>
-              <AnimatedCounter value={kpis.tempsMoyenMinutes} suffix="min" className="text-2xl font-extrabold tracking-tighter" />
+              {kpis.tempsMoyenMinutes < 60 ? (
+                <AnimatedCounter value={kpis.tempsMoyenMinutes} suffix="min" className="text-2xl font-extrabold tracking-tighter" />
+              ) : (
+                <span className="text-2xl font-extrabold tracking-tighter">
+                  {formatTempsMoyenStr(kpis.tempsMoyenMinutes)}
+                </span>
+              )}
               {kpis.tempsMoyenMinutes > 0 && kpis.tempsMoyenMinutes < 15 ? (
                 <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono mt-2 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-fit">
                   <TrendingDown size={11} /> {Math.round(((15 - kpis.tempsMoyenMinutes) / 15) * 100)}% vs manuel

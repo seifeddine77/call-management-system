@@ -6,38 +6,7 @@ import Logo from '../components/ui/Logo';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, MotionValue } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Mail, Lock, Eye, EyeOff, Sun, Moon, Shield, Brain, Mic, Headphones, BarChart3, Activity, Car, Check, AlertCircle } from 'lucide-react';
-
-function useTyping(texts: string[], speed = 50, pause = 3000) {
-  const [display, setDisplay] = useState('');
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    let i = 0, del = false, t: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      const full = texts[idx];
-      if (del) {
-        setDisplay(full.slice(0, --i));
-        if (i === 0) {
-          del = false;
-          setIdx(p => (p + 1) % texts.length);
-          return;
-        }
-      } else {
-        setDisplay(full.slice(0, ++i));
-        if (i === full.length) {
-          t = setTimeout(() => {
-            del = true;
-            tick();
-          }, pause);
-          return;
-        }
-      }
-      t = setTimeout(tick, del ? 20 : speed);
-    };
-    t = setTimeout(tick, 500);
-    return () => clearTimeout(t);
-  }, [idx, texts, speed, pause]);
-  return display;
-}
+import { extractErrorMessage } from '../utils/errorUtils';
 
 function useParallax() {
   const mx = useMotionValue(0), my = useMotionValue(0);
@@ -491,7 +460,6 @@ function LoginFormHeader({ isDark, tagline }: Readonly<LoginFormHeaderProps>) {
       <h1 className="text-2xl font-black tracking-tighter" style={{ color:isDark?'#f1f5f9':'#0f172a' }}>Bon retour<span style={{ color:'#2563eb' }}>.</span></h1>
       <div className="h-5 flex items-center mt-1.5">
         <span className="text-sm" style={{ color:'#94a3b8' }}>{tagline}</span>
-        <span className="inline-block w-[2px] h-3.5 ml-0.5" style={{ background:'#2563eb',animation:'loginCursorBlink 0.8s infinite' }}/>
       </div>
     </motion.div>
   );
@@ -507,7 +475,7 @@ function useLoginState() {
   const [focused, setFocused] = useState<string | null>(null);
   const isDark = theme === 'dark';
   const { sx, sy } = useParallax();
-  const tagline = useTyping(['Gestion intelligente des réclamations auto','IA & Analyse vocale en temps réel','Centre d\'appels nouvelle génération']);
+  const tagline = 'Gestion intelligente des réclamations auto';
 
   // Real-time touched tracking & validation
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -592,9 +560,9 @@ function useLoginState() {
       toast.success('Connexion réussie !'); 
     }
     catch (err: unknown) { 
-      const msg = err instanceof Error ? err.message : 'Identifiants invalides';
+      const msg = extractErrorMessage(err, 'Email ou mot de passe incorrect');
       setAuthError(msg);
-      toast.error('Email ou mot de passe incorrect'); 
+      toast.error(msg); 
     }
     finally { setLoading(false); }
   };
@@ -786,7 +754,7 @@ export default function LoginPage() {
             </motion.div>
           </motion.form>
           <motion.div variants={pop} className="mt-5 flex items-center justify-center gap-2">
-            <Shield size={11} color="#64748b"/><span className="font-mono text-[9px]" style={{color:'#64748b'}}>AES-256 · JWT · AURORA v2.0</span>
+            <Shield size={11} color="#64748b"/><span className="font-mono text-[9px]" style={{color:'#64748b'}}>AES-256 · JWT · AutoAssist v1.0</span>
           </motion.div>
         </motion.div>
       </div>

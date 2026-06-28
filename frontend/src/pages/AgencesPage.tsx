@@ -17,6 +17,7 @@ import Modal from '../components/ui/Modal';
 import { ErrorState, EmptyState } from '../components/ui/States';
 import type { Agence, AgenceRequest } from '../types/agence';
 import type { User as UserType } from '../types/user';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface FormErrors { nom?: string; email?: string; }
 
@@ -106,8 +107,11 @@ export default function AgencesPage() {
       setForm({ nom: '', adresse: '', telephone: '', email: '', responsableId: '', stockDescription: '' });
       setFormErrors({});
       toast.success('🏢 Nouvelle agence enregistrée avec succès !');
-    } catch { toast.error('Erreur lors de la création'); }
-    finally { setSaving(false); }
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Erreur lors de la création'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdate = async () => {
@@ -126,8 +130,11 @@ export default function AgencesPage() {
       setEditingId(null);
       setFormErrors({});
       toast.success('🏢 Agence mise à jour avec succès');
-    } catch { toast.error('Erreur lors de la modification'); }
-    finally { setSaving(false); }
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Erreur lors de la modification'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -137,8 +144,9 @@ export default function AgencesPage() {
       await agenceService.deleteAgence(deleteTarget.id);
       setAgences(prev => prev.filter(a => a.id !== deleteTarget.id));
       toast.success('🔒 Agence archivée avec succès');
-    } catch { toast.error('Erreur lors de la suppression'); }
-    finally {
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Erreur lors de la suppression'));
+    } finally {
       setDeleting(false);
       setDeleteTarget(null);
     }

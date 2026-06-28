@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 // ── Notification items defined outside component (no hooks inside map) ──
 const NOTIFICATION_ITEMS = [
@@ -94,8 +95,8 @@ export default function SettingsPage() {
       });
 
       toast.success('🎉 Profil personnel mis à jour avec succès !');
-    } catch {
-      toast.error('Erreur lors de la mise à jour du profil');
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Erreur lors de la mise à jour du profil'));
     } finally {
       setSaving(false);
     }
@@ -119,8 +120,8 @@ export default function SettingsPage() {
       });
       toast.success('🔒 Mot de passe modifié avec succès !');
       setPasswords({ current: '', newPassword: '', confirm: '' });
-    } catch {
-      toast.error('Erreur lors du changement de mot de passe');
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Erreur lors du changement de mot de passe'));
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,7 @@ import { chatbotService } from '../services/chatbotService';
 import type { ChatbotStats } from '../services/chatbotService';
 import { KpiSkeleton, ErrorState } from '../components/ui/States';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
+import { formatTempsMoyenStr } from '../utils/formatUtils';
 import type { KpiResponse, KpiComparison, DailyStat, OperatorPerformance, SupervisionAlert } from '../types/analytics';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
@@ -98,6 +99,7 @@ function KpiCardsGrid({ kpis, comparison, totalDecisions, scoreMoyen, scoreTrend
     {
       label: 'Temps moyen',
       value: kpis.tempsMoyenMinutes,
+      formattedValue: kpis.tempsMoyenMinutes >= 60 ? formatTempsMoyenStr(kpis.tempsMoyenMinutes) : undefined,
       suffix: 'min',
       icon: <Clock size={14} />,
       trend: comparison.deltaTempsMoyen === 0 ? undefined : formatPercent(comparison.deltaTempsMoyen),
@@ -132,7 +134,11 @@ function KpiCardsGrid({ kpis, comparison, totalDecisions, scoreMoyen, scoreTrend
               <span className="font-mono text-[9px] text-[var(--text-3)] tracking-wider uppercase">{kpi.label}</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <AnimatedCounter value={kpi.value} suffix={kpi.suffix} decimals={kpi.decimals} className="text-xl font-extrabold tracking-tighter" />
+              {kpi.formattedValue ? (
+                <span className="text-xl font-extrabold tracking-tighter">{kpi.formattedValue}</span>
+              ) : (
+                <AnimatedCounter value={kpi.value} suffix={kpi.suffix} decimals={kpi.decimals} className="text-xl font-extrabold tracking-tighter" />
+              )}
               <KpiTrend trendUp={kpi.trendUp} trend={kpi.trend} />
             </div>
             {kpi.subtitle && (

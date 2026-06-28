@@ -1181,6 +1181,17 @@ function useTicketDetailsState() {
 
     setAnalyzing(true);
     try {
+      // Auto-assignation du ticket au conseiller actuel s'il n'est pas déjà assigné
+      if (ticket && !ticket.operateurId && user?.userId) {
+        try {
+          const updatedTicket = await ticketService.assignTicket(id, user.userId);
+          setTicket(updatedTicket);
+          toast.success("📥 Ticket auto-assigné à votre nom (Statut → En cours)");
+        } catch (assignErr) {
+          console.error("Auto-assignment failed:", assignErr);
+        }
+      }
+
       if (forceReanalyze && decision) {
         try { await decisionService.deleteByTicket(id); } catch { /* ignore */ }
         setDecision(null);

@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import { ErrorState, EmptyState } from '../components/ui/States';
 import type { User, UserRequest } from '../types/user';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface FormErrors { prenom?: string; nom?: string; email?: string; password?: string; agenceId?: string; }
 interface AgenceOption { id: string; nom: string; }
@@ -260,8 +261,8 @@ async function createUserProfile(
     setForm({ nom: '', prenom: '', email: '', password: '', role: 'OPERATEUR', agenceId: '', telephone: '', planning: '' });
     setFormErrors({});
     toast.success('🎉 Utilisateur créé et invité avec succès !');
-  } catch {
-    toast.error('Erreur lors de la création');
+  } catch (err: unknown) {
+    toast.error(extractErrorMessage(err, 'Erreur lors de la création'));
   } finally {
     setSaving(false);
   }
@@ -298,8 +299,8 @@ async function updateUserProfile(params: UpdateUserProfileParams) {
     setShowEdit(false);
     setFormErrors({});
     toast.success('👤 Utilisateur mis à jour !');
-  } catch {
-    toast.error('Erreur lors de la modification');
+  } catch (err: unknown) {
+    toast.error(extractErrorMessage(err, 'Erreur lors de la modification'));
   } finally {
     setSaving(false);
   }
@@ -319,8 +320,8 @@ async function deleteUserProfile(
     setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
     if (selectedUserId === deleteTarget.id) setSelectedUser(null);
     toast.success('🔒 Utilisateur désactivé avec succès');
-  } catch {
-    toast.error('Erreur lors de la suppression');
+  } catch (err: unknown) {
+    toast.error(extractErrorMessage(err, 'Erreur lors de la suppression'));
   } finally {
     setDeleting(false);
     setDeleteTarget(null);
