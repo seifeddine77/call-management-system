@@ -661,138 +661,204 @@ export default function UsersPage() {
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} title={showCreate ? 'Création de Compte Collaborateur' : 'Modification du Compte Collaborateur'}>
-        <div className="space-y-4 pt-1">
-          <div className="grid grid-cols-2 gap-3.5">
-            <div>
-              <label htmlFor="user-prenom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Prénom *</label>
-              <input id="user-prenom" className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
-              {formErrors.prenom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.prenom}</span>}
-            </div>
-            <div>
-              <label htmlFor="user-nom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Nom *</label>
-              <input id="user-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
-              {formErrors.nom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.nom}</span>}
-            </div>
-          </div>
-          <div>
-            <label htmlFor="user-email" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Email de connexion *</label>
-            <input id="user-email" className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
-            {formErrors.email && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.email}</span>}
-          </div>
-          {(showCreate || showEdit) && (
-            <div>
-              <label htmlFor="user-password" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">{showCreate ? 'Mot de passe initial *' : 'Nouveau mot de passe (optionnel)'}</label>
-              <input id="user-password" className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
-              {formErrors.password && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.password}</span>}
-            </div>
-          )}
-          
-          <div className="grid grid-cols-2 gap-3.5">
-            <div>
-              <label htmlFor="user-role" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Rôle d'accès</label>
-              <select id="user-role" className="aurora-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN' }))}>
-                <option value="OPERATEUR">Opérateur</option>
-                <option value="SUPERVISEUR">Superviseur d'agence</option>
-                <option value="ADMIN">Administrateur</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="user-telephone" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">N° Téléphone</label>
-              <input id="user-telephone" className="aurora-input" placeholder="Ex: 06 12 34 56 78" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} />
-            </div>
-          </div>
-
-          {/* CDC 1.A — Agence (obligatoire pour OPERATEUR/SUPERVISEUR) */}
-          <div>
-            <label htmlFor="user-agenceId" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
-              Agence de rattachement {(form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && <span className="text-rose-400">*</span>}
-            </label>
-            <select id="user-agenceId" className={`aurora-select ${formErrors.agenceId ? 'border-rose-500/60' : ''}`} value={form.agenceId || ''} onChange={e => { setForm(p => ({ ...p, agenceId: e.target.value })); setFormErrors(e2 => ({ ...e2, agenceId: undefined })); }}>
-              <option value="">-- Aucune agence --</option>
-              {agenceOptions.map(a => (
-                <option key={a.id} value={a.id}>{a.nom}</option>
-              ))}
-            </select>
-            {formErrors.agenceId && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.agenceId}</span>}
-          </div>
-
-          {/* Planning weekly presets */}
-          <div>
-            <span className="field-label block flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
-              <CalendarDays size={12} className="text-indigo-400" /> Définition du planning
-            </span>
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {planningPresets.map(p => (
-                <button 
-                  key={p.label} 
-                  type="button" 
-                  onClick={() => setForm(f => ({ ...f, planning: p.value }))} 
-                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border cursor-pointer transition-colors
-                    ${form.planning === p.value 
-                      ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
-                      : 'text-txt-3 border-border hover:border-indigo-500/20 hover:text-txt'
-                    }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <input className="aurora-input font-mono text-xs" placeholder="Ex: Lundi-Vendredi 08:00-17:00" value={form.planning || ''} onChange={e => setForm(p => ({ ...p, planning: e.target.value }))} />
-          </div>
-
-          <div className="flex justify-end gap-2.5 pt-4.5 border-t border-border mt-3">
-            <button onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} className="btn-ghost h-9 px-4 rounded-xl text-xs cursor-pointer font-bold">
-              Annuler
-            </button>
-            <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={showCreate ? handleCreate : handleUpdate} 
-              disabled={saving} 
-              className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {(() => {
-                if (saving) return 'Sauvegarde...';
-                return showCreate ? 'Créer le compte' : 'Enregistrer';
-              })()}
-            </motion.button>
-          </div>
-        </div>
-      </Modal>
+      <UserFormModal
+        open={showCreate || showEdit}
+        showCreate={showCreate}
+        showEdit={showEdit}
+        form={form}
+        formErrors={formErrors}
+        setForm={setForm}
+        setFormErrors={setFormErrors}
+        saving={saving}
+        agenceOptions={agenceOptions}
+        planningPresets={planningPresets}
+        onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }}
+        onSubmit={showCreate ? handleCreate : handleUpdate}
+      />
 
       {/* Delete/Deactivate Confirmation Modal */}
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Désactivation du Compte" size="sm">
-        <div className="text-center space-y-4 py-2">
-          <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center bg-rose-500/10 border border-rose-500/20 shadow-sm animate-bounce">
-            <AlertTriangle size={24} className="text-rose-400" />
-          </div>
-          
-          <div className="space-y-1">
-            <p className="text-sm font-bold text-txt">Confirmer la désactivation ?</p>
-            <p className="text-xs text-txt-3 font-semibold font-mono text-rose-400 bg-rose-500/5 py-1 px-2.5 border border-rose-500/10 rounded-xl max-w-[280px] mx-auto truncate">
-              {deleteTarget?.prenom} {deleteTarget?.nom}
-            </p>
-          </div>
-          
-          <p className="text-[11px] text-txt-3 max-w-[300px] mx-auto leading-relaxed">
-            Cette mesure de sécurité bloquera l'accès à ce compte et l'exclura des plannings de support. Vous pourrez le réactiver dans l'administration de la base.
-          </p>
-
-          <div className="flex gap-2.5 pt-2">
-            <button onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1 h-10 rounded-xl text-xs cursor-pointer font-bold border border-border">
-              Annuler
-            </button>
-            <button 
-              onClick={handleDeleteConfirm} 
-              disabled={deleting} 
-              className="flex-1 h-10 rounded-xl text-xs font-bold cursor-pointer bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all disabled:opacity-50"
-            >
-              {deleting ? 'Désactivation...' : 'Désactiver'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <DeactivateUserModal
+        deleteTarget={deleteTarget}
+        deleting={deleting}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
+
+interface UserFormModalProps {
+  open: boolean;
+  showCreate: boolean;
+  showEdit: boolean;
+  form: UserRequest;
+  formErrors: FormErrors;
+  setForm: React.Dispatch<React.SetStateAction<UserRequest>>;
+  setFormErrors: React.Dispatch<React.SetStateAction<FormErrors>>;
+  saving: boolean;
+  agenceOptions: AgenceOption[];
+  planningPresets: Array<{ label: string; value: string }>;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+function UserFormModal({
+  open,
+  showCreate,
+  showEdit,
+  form,
+  formErrors,
+  setForm,
+  setFormErrors,
+  saving,
+  agenceOptions,
+  planningPresets,
+  onClose,
+  onSubmit,
+}: Readonly<UserFormModalProps>) {
+  return (
+    <Modal open={open} onClose={onClose} title={showCreate ? 'Création de Compte Collaborateur' : 'Modification du Compte Collaborateur'}>
+      <div className="space-y-4 pt-1">
+        <div className="grid grid-cols-2 gap-3.5">
+          <div>
+            <label htmlFor="user-prenom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Prénom *</label>
+            <input id="user-prenom" className={`aurora-input ${formErrors.prenom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.prenom} onChange={e => { setForm(p => ({ ...p, prenom: e.target.value })); setFormErrors(e2 => ({ ...e2, prenom: undefined })); }} />
+            {formErrors.prenom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.prenom}</span>}
+          </div>
+          <div>
+            <label htmlFor="user-nom" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Nom *</label>
+            <input id="user-nom" className={`aurora-input ${formErrors.nom ? 'border-rose-500/60 shadow-[0_0_10px_rgba(239,68,68,0.05)]' : ''}`} value={form.nom} onChange={e => { setForm(p => ({ ...p, nom: e.target.value })); setFormErrors(e2 => ({ ...e2, nom: undefined })); }} />
+            {formErrors.nom && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.nom}</span>}
+          </div>
+        </div>
+        <div>
+          <label htmlFor="user-email" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Email de connexion *</label>
+          <input id="user-email" className={`aurora-input ${formErrors.email ? 'border-rose-500/60' : ''}`} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setFormErrors(e2 => ({ ...e2, email: undefined })); }} />
+          {formErrors.email && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.email}</span>}
+        </div>
+        {(showCreate || showEdit) && (
+          <div>
+            <label htmlFor="user-password" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">{showCreate ? 'Mot de passe initial *' : 'Nouveau mot de passe (optionnel)'}</label>
+            <input id="user-password" className={`aurora-input ${formErrors.password ? 'border-rose-500/60' : ''}`} type="password" placeholder={showEdit ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'} value={form.password} onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setFormErrors(e2 => ({ ...e2, password: undefined })); }} />
+            {formErrors.password && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.password}</span>}
+          </div>
+        )}
+        
+        <div className="grid grid-cols-2 gap-3.5">
+          <div>
+            <label htmlFor="user-role" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">Rôle d'accès</label>
+            <select id="user-role" className="aurora-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value as 'OPERATEUR' | 'SUPERVISEUR' | 'ADMIN' }))}>
+              <option value="OPERATEUR">Opérateur</option>
+              <option value="SUPERVISEUR">Superviseur d'agence</option>
+              <option value="ADMIN">Administrateur</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="user-telephone" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">N° Téléphone</label>
+            <input id="user-telephone" className="aurora-input" placeholder="Ex: 06 12 34 56 78" value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="user-agenceId" className="field-label block font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+            Agence de rattachement {(form.role === 'OPERATEUR' || form.role === 'SUPERVISEUR') && <span className="text-rose-400">*</span>}
+          </label>
+          <select id="user-agenceId" className={`aurora-select ${formErrors.agenceId ? 'border-rose-500/60' : ''}`} value={form.agenceId || ''} onChange={e => { setForm(p => ({ ...p, agenceId: e.target.value })); setFormErrors(e2 => ({ ...e2, agenceId: undefined })); }}>
+            <option value="">-- Aucune agence --</option>
+            {agenceOptions.map(a => (
+              <option key={a.id} value={a.id}>{a.nom}</option>
+            ))}
+          </select>
+          {formErrors.agenceId && <span className="text-rose-400 text-[10px] mt-1 block font-semibold">⚠️ {formErrors.agenceId}</span>}
+        </div>
+
+        <div>
+          <span className="field-label block flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider mb-1 text-txt-3">
+            <CalendarDays size={12} className="text-indigo-400" /> Définition du planning
+          </span>
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            {planningPresets.map(p => (
+              <button 
+                key={p.label} 
+                type="button" 
+                onClick={() => setForm(f => ({ ...f, planning: p.value }))} 
+                className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border cursor-pointer transition-colors
+                  ${form.planning === p.value 
+                    ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
+                    : 'text-txt-3 border-border hover:border-indigo-500/20 hover:text-txt'
+                  }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <input className="aurora-input font-mono text-xs" placeholder="Ex: Lundi-Vendredi 08:00-17:00" value={form.planning || ''} onChange={e => setForm(p => ({ ...p, planning: e.target.value }))} />
+        </div>
+
+        <div className="flex justify-end gap-2.5 pt-4.5 border-t border-border mt-3">
+          <button onClick={onClose} className="btn-ghost h-9 px-4 rounded-xl text-xs cursor-pointer font-bold">
+            Annuler
+          </button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onSubmit} 
+            disabled={saving} 
+            className="btn-cta h-9 px-5 rounded-xl text-xs text-white cursor-pointer font-bold bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {saving ? 'Sauvegarde...' : (showCreate ? 'Créer le compte' : 'Enregistrer')}
+          </motion.button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface DeactivateUserModalProps {
+  deleteTarget: User | null;
+  deleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function DeactivateUserModal({
+  deleteTarget,
+  deleting,
+  onClose,
+  onConfirm,
+}: Readonly<DeactivateUserModalProps>) {
+  return (
+    <Modal open={!!deleteTarget} onClose={onClose} title="Désactivation du Compte" size="sm">
+      <div className="text-center space-y-4 py-2">
+        <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center bg-rose-500/10 border border-rose-500/20 shadow-sm animate-bounce">
+          <AlertTriangle size={24} className="text-rose-400" />
+        </div>
+        
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-txt">Confirmer la désactivation ?</p>
+          <p className="text-xs text-txt-3 font-semibold font-mono text-rose-400 bg-rose-500/5 py-1 px-2.5 border border-rose-500/10 rounded-xl max-w-[280px] mx-auto truncate">
+            {deleteTarget?.prenom} {deleteTarget?.nom}
+          </p>
+        </div>
+        
+        <p className="text-[11px] text-txt-3 max-w-[300px] mx-auto leading-relaxed">
+          Cette mesure de sécurité bloquera l'accès à ce compte et l'exclura des plannings de support. Vous pourrez le réactiver dans l'administration de la base.
+        </p>
+
+        <div className="flex gap-2.5 pt-2">
+          <button onClick={onClose} className="btn-ghost flex-1 h-10 rounded-xl text-xs cursor-pointer font-bold border border-border">
+            Annuler
+          </button>
+          <button 
+            onClick={onConfirm} 
+            disabled={deleting} 
+            className="flex-1 h-10 rounded-xl text-xs font-bold cursor-pointer bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 transition-all disabled:opacity-50"
+          >
+            {deleting ? 'Désactivation...' : 'Désactiver'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
