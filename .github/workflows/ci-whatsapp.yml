@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # 💬 CI — WhatsApp Service (Node.js + Puppeteer)
 # ============================================================
 name: 💬 CI — WhatsApp Service
@@ -22,7 +22,7 @@ jobs:
         working-directory: services/whatsapp-service
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 📦 Setup Node.js 22
         uses: actions/setup-node@v4

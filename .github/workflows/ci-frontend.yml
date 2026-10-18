@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # ⚛️ CI — Frontend (React 19 + Vite + TypeScript)
 # ============================================================
 name: ⚛️ CI — Frontend
@@ -22,7 +22,7 @@ jobs:
         working-directory: frontend
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 📦 Setup Node.js 22
         uses: actions/setup-node@v4

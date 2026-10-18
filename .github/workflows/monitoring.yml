@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # 📊 Monitoring & Notifications
 # Validates Prometheus config + sends deploy notifications via n8n
 # ============================================================
@@ -16,7 +16,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: 🔍 Validate Prometheus Config
         run: |
