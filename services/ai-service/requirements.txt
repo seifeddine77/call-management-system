@@ -20,7 +20,7 @@ cryptography==42.0.5
 aiofiles==23.2.1
 
 # ── Service Discovery ────────────────────────────────────────────
-py-eureka-client==0.11.12
+py-eureka-client==0.13.3
 
 # ── Testing ───────────────────────────────────────────────────────
 pytest==8.2.0
