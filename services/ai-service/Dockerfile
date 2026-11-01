@@ -3,7 +3,7 @@
 # Root cause of previous failures: pip>=24 breaks pkg_resources
 # Solution: pin pip<24, keep setuptools, install whisper --no-deps
 # ─────────────────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
